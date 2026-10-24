@@ -49,6 +49,10 @@ typedef struct {
 typedef struct {
     const wb_event_t *events;
     int nevents;
+    /* The local clock, when it's set. Without it the advice goes by the forecast's own time. */
+    bool have_clock;
+    int clock_hour;          /* 0..23 */
+    int clock_day_offset;    /* the clock's date minus the forecast's date (0, or more when offline) */
 } advice_opts_t;
 
 /* Does the event happen on this date? wday: 0 = Sunday. */

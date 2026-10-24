@@ -188,11 +188,11 @@ bool event_on(const wb_event_t *e, int year, int month, int day, int wday)
 }
 
 /* One sentence about an event, using the forecast for the hour it starts. */
-static void event_tip(const wx_t *wx, advice_t *a, const wb_event_t *e, int day, bool *gloves)
+static void event_tip(const wx_t *wx, advice_t *a, const wb_event_t *e, int day, int D, bool *gloves)
 {
     char s[96];
     const char *when = day ? "tomorrow" : "today";
-    int h = day * 24 + (e->all_day ? 9 : e->hour);
+    int h = D * 24 + (e->all_day ? 9 : e->hour);
     bool have = e->outside && h < wx->nhours;
     float f = have ? wx_to_f(wx, wx->h_feels[h]) : 0;
     int pop = have ? wx->h_pop[h] : 0;
@@ -237,37 +237,56 @@ void advice_make(const wx_t *wx, const advice_opts_t *opts, advice_t *a)
     }
 
     const int n = wx->nhours;
-    const int day = wx->hour >= 19 ? 1 : 0;
+    /* Go by the real clock, not the time of the last download: offline, the forecast can be hours
+     * or days old, and the 7 PM switch to tomorrow (or midnight) still has to happen. */
+    int hour = wx->hour, base = 0;
+    if (opts && opts->have_clock) {
+        hour = opts->clock_hour;
+        base = opts->clock_day_offset;   /* the clock's date minus the forecast's */
+    }
+    const int day = hour >= 19 ? 1 : 0;  /* 0 = today, 1 = tomorrow, by the clock */
+    const int D = base + day;            /* the forecast day that is */
+    if (base < 0 || D >= wx->ndays || (D + 1) * 24 > n) {
+        snprintf(a->headline, sizeof(a->headline), "Hi there!");
+        snprintf(a->tip, sizeof(a->tip), "Checking the sky...");
+        return;
+    }
     a->tomorrow = day == 1;
+    /* "Now": the download's own readings while they're from this hour, else the forecast for it. */
+    const int now_i = base * 24 + hour < n ? base * 24 + hour : n - 1;
+    const bool live = base == 0 && hour == wx->hour;
+    const float now_temp = live ? wx->temp : wx->h_temp[now_i];
+    const float now_feels = live ? wx->feels : wx->h_feels[now_i];
+    const int now_code = live ? wx->code : wx->h_code[now_i];
 
     /* The hours we care about: from now (or 6 AM) until 8 PM of that day. */
-    int ws = day * 24 + 6;
-    if (day == 0 && wx->now_idx > ws) {
-        ws = wx->now_idx;
+    int ws = D * 24 + 6;
+    if (day == 0 && now_i > ws) {
+        ws = now_i;
     }
-    int we = day * 24 + 20;
+    int we = D * 24 + 20;
     if (we > n) {
         we = n;
     }
     if (ws >= we) {
-        ws = wx->now_idx;
+        ws = now_i;
         we = ws + 6 < n ? ws + 6 : n;
     }
 
     /* The "leaving the house" moment: now, or 8 AM if it's early or tomorrow. */
     int si;
     float t_start, feels_start;
-    if (day == 1 || wx->hour < 6) {
-        si = day * 24 + 8;
+    if (day == 1 || hour < 6) {
+        si = D * 24 + 8;
         if (si >= n) {
             si = n - 1;
         }
         t_start = wx->h_temp[si];
         feels_start = wx->h_feels[si];
     } else {
-        si = wx->now_idx;
-        t_start = wx->temp;
-        feels_start = wx->feels;
+        si = now_i;
+        t_start = now_temp;
+        feels_start = now_feels;
     }
 
     float fmax = -1e9f;
@@ -297,10 +316,10 @@ void advice_make(const wx_t *wx, const advice_opts_t *opts, advice_t *a)
         }
     }
 
-    wx_kind_t now_kind = wx_kind(wx->code);
+    wx_kind_t now_kind = wx_kind(now_code);
     bool raining_now = day == 0 && (now_kind == WXK_RAIN || now_kind == WXK_DRIZZLE || now_kind == WXK_THUNDER);
     bool snowing_now = day == 0 && now_kind == WXK_SNOW;
-    if (raining_now && (wx->code == 65 || wx->code == 82)) {
+    if (raining_now && (now_code == 65 || now_code == 82)) {
         heavy = true;
     }
 
@@ -401,7 +420,7 @@ void advice_make(const wx_t *wx, const advice_opts_t *opts, advice_t *a)
             add_wear(a, WEAR_TSHIRT);
         }
         /* Strong sun */
-        float uv = wx->ndays > day ? wx->days[day].uv : 0;
+        float uv = wx->days[D].uv;
         if (uv >= 6.0f && bi >= 5) {
             add_wear(a, WEAR_SUNGLASSES);
             if (bi == 5) {
@@ -411,7 +430,7 @@ void advice_make(const wx_t *wx, const advice_opts_t *opts, advice_t *a)
         }
         /* Wind */
         float gust_mph = wx->fahrenheit ? wx->gust : wx->gust / 1.609f;
-        if (day == 0 && gust_mph >= 30.0f && strlen(a->tip) < 34) {
+        if (live && gust_mph >= 30.0f && strlen(a->tip) < 34) {
             append(a->tip, sizeof(a->tip), " Super windy too!");
         }
     }
@@ -419,27 +438,27 @@ void advice_make(const wx_t *wx, const advice_opts_t *opts, advice_t *a)
     /* ---- relative: compared with the day before ---- */
     float dtemp = 0;
     bool have_cmp = false;
-    if (day == 0 && wx->has_yday && wx->ndays > 0) {
-        have_cmp = advice_compare(wx, &wx->yday, &wx->days[0], "yesterday", a->compare, sizeof(a->compare), &dtemp);
-    } else if (day == 1 && wx->ndays > 1) {
-        have_cmp = advice_compare(wx, &wx->days[0], &wx->days[1], "today", a->compare, sizeof(a->compare), &dtemp);
+    const wx_day_t *prev = D > 0 ? &wx->days[D - 1] : wx->has_yday ? &wx->yday : NULL;
+    if (prev) {
+        have_cmp = advice_compare(wx, prev, &wx->days[D], day ? "today" : "yesterday", a->compare,
+                                  sizeof(a->compare), &dtemp);
     }
     bool big_drop = have_cmp && dtemp <= -BIG_CHANGE_F;
 
     /* ---- special events (today until 2 hours after they start, or the evening before) ---- */
     bool gloves = false;
-    if (opts && wx->ndays > day) {
-        const wx_day_t *td = &wx->days[day];
+    if (opts) {
+        const wx_day_t *td = &wx->days[D];
         for (int i = 0; i < opts->nevents && a->nevents < ADVICE_MAX_EVENTS; i++) {
             const wb_event_t *e = &opts->events[i];
             if (!e->name[0] || !event_on(e, td->year, td->month, td->day, td->wday)) {
                 continue;
             }
-            if (day == 0 && !e->all_day && wx->hour >= e->hour + 2) {
+            if (day == 0 && !e->all_day && hour >= e->hour + 2) {
                 continue;
             }
             a->nevents++;
-            event_tip(wx, a, e, day, &gloves);
+            event_tip(wx, a, e, day, D, &gloves);
         }
     }
     if (big_drop && !gloves) {

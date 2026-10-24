@@ -433,6 +433,56 @@ static void update_dots(void)
     }
 }
 
+/* Swipes. LVGL's own gesture detection forgets a swipe whenever one touch reading
+ * shows no movement, which slow fingers (and the touch chip's own scan rate) hit
+ * often. So this just compares where the finger went down with where it came up:
+ * 80+ px sideways, mostly horizontal, flips the page. A finger that moved that far
+ * also doesn't count as a tap or a long press. (From Boris's v1.4.0.) */
+#define SWIPE_MIN_PX 80
+#define TAP_SLOP_PX 30
+
+static lv_point_t s_press_at;
+static bool s_swiped;
+
+static int32_t moved_px(lv_indev_t *in, int32_t *dx, int32_t *dy)
+{
+    lv_point_t p;
+    lv_indev_get_point(in, &p);
+    *dx = p.x - s_press_at.x;
+    *dy = p.y - s_press_at.y;
+    return LV_ABS(*dx) > LV_ABS(*dy) ? LV_ABS(*dx) : LV_ABS(*dy);
+}
+
+static void on_indev(lv_event_t *e)
+{
+    lv_indev_t *in = lv_event_get_target(e);
+    lv_event_code_t code = lv_event_get_code(e);
+    int32_t dx, dy;
+    switch (code) {
+    case LV_EVENT_PRESSED:
+        lv_indev_get_point(in, &s_press_at);
+        s_swiped = false;
+        break;
+    case LV_EVENT_RELEASED:
+        moved_px(in, &dx, &dy);
+        if (lv_screen_active() == scr_main && lv_obj_has_flag(settings, LV_OBJ_FLAG_HIDDEN) &&
+            LV_ABS(dx) >= SWIPE_MIN_PX && LV_ABS(dx) > LV_ABS(dy) * 3 / 2) {
+            s_swiped = true;
+            ui_show_page(dx < 0 ? 1 : 0);   /* finger moved left = next days */
+        }
+        break;
+    case LV_EVENT_CLICKED:
+    case LV_EVENT_SHORT_CLICKED:
+    case LV_EVENT_LONG_PRESSED:
+        if (s_swiped || moved_px(in, &dx, &dy) > TAP_SLOP_PX) {
+            lv_indev_stop_processing(in);   /* a swipe, not a tap or a long press */
+        }
+        break;
+    default:
+        break;
+    }
+}
+
 static void on_tile_changed(lv_event_t *e)
 {
     (void)e;
@@ -614,7 +664,9 @@ static void build_main(void)
     lv_obj_add_flag(lbl_time, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(lbl_time, on_long_press, LV_EVENT_LONG_PRESSED, NULL);
 
-    /* swipeable pages */
+    /* Two pages. A swipe flips straight to the other one (on_indev); there's no
+     * dragging, because moving the whole 800x480 picture under a finger is the
+     * slowest thing this chip can draw. */
     tv = lv_tileview_create(scr_main);
     lv_obj_set_pos(tv, 0, 58);
     lv_obj_set_size(tv, UI_W, 400);
@@ -624,6 +676,9 @@ static void build_main(void)
     tile1 = lv_tileview_add_tile(tv, 1, 0, LV_DIR_LEFT);
     lv_obj_set_style_bg_opa(tile0, LV_OPA_TRANSP, 0);
     lv_obj_set_style_bg_opa(tile1, LV_OPA_TRANSP, 0);
+    lv_obj_remove_flag(tv, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(tile0, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(tile1, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_event_cb(tv, on_tile_changed, LV_EVENT_VALUE_CHANGED, NULL);
     lv_obj_add_event_cb(tile0, on_long_press, LV_EVENT_LONG_PRESSED, NULL);
     lv_obj_add_event_cb(tile1, on_long_press, LV_EVENT_LONG_PRESSED, NULL);
@@ -877,6 +932,15 @@ void ui_show_weather(const wx_t *wx)
     s_have_wx = true;
     apply_theme(theme_for(wx));
 
+    /* The advice and countdown go by the local clock (the forecast may be from hours ago). */
+    struct tm now;
+    s_opts.have_clock = s_time_cb && s_time_cb(&now);
+    if (s_opts.have_clock) {
+        s_opts.clock_hour = now.tm_hour;
+        s_opts.clock_day_offset =
+            cal_dayno(now.tm_year + 1900, now.tm_mon + 1, now.tm_mday) - cal_dayno(wx->year, wx->month, wx->day);
+    }
+
     /* hero */
     lv_image_set_src(img_hero, ICON_L[wx_icon_for(wx->code, wx->is_day)]);
     lv_label_set_text_fmt(lbl_temp, "%d" DEG, iround(wx->temp));
@@ -887,7 +951,8 @@ void ui_show_weather(const wx_t *wx)
     }
     lv_label_set_text_fmt(lbl_feels, "Feels like %d" DEG, iround(wx->feels));
     update_sun_moon(wx);
-    s_today = cal_dayno(wx->year, wx->month, wx->day);
+    s_today = s_opts.have_clock ? cal_dayno(now.tm_year + 1900, now.tm_mon + 1, now.tm_mday)
+                                : cal_dayno(wx->year, wx->month, wx->day);
     update_footer_left();
 
     /* bubble */
@@ -1044,5 +1109,8 @@ void ui_init(const char *names)
     build_settings();
     apply_theme(&TH_PARTLY);
     lv_timer_create(clock_timer, 1000, NULL);
+    for (lv_indev_t *in = lv_indev_get_next(NULL); in; in = lv_indev_get_next(in)) {
+        lv_indev_add_event_cb(in, on_indev, LV_EVENT_ALL, NULL);   /* swipes */
+    }
     ui_show_boot(NULL);
 }

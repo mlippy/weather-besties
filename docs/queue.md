@@ -2,6 +2,17 @@
 
 Things we'd like to add later, roughly in order. Each has a sketch of how it would work so it's quick to pick up.
 
+## Waiting on Boris
+
+### Weather Besties 2.0 (his clothing-guide redesign)
+
+Boris is redesigning the main screen in [boriskozak/weather-besties](https://github.com/boriskozak/weather-besties) (`docs/REDESIGN_PLAN.md` there): a full-body cat dressed in the day's outfit, garment tiles that check off as clothes get laid out, Today / Tomorrow / Next days tabs, honest handling of stale data, and a cat picker. **Wait until he has finished it and run it on his board**, then port Piper's features onto it:
+
+- Keep as is: `cal.c` (calendar) and its tests, `alerts.c` (calm alerts), the WPA2 setup hotspot, `wb_request` and its test, settings and the setup page (merge his cat picker in).
+- Re-home on his layout: special-event and calendar reminders (his `outfit.c` replaces `advice.c` and has a single bike-bus option), the calm alert strip, the countdown, and the sun and moon.
+- Defaults back to Piper: one name, no bike bus.
+- Expect conflicts in `ui.c`, `net.c`, `settings.c`, `main.c`, `sim/`, and the README. A trial merge of his 2.0 onto 1.3.1 hit 25 conflicting files.
+
 ## Next up
 
 ### Indoor temperature ("Your room: 68°")
@@ -40,6 +51,7 @@ A small sensor on the board's unused sensor header shows the temperature in Pipe
 
 ## Known gaps
 
-- **Not yet run on the real board.** See "Not yet checked on the real board" in the README and the checklist in [deploy.md](deploy.md).
+- **Piper's additions haven't run on the real board yet** (Boris's v1.4.0 base has). See "On the real board" in the README and the checklist in [deploy.md](deploy.md).
+- **Old weather while offline:** the advice follows the clock, but the big temperature and the four parts of the day still show the last download, with only the red "Offline" footer to say so. Boris's 2.0 handles this properly (a "Weather from" chip, and no outfit after 12 hours); it comes with the 2.0 port.
 - **Browser emulator** (`sim/web/`) is an older build; rebuilding it needs wasi-sdk (`make web`).
 - **Calendar:** repeating events with BYSETPOS, BYWEEKNO, BYYEARDAY or hourly repeats aren't understood (Google rarely makes them). Times with a time zone are taken as local to the weather location; UTC times use today's UTC offset, so on the two daylight-saving switch days an event can be an hour off.

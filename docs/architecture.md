@@ -58,7 +58,7 @@ FreeRTOS gives the program tasks, timers and locks, and nothing else. Two tasks 
 
 **Net task (core 0)**
 
-1. Wakes every 15 minutes, or on a Refresh tap.
+1. Wakes every 15 minutes, or on a Refresh tap. After a failed download it retries in 10 seconds (twice), then every minute, then every 5 minutes. WiFi power saving is off: the board is wall powered, and modem sleep made weak-signal downloads time out.
 2. HTTPS GET to `api.open-meteo.com`, and parses about 6 KB of JSON (`wx.c`): today, yesterday, and the next 3 days.
 3. HTTPS GET to `api.weather.gov/alerts/active?point=lat,lon` for US National Weather Service alerts (`alerts.c`). It keeps the alerts that matter to a kid, most serious first, and swaps each official name for a calm kid title and line ("Big snow on the way"). The official name only shows in Settings, for grown-ups. If this call fails, the last alerts stay up for about an hour, then clear.
 4. Once an hour (or on Refresh, or when the day changes), streams the family calendar's secret iCal address through `cal.c` in 4 KB chunks, so even a calendar with years of history never has to fit in memory. It keeps Piper's events for today and tomorrow, plus countdown events up to 60 days out, working out repeats (weekly soccer, yearly birthdays), skipped and moved instances, and all-day events. If a read fails, the last good list stays, since its events carry their own dates.
@@ -68,11 +68,15 @@ FreeRTOS gives the program tasks, timers and locks, and nothing else. Two tasks 
 
 1. Reads GT911 touch every 20 ms (swipe, hold).
 2. Runs the widgets (`ui.c` on LVGL).
-3. Draws only what changed, in 2 strips of 20 rows in fast RAM, then copies them into the 768 KB framebuffer in PSRAM.
+3. Draws only what changed, into a drawing area in fast internal RAM (40 lines to start; it grows to 60-100 lines once the first download shows how much RAM WiFi and HTTPS leave, and shrinks back if memory gets tight), then copies it into the 768 KB framebuffer in PSRAM. LVGL refreshes every 10 ms.
+
+Swipes are detected by comparing where the finger went down with where it came up (80+ px, mostly sideways), which catches the slow swipes LVGL's own gesture detection misses; the page flips without a drag animation.
 
 The screen hardware reads the framebuffer over and over by DMA, through 2 small bounce buffers (16 MHz / (820 x 500) clocks per frame, about 39 frames a second), so the CPU only redraws the parts that change.
 
-The clock comes from internet time (SNTP) plus the time-zone offset the forecast reports, which handles daylight saving for free.
+The clock comes from internet time (SNTP) plus the time-zone offset the forecast reports, which handles daylight saving for free. The advice goes by that clock, not by the time of the last download, so offline it still switches to tomorrow at 7 PM and moves to the next day after midnight.
+
+Every request the board makes has to fit the HTTP client's send buffer (request line plus headers). ESP-IDF's default is 512 bytes and the forecast request needs about 610, which is what broke Boris's v1.1.0 on the real board. The buffers are 2 KB, and `sim/test_request.c` (`make test`) builds every request with the firmware's own code and checks the fit.
 
 ## What's on the screen
 

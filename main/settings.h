@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "advice.h"
+#include "wb_request.h"
 
 typedef struct {
     char ssid[33];
@@ -13,7 +14,7 @@ typedef struct {
     double lat, lon;
     bool has_coords;
     char names[48];        /* shown in the greeting */
-    char ical_url[320];    /* Google Calendar "secret address in iCal format"; empty = none */
+    char ical_url[WB_ICAL_URL_MAX + 1];  /* Google Calendar "secret address in iCal format"; empty = none */
     char cal_words[64];    /* keep calendar events whose title has one of these ("Piper, Family") */
     bool celsius;
     bool night_off;        /* screen off at night (tap to wake) */

@@ -9,6 +9,7 @@ dependencies.lock
 sim/build/
 sim/build-web/
 sim/render
+sim/test_request
 sim/out/
 
 # Asset tool scratch

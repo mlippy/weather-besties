@@ -10,10 +10,13 @@ SRC := $(shell find $(LVGL_DIR)/src -name '*.c') \
 OBJ := $(patsubst %.c,build/%.o,$(subst $(ROOT)/,root/,$(SRC)))
 
 CFLAGS := -O2 -g -I$(ROOT)/components -I$(LVGL_DIR) -I$(UI_DIR) -I$(CJSON) \
-          -DLV_LVGL_H_INCLUDE_SIMPLE -DLV_CONF_INCLUDE_SIMPLE -DLV_KCONFIG_IGNORE -Wno-unused-result
+          -DLV_LVGL_H_INCLUDE_SIMPLE -DLV_CONF_INCLUDE_SIMPLE -DLV_KCONFIG_IGNORE -Wno-unused-result \
+          -MMD -MP   # rebuild a file when a header it uses changes
 
 render: $(OBJ)
 	$(CC) -o $@ $^ -lm
+
+-include $(OBJ:.o=.d)
 
 build/root/%.o: $(ROOT)/%.c
 	@mkdir -p $(dir $@)
@@ -29,12 +32,19 @@ shots: render
 	./render out scenarios
 	python3 to_png.py out
 
-test:
+# Calendar reader tests, and a check that every request the board makes fits the
+# HTTP client's send buffer.
+test: test_request
+	@mkdir -p build
 	$(CC) -Wall -Wextra -I$(UI_DIR) -o build/test_cal test_cal.c $(UI_DIR)/cal.c
 	./build/test_cal
+	./test_request
+
+test_request: test_request.c $(UI_DIR)/wb_request.c $(UI_DIR)/wb_request.h
+	$(CC) -O2 -Wall -Wextra -I$(UI_DIR) -o $@ test_request.c $(UI_DIR)/wb_request.c
 
 clean:
-	rm -rf build render out
+	rm -rf build render out test_request
 
 
 # ---- Browser emulator (WebAssembly) ----
