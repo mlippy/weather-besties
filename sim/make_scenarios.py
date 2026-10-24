@@ -78,7 +78,7 @@ SAT_RAIN = [3] * 11 + [61, 63, 63, 63, 61, 61] + [3] * 7
 
 S = {}
 
-# Friday morning, bike bus day, a lot colder than yesterday.
+# Friday morning, a lot colder than yesterday.
 S["oct_morning"] = build(
     "2026-10-23", "09:45", {"t": 48.2, "f": 44.6, "day": 1, "code": 2, "gust": 14},
     THU, [FRI, SAT, SUN, MON],
@@ -86,7 +86,7 @@ S["oct_morning"] = build(
     lambda i: 5 if i < 24 else ((70 + (i % 5) * 4) if 35 <= i <= 40 else 25) if i < 48 else 10,
 )
 
-# Thursday after dinner: plan Friday (bike bus, much colder).
+# Thursday after dinner: plan Friday (much colder).
 S["thu_evening"] = build(
     "2026-10-22", "20:30", {"t": 68.4, "f": 66.0, "day": 0, "code": 0},
     WED, [THU, FRI, SAT, SUN],
@@ -94,7 +94,15 @@ S["thu_evening"] = build(
     lambda i: 0 if i < 24 else 5 if i < 48 else ((75 if 59 <= i <= 64 else 25) if i < 72 else 20),
 )
 
-# Rainy November Friday afternoon (bike bus already happened).
+# Friday after dinner: plan a rainy Saturday.
+S["fri_evening"] = build(
+    "2026-10-23", "19:45", {"t": 50.1, "f": 46.8, "day": 0, "code": 3},
+    THU, [FRI, SAT, SUN, MON],
+    lambda i: ([1] * 9 + [2] * 6 + [3] * 9)[i] if i < 24 else SAT_RAIN[i - 24] if i < 48 else (3 if i < 72 else 0),
+    lambda i: 5 if i < 24 else ((70 + (i % 5) * 4) if 33 <= i <= 40 else 25) if i < 48 else 10,
+)
+
+# Rainy November Friday afternoon.
 S["rainy_afternoon"] = build(
     "2026-11-06", "14:15", {"t": 52.4, "f": 49.0, "day": 1, "code": 63, "p": 0.08},
     (2, 60, 46, 10, 3.0, 6.0), [(63, 55, 47, 90, 1.0, 0.3), (3, 54, 44, 30, 2.0, 2.5), (0, 58, 42, 0, 2.6, 8.5),
@@ -124,7 +132,28 @@ S["summer_hot"] = build(
     sunrise=6, sunset=20, feels_delta=3,
 )
 
+
+
+def nws(*alerts):
+    """A trimmed api.weather.gov /alerts/active response: (event, severity) pairs."""
+    return {"type": "FeatureCollection", "features": [
+        {"type": "Feature", "properties": {
+            "status": "Actual", "messageType": "Alert", "event": ev, "severity": sev,
+            "headline": f"{ev} issued by NWS New York NY", "description": "...", "instruction": "..."}}
+        for ev, sev in alerts], "title": "Current watches, warnings, and advisories"}
+
+
+# Alerts the screen should show, plus ones it should skip (marine, frost).
+A = {
+    "snow_morning": nws(("Winter Storm Warning", "Moderate"), ("Wind Chill Advisory", "Moderate"),
+                        ("Winter Storm Warning", "Moderate"), ("Small Craft Advisory", "Minor")),
+    "summer_hot": nws(("Heat Advisory", "Moderate"), ("Frost Advisory", "Minor")),
+}
+
 for name, data in S.items():
     with open(os.path.join(OUT, name + ".json"), "w") as f:
         json.dump(data, f, separators=(",", ":"))
-print("wrote", ", ".join(S))
+for name, data in A.items():
+    with open(os.path.join(OUT, name + ".alerts.json"), "w") as f:
+        json.dump(data, f, separators=(",", ":"))
+print("wrote", ", ".join(S), "+ alerts for", ", ".join(A))

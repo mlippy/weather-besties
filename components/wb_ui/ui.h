@@ -8,6 +8,8 @@
 #include <stdbool.h>
 #include <time.h>
 
+#include "advice.h"
+#include "alerts.h"
 #include "wx.h"
 
 #ifdef __cplusplus
@@ -37,7 +39,8 @@ typedef struct {
 
 void ui_init(const char *names);
 void ui_set_names(const char *names);
-void ui_set_bike_bus_day(int wday);  /* 0 = Sunday ... 6 = Saturday, -1 = none. Default Friday. */
+void ui_set_events(const wb_event_t *events, int n);  /* special events for the advice; copied */
+void ui_set_alerts(const wx_alerts_t *alerts);         /* NULL or n == 0 clears; shown on the next ui_show_weather */
 void ui_set_action_cb(ui_action_cb_t cb, void *user);
 void ui_set_time_cb(ui_time_cb_t cb);
 

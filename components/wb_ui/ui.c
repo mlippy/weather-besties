@@ -60,7 +60,9 @@ static ui_time_cb_t s_time_cb;
 static const theme_t *s_theme = &TH_PARTLY;
 static int s_last_min = -1;
 static bool s_have_wx;
-static advice_opts_t s_opts = {.bike_bus_wday = 5}; /* Friday */
+static wb_event_t s_events[EVENT_MAX];
+static advice_opts_t s_opts = {.events = s_events};
+static wx_alerts_t s_alerts;
 
 static lv_obj_t *scr_boot, *scr_setup, *scr_main;
 
@@ -75,7 +77,7 @@ static lv_obj_t *lbl_greet, *lbl_time, *lbl_date;
 /* main: pages */
 static lv_obj_t *tv, *tile0, *tile1;
 static lv_obj_t *img_hero, *lbl_temp, *lbl_cond, *lbl_hilo, *lbl_feels;
-static lv_obj_t *bubble, *bubble_tail, *lbl_head, *lbl_cmp, *lbl_tip, *wear_row;
+static lv_obj_t *bubble, *bubble_tail, *alert_bar, *lbl_alert, *lbl_head, *lbl_cmp, *lbl_tip, *bubble_spacer, *wear_row;
 static lv_obj_t *wear_chip[ADVICE_MAX_WEAR], *wear_img[ADVICE_MAX_WEAR], *wear_lbl[ADVICE_MAX_WEAR];
 static lv_obj_t *pcard[WX_MAX_PERIODS], *p_lbl[WX_MAX_PERIODS], *p_img[WX_MAX_PERIODS], *p_temp[WX_MAX_PERIODS],
                 *p_pop[WX_MAX_PERIODS], *p_drop[WX_MAX_PERIODS];
@@ -371,7 +373,7 @@ static void build_settings(void)
     lv_obj_align(row, LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    pill_button(row, "Change WiFi or town", true, on_settings_btn, (void *)1);
+    pill_button(row, "Change settings", true, on_settings_btn, (void *)1);
     pill_button(row, LV_SYMBOL_REFRESH, false, on_settings_btn, (void *)2);
     pill_button(row, "Close", false, on_settings_btn, (void *)0);
 
@@ -386,7 +388,7 @@ void ui_set_info(const ui_info_t *i)
              LV_SYMBOL_GPS "  Town: %s\n"
              LV_SYMBOL_REFRESH "  %s\n"
              "Address: %s     Version %s\n"
-             "Weather data by Open-Meteo.com",
+             "Data: Open-Meteo.com and weather.gov",
              i->wifi[0] ? i->wifi : "not set", i->place[0] ? i->place : "not set",
              i->updated[0] ? i->updated : "No weather yet", i->ip[0] ? i->ip : "-", i->version);
     lv_label_set_text(set_info, buf);
@@ -466,6 +468,19 @@ static void build_today(lv_obj_t *t)
     lv_obj_set_style_shadow_color(bubble, C(0x1B2542), 0);
     lv_obj_set_flex_flow(bubble, LV_FLEX_FLOW_COLUMN);
 
+    /* NWS alert: a red (warning) or orange (watch, advisory) bar on top of the advice */
+    alert_bar = box(bubble);
+    lv_obj_set_size(alert_bar, lv_pct(100), LV_SIZE_CONTENT);
+    lv_obj_set_style_radius(alert_bar, 14, 0);
+    lv_obj_set_style_bg_opa(alert_bar, LV_OPA_COVER, 0);
+    lv_obj_set_style_pad_hor(alert_bar, 12, 0);
+    lv_obj_set_style_pad_ver(alert_bar, 5, 0);
+    lbl_alert = label(alert_bar, &font_small, "");
+    lv_obj_set_width(lbl_alert, lv_pct(100));
+    lv_label_set_long_mode(lbl_alert, LV_LABEL_LONG_MODE_DOTS);
+    lv_obj_set_style_text_color(lbl_alert, lv_color_white(), 0);
+    lv_obj_add_flag(alert_bar, LV_OBJ_FLAG_HIDDEN);
+
     lbl_head = label(bubble, &font_title, "");
     lv_obj_set_width(lbl_head, lv_pct(100));
     lv_label_set_long_mode(lbl_head, LV_LABEL_LONG_MODE_WRAP);
@@ -478,9 +493,9 @@ static void build_today(lv_obj_t *t)
     lv_obj_set_width(lbl_tip, lv_pct(100));
     lv_label_set_long_mode(lbl_tip, LV_LABEL_LONG_MODE_WRAP);
 
-    lv_obj_t *spacer = box(bubble);
-    lv_obj_set_width(spacer, 1);
-    lv_obj_set_flex_grow(spacer, 1);
+    bubble_spacer = box(bubble);
+    lv_obj_set_width(bubble_spacer, 1);
+    lv_obj_set_flex_grow(bubble_spacer, 1);
 
     wear_row = box(bubble);
     lv_obj_set_size(wear_row, lv_pct(100), LV_SIZE_CONTENT);
@@ -698,14 +713,16 @@ static void clock_timer(lv_timer_t *tm)
 
 /* ------------------------------------------------------------------ weather */
 
-/* Long advice: first drop the little captions under the clothes, then shrink the headline. */
+/* Height the bubble's visible rows need, gaps included. */
 static int bubble_need(void)
 {
     lv_obj_update_layout(bubble);
-    int gaps = lv_obj_has_flag(lbl_cmp, LV_OBJ_FLAG_HIDDEN) ? 3 : 4;
-    int h = lv_obj_get_height(lbl_head) + lv_obj_get_height(lbl_tip) + lv_obj_get_height(wear_row) + gaps * 4;
-    if (!lv_obj_has_flag(lbl_cmp, LV_OBJ_FLAG_HIDDEN)) {
-        h += lv_obj_get_height(lbl_cmp);
+    int h = 0;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(bubble); i++) {
+        lv_obj_t *c = lv_obj_get_child(bubble, (int32_t)i);
+        if (c != bubble_spacer && !lv_obj_has_flag(c, LV_OBJ_FLAG_HIDDEN)) {
+            h += lv_obj_get_height(c) + 4;
+        }
     }
     return h;
 }
@@ -738,6 +755,10 @@ static void fit_bubble(void)
         return;
     }
     lv_obj_set_style_text_font(lbl_cmp, &font_tiny, 0);
+    if (bubble_need() <= avail) {
+        return;
+    }
+    lv_obj_set_style_text_font(lbl_tip, &font_tiny, 0);
 }
 
 static void set_pop(lv_obj_t *drop, lv_obj_t *lbl, int pop)
@@ -773,8 +794,25 @@ void ui_show_weather(const wx_t *wx)
     advice_t a;
     advice_make(wx, &s_opts, &a);
     lv_label_set_text(lbl_head, a.headline);
-    lv_label_set_text(lbl_cmp, a.compare);
-    if (a.compare[0]) {
+    /* An alert's kid line takes the place of the "than yesterday" line. */
+    if (s_alerts.n > 0) {
+        const wx_alert_t *al = &s_alerts.a[0];
+        uint32_t col = al->level == ALERT_WARNING ? 0xD7263D : 0xE07A1F;
+        lv_obj_set_style_bg_color(alert_bar, C(col), 0);
+        if (s_alerts.n > 1) {
+            lv_label_set_text_fmt(lbl_alert, LV_SYMBOL_WARNING " %s +%d", al->event, s_alerts.n - 1);
+        } else {
+            lv_label_set_text_fmt(lbl_alert, LV_SYMBOL_WARNING " %s", al->event);
+        }
+        lv_obj_remove_flag(alert_bar, LV_OBJ_FLAG_HIDDEN);
+        lv_label_set_text(lbl_cmp, al->kid);
+        lv_obj_set_style_text_color(lbl_cmp, C(col), 0);
+    } else {
+        lv_obj_add_flag(alert_bar, LV_OBJ_FLAG_HIDDEN);
+        lv_label_set_text(lbl_cmp, a.compare);
+        lv_obj_set_style_text_color(lbl_cmp, C(s_theme->bubble_text), 0);
+    }
+    if (lv_label_get_text(lbl_cmp)[0]) {
         lv_obj_remove_flag(lbl_cmp, LV_OBJ_FLAG_HIDDEN);
     } else {
         lv_obj_add_flag(lbl_cmp, LV_OBJ_FLAG_HIDDEN);
@@ -868,9 +906,22 @@ void ui_set_names(const char *names)
     ui_refresh_clock();
 }
 
-void ui_set_bike_bus_day(int wday)
+void ui_set_events(const wb_event_t *events, int n)
 {
-    s_opts.bike_bus_wday = (wday >= 0 && wday <= 6) ? wday : -1;
+    n = n < 0 ? 0 : n > EVENT_MAX ? EVENT_MAX : n;
+    if (n) {
+        memcpy(s_events, events, (size_t)n * sizeof(s_events[0]));
+    }
+    s_opts.nevents = n;
+}
+
+void ui_set_alerts(const wx_alerts_t *alerts)
+{
+    if (alerts) {
+        s_alerts = *alerts;
+    } else {
+        s_alerts.n = 0;
+    }
 }
 
 void ui_set_action_cb(ui_action_cb_t cb, void *user)

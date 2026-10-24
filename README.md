@@ -22,13 +22,16 @@ This is not a general weather dashboard. It answers one kid-sized question in wo
 - Every day is compared with yesterday: warmer or colder (by the daily high), sunnier or cloudier (by hours of sun). A drop of 12°F or more says "a lot colder" and adds gloves.
 - The rest of the day in four chunks (morning, midday, afternoon, evening), then the next three days on a second page (swipe left).
 - After 7 PM the bubble switches to tomorrow, so she can lay out the right clothes before bed.
-- **Bike bus day** (Friday by default): if the 8 AM feels-like is 50°F or below, the bubble reminds everyone to wear gloves for bike bus. The evening before, it says to lay them out.
+- **Special events** (none by default): add things like soccer every Saturday or a one-day field trip. On the day (and the evening before) the bubble mentions it, and for outdoor events it checks the forecast for the hour it starts: gloves at 50°F feels-like or below, rain gear or snow boots when it's likely wet, water at 85°F or above.
+- **Weather alerts** from the US National Weather Service: tornado, storm, flood, winter storm, extreme cold or heat, air quality and so on show as a red (warning) or orange (watch, advisory) bar in the bubble, with one line in kid words ("Big snow storm! Bundle up and stay warm."). Alerts for boats, fire crews and farmers are skipped.
 - An optional "screen off at night" mode. A tap wakes the screen for a minute.
 
 ![Evening screen](docs/evening.png)
 ![Next days](docs/next-days.png)
+![Weather alert](docs/alert.png)
+![Special event](docs/event.png)
 
-Weather data comes from [Open-Meteo](https://open-meteo.com): free for non-commercial use, no API key, up to 10,000 calls a day. The board refreshes every 15 minutes (96 calls a day).
+Weather data comes from [Open-Meteo](https://open-meteo.com): free for non-commercial use, no API key, up to 10,000 calls a day. Alerts come from the [National Weather Service](https://www.weather.gov/documentation/services-web-api): free, no key, US only (elsewhere the board just shows no alerts). The board checks both every 15 minutes.
 
 ## Hardware
 
@@ -38,7 +41,7 @@ Weather data comes from [Open-Meteo](https://open-meteo.com): free for non-comme
 
 ## Flash it
 
-You only need `firmware/weather-besties-v1.1.0.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`.
+You only need `firmware/weather-besties-v1.2.0.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`.
 
 **Chrome or Edge, no installs:** open the [esptool-js web flasher](https://espressif.github.io/esptool-js/), plug the board into the **UART** USB-C port, click Connect, pick the port, set Flash Address to `0x0`, choose the .bin, click Program. Takes about a minute.
 
@@ -46,7 +49,7 @@ You only need `firmware/weather-besties-v1.1.0.bin`. It is a single merged image
 
 ```
 pip install esptool
-python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.1.0.bin
+python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.2.0.bin
 ```
 
 **If it won't connect:** hold **BOOT**, tap **RESET**, let go of BOOT, then try again. If your computer doesn't see a serial port on the UART connector, try the other USB-C port (native USB).
@@ -55,17 +58,17 @@ python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.1.0.bin
 
 1. The screen shows a QR code and a hotspot name like `WeatherBesties-3F2A`.
 2. Scan the QR with a phone (or join that WiFi network by hand). A setup page pops up. If it doesn't, open `http://192.168.4.1`.
-3. Pick the home WiFi, type the password, then set: town or ZIP, names for the greeting, °F or °C, bike bus day, and optional night hours. Save.
+3. Pick the home WiFi, type the password, then set: town or ZIP, names for the greeting, °F or °C, optional night hours, and any special events. Save.
 4. The board restarts, joins WiFi, and shows the weather.
 
 ![Setup screen](docs/setup.png)
 
-Defaults if you skip things: Upper Montclair, NJ, "Piper", Fahrenheit, bike bus on Fridays, screen always on.
+Defaults if you skip things: Upper Montclair, NJ, "Piper", Fahrenheit, no special events, screen always on.
 
 ## Using it
 
 - Swipe left for the next three days, right to come back.
-- Long-press the greeting, the clock, or any empty spot for 1.5 seconds to open Settings (change WiFi or town, refresh now).
+- Long-press the greeting, the clock, or any empty spot for 1.5 seconds to open Settings (change WiFi, town or special events, refresh now).
 - Settings are stored on the board and survive reboots and reflashing the app.
 
 ## Build from source
@@ -101,11 +104,12 @@ For how the pieces fit together (hardware, tasks, setup hotspot, flash layout), 
 |---|---|
 | `main/main.c` | Boot flow, night-off power timer |
 | `main/board.c` | Screen, touch, IO expander (backlight, touch reset), LVGL glue. Pins and timing from Waveshare's own demo |
-| `main/net.c` | WiFi, clock (SNTP), Open-Meteo calls, refresh loop |
+| `main/net.c` | WiFi, clock (SNTP), Open-Meteo and weather.gov calls, refresh loop |
 | `main/portal.c` | Setup hotspot, captive portal, phone form |
-| `main/settings.c` | Saved settings (NVS) |
+| `main/settings.c` | Saved settings (NVS), and the `DEFAULT_EVENTS` list |
 | `components/wb_ui/ui.c` | All screens |
-| `components/wb_ui/advice.c` | What-to-wear rules (temperature bands, rain, snow, storms, sun) |
+| `components/wb_ui/advice.c` | What-to-wear rules (temperature bands, rain, snow, storms, sun) and special events |
+| `components/wb_ui/alerts.c` | NWS alerts: which to show, kid words for each |
 | `components/wb_ui/wx.c` | Forecast parsing, parts of the day |
 | `components/lv_conf.h` | LVGL settings, shared with the PC renderer |
 | `tools/icons.py` | The artwork (weather faces, clothes, cats), drawn as SVG |
@@ -117,7 +121,9 @@ For how the pieces fit together (hardware, tasks, setup hotspot, flash layout), 
 ## Tweaking
 
 - Clothing rules: the `BANDS` table at the top of `components/wb_ui/advice.c` (temperatures are feels-like in °F).
-- Bike bus cutoff and "a lot colder" threshold: `BIKE_BUS_COLD_F` and `BIG_CHANGE_F` in `components/wb_ui/advice.h`.
+- Special events the board starts with: the `DEFAULT_EVENTS` list at the top of `main/settings.c` (examples are in the comment). The phone setup page edits the same list, up to 8 events.
+- Event reminders and the "a lot colder" threshold: `EVENT_COLD_F`, `EVENT_HOT_F`, `EVENT_RAIN_POP` and `BIG_CHANGE_F` in `components/wb_ui/advice.h`.
+- Which weather alerts show, and what they say: the `SKIP` and `KID` tables at the top of `components/wb_ui/alerts.c`.
 - Colors: the theme table at the top of `components/wb_ui/ui.c`.
 - Artwork: edit `tools/icons.py`, then run `python3 tools/make_assets.py` (needs `pip install resvg-py pillow pypng` and `npm install lv_font_conv` inside `tools/`).
 
@@ -128,7 +134,8 @@ The code compiles cleanly and every screen was rendered from the real UI code, b
 - Touch lands in the wrong place: flip `swap_xy` / `mirror_x` / `mirror_y` in `touch_init()` in `main/board.c`.
 - Picture shifts sideways or flickers while WiFi is busy: lower `LCD_PCLK_HZ` in `main/board.c` from 16 MHz to 14 MHz.
 - Screen stays dark but the log says "display ready": the backlight goes through the IO expander, check the log for "expander write failed".
+- Alerts never show: the log prints an `alert:` line for each one it finds. If `api.weather.gov` calls fail instead, look for TLS or HTTP status errors from `net`.
 
 ## Credits
 
-Font: Fredoka (SIL Open Font License, see `tools/fonts/OFL.txt`). Weather data: Open-Meteo.com (CC BY 4.0).
+Font: Fredoka (SIL Open Font License, see `tools/fonts/OFL.txt`). Weather data: Open-Meteo.com (CC BY 4.0). Alerts: US National Weather Service (public domain).

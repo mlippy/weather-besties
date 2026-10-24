@@ -177,6 +177,54 @@ void advice_day_trend(const wx_t *wx, int i, char *buf, size_t len)
     }
 }
 
+/* ------------------------------------------------------------------ special events */
+
+bool event_on(const wb_event_t *e, int year, int month, int day, int wday)
+{
+    if (e->wdays) {
+        return wday >= 0 && wday <= 6 && ((e->wdays >> wday) & 1);
+    }
+    return e->year == year && e->month == month && e->day == day;
+}
+
+/* One sentence about an event, using the forecast for the hour it starts. */
+static void event_tip(const wx_t *wx, advice_t *a, const wb_event_t *e, int day, bool *gloves)
+{
+    char s[96];
+    const char *when = day ? "tomorrow" : "today";
+    int h = day * 24 + e->hour;
+    bool have = e->outside && h < wx->nhours;
+    float f = have ? wx_to_f(wx, wx->h_feels[h]) : 0;
+    int pop = have ? wx->h_pop[h] : 0;
+    wx_kind_t k = have ? wx_kind(wx->h_code[h]) : WXK_CLEAR;
+    bool wet = pop >= EVENT_RAIN_POP;
+
+    /* The name always starts its sentence, so it reads right however it was typed. */
+    if (have && wet && k == WXK_THUNDER) {
+        snprintf(s, sizeof(s), " %s %s: storms might stop it.", e->name, when);
+    } else if (have && wet && (k == WXK_SNOW || k == WXK_ICE)) {
+        must_wear(a, WEAR_BOOTS);
+        snprintf(s, sizeof(s), " %s %s: snow boots!", e->name, when);
+    } else if (have && wet && k >= WXK_DRIZZLE) {
+        must_wear(a, WEAR_UMBRELLA);
+        snprintf(s, sizeof(s), " %s %s: bring rain gear!", e->name, when);
+    } else if (have && f <= EVENT_COLD_F) {
+        must_wear(a, WEAR_MITTENS);
+        *gloves = true;
+        if (strstr(a->tip, "gloves")) {
+            snprintf(s, sizeof(s), " %s %s!", e->name, when);
+        } else {
+            snprintf(s, sizeof(s), " %s %s: %s gloves!", e->name, when, day ? "lay out" : "wear");
+        }
+    } else if (have && f >= EVENT_HOT_F) {
+        must_wear(a, WEAR_WATER);
+        snprintf(s, sizeof(s), " %s %s: bring water!", e->name, when);
+    } else {
+        snprintf(s, sizeof(s), " %s %s!", e->name, when);
+    }
+    append(a->tip, sizeof(a->tip), s);
+}
+
 /* ------------------------------------------------------------------ main advice */
 
 void advice_make(const wx_t *wx, const advice_opts_t *opts, advice_t *a)
@@ -378,21 +426,23 @@ void advice_make(const wx_t *wx, const advice_opts_t *opts, advice_t *a)
     }
     bool big_drop = have_cmp && dtemp <= -BIG_CHANGE_F;
 
-    /* ---- bike bus (a morning ride, so only until 10 AM, or the evening before) ---- */
-    int target_wday = wx->ndays > day ? wx->days[day].wday : (wx->wday + day) % 7;
-    bool ride_ahead = day == 1 || wx->hour < 10;
-    a->bike_bus = opts && opts->bike_bus_wday >= 0 && target_wday == opts->bike_bus_wday && ride_ahead;
-    int ride = day * 24 + 8;
-    bool ride_cold = a->bike_bus && ride < n && wx_to_f(wx, wx->h_feels[ride]) <= BIKE_BUS_COLD_F;
-
-    if (ride_cold) {
-        must_wear(a, WEAR_MITTENS);
-        if (strstr(a->tip, "gloves")) {
-            append(a->tip, sizeof(a->tip), day ? " Bike bus tomorrow!" : " Bike bus day!");
-        } else {
-            append(a->tip, sizeof(a->tip), day ? " Gloves too, for bike bus!" : " Remember your gloves for bike bus!");
+    /* ---- special events (today until 2 hours after they start, or the evening before) ---- */
+    bool gloves = false;
+    if (opts && wx->ndays > day) {
+        const wx_day_t *td = &wx->days[day];
+        for (int i = 0; i < opts->nevents && a->nevents < ADVICE_MAX_EVENTS; i++) {
+            const wb_event_t *e = &opts->events[i];
+            if (!e->name[0] || !event_on(e, td->year, td->month, td->day, td->wday)) {
+                continue;
+            }
+            if (day == 0 && wx->hour >= e->hour + 2) {
+                continue;
+            }
+            a->nevents++;
+            event_tip(wx, a, e, day, &gloves);
         }
-    } else if (big_drop) {
+    }
+    if (big_drop && !gloves) {
         must_wear(a, WEAR_MITTENS);
         if (!strstr(a->tip, "gloves")) {
             append(a->tip, sizeof(a->tip), " Wear gloves!");

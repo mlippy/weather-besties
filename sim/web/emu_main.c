@@ -25,7 +25,7 @@ static wx_t s_wx;
 static int s_cur;
 static time_t s_base;
 static uint32_t s_loaded_ms;
-static bool s_bike_bus = true;
+static bool s_events_on;
 static char s_status[48];
 
 static uint32_t tick_cb(void) { return s_ms; }
@@ -55,7 +55,12 @@ static bool time_cb(struct tm *out)
 
 static void show_current(void)
 {
-    ui_set_bike_bus_day(s_bike_bus ? 5 : -1);
+    /* Sample special event: soccer on Saturdays and a field trip on Fridays. */
+    static const wb_event_t ev[] = {
+        {.name = "Soccer", .wdays = 1 << 6, .hour = 11, .outside = true},
+        {.name = "Field trip", .wdays = 1 << 5, .hour = 10, .outside = true},
+    };
+    ui_set_events(ev, s_events_on ? 2 : 0);
     ui_close_settings();
     ui_show_weather(&s_wx);
     ui_set_footer("Upper Montclair, NJ", s_status, false);
@@ -86,7 +91,7 @@ EXPORT(emu_load) void emu_load(int i)
     int h12 = s_wx.hour % 12 ? s_wx.hour % 12 : 12;
     snprintf(s_status, sizeof(s_status), "Updated %d:%02d %s", h12, s_wx.minute, s_wx.hour < 12 ? "AM" : "PM");
     ui_info_t info = {.wifi = "HomeWiFi", .place = "Upper Montclair, New Jersey", .ip = "192.168.1.42",
-                      .version = "1.1.0"};
+                      .version = "1.2.0"};
     snprintf(info.updated, sizeof(info.updated), "Weather updated %d:%02d %s", h12, s_wx.minute, s_wx.hour < 12 ? "AM" : "PM");
     ui_set_info(&info);
     ui_show_page(0);
@@ -160,9 +165,10 @@ EXPORT(emu_screen) void emu_screen(int which)
     }
 }
 
+/* Turns the sample special events on or off (kept under its old name for emu.js). */
 EXPORT(emu_set_bike_bus) void emu_set_bike_bus(int on)
 {
-    s_bike_bus = on != 0;
+    s_events_on = on != 0;
     show_current();
 }
 

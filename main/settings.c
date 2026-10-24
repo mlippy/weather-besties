@@ -9,6 +9,23 @@
 static const char *TAG = "settings";
 #define NS "wb"
 
+/* Special events the board starts with. Add rows here, or on the phone setup page. Examples:
+ *   {.name = "Soccer", .wdays = 1 << 6, .hour = 9, .outside = true}                     every Saturday, 9 AM
+ *   {.name = "Bike bus", .wdays = 1 << 5, .hour = 8, .outside = true}                   every Friday, 8 AM
+ *   {.name = "Field trip", .year = 2026, .month = 11, .day = 5, .hour = 10, .outside = true}   one day only
+ *   {.name = "Library", .wdays = (1 << 2) | (1 << 4), .hour = 9}                         Tue + Thu, indoors
+ * wdays: bit 0 = Sunday ... bit 6 = Saturday. */
+static const wb_event_t DEFAULT_EVENTS[] = {
+    {.name = ""}, /* none yet */
+};
+
+/* Stored as one blob; bump the version if wb_event_t changes. */
+#define EVENTS_VER 1
+typedef struct {
+    uint8_t ver, n;
+    wb_event_t ev[EVENT_MAX];
+} events_blob_t;
+
 void settings_defaults(wb_settings_t *s)
 {
     memset(s, 0, sizeof(*s));
@@ -22,7 +39,11 @@ void settings_defaults(wb_settings_t *s)
     s->night_off = false;
     s->off_from = 21;
     s->off_to = 6;
-    s->bike_bus = 5; /* Friday */
+    for (size_t i = 0; i < sizeof(DEFAULT_EVENTS) / sizeof(DEFAULT_EVENTS[0]) && s->nevents < EVENT_MAX; i++) {
+        if (DEFAULT_EVENTS[i].name[0]) {
+            s->events[s->nevents++] = DEFAULT_EVENTS[i];
+        }
+    }
 }
 
 static void get_str(nvs_handle_t h, const char *key, char *dst, size_t cap)
@@ -76,7 +97,16 @@ void settings_load(wb_settings_t *s)
     s->night_off = b;
     get_u8(h, "nfrom", &s->off_from);
     get_u8(h, "nto", &s->off_to);
-    get_u8(h, "bbus", &s->bike_bus);
+    events_blob_t eb;
+    size_t len = sizeof(eb);
+    if (nvs_get_blob(h, "events", &eb, &len) == ESP_OK && len == sizeof(eb) && eb.ver == EVENTS_VER &&
+        eb.n <= EVENT_MAX) {
+        s->nevents = eb.n;
+        memcpy(s->events, eb.ev, sizeof(s->events));
+        for (int i = 0; i < EVENT_MAX; i++) {
+            s->events[i].name[EVENT_NAME_LEN - 1] = 0;
+        }
+    }
     nvs_close(h);
     ESP_LOGI(TAG, "loaded: wifi='%s' place='%s' (%.4f, %.4f)", s->ssid, s->place_name, s->lat, s->lon);
 }
@@ -100,7 +130,10 @@ void settings_save(const wb_settings_t *s)
     nvs_set_u8(h, "noff", s->night_off);
     nvs_set_u8(h, "nfrom", s->off_from);
     nvs_set_u8(h, "nto", s->off_to);
-    nvs_set_u8(h, "bbus", s->bike_bus);
+    events_blob_t eb = {.ver = EVENTS_VER, .n = s->nevents};
+    memcpy(eb.ev, s->events, sizeof(eb.ev));
+    nvs_set_blob(h, "events", &eb, sizeof(eb));
+    nvs_erase_key(h, "bbus"); /* the old single bike-bus day */
     nvs_commit(h);
     nvs_close(h);
 }

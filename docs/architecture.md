@@ -1,6 +1,6 @@
 # How it's built
 
-A 4.3-inch touchscreen weather station that tells Piper what to wear. It is one C program on a small microcontroller board: no Linux, no app store, just firmware that fetches a forecast every 15 minutes and draws it.
+A 4.3-inch touchscreen weather station that tells Piper what to wear. It is one C program on a small microcontroller board: no Linux, no app store, just firmware that fetches a forecast (and any weather alerts) every 15 minutes and draws it.
 
 ## The board
 
@@ -14,7 +14,7 @@ It's a Waveshare ESP32-S3-Touch-LCD-4.3: an Espressif ESP32-S3 module soldered b
 | Touch | GT911 controller | 5-point capacitive, talks over I2C |
 
 ```
-                    Home WiFi (2.4 GHz) -> Open-Meteo, NTP
+                    Home WiFi (2.4 GHz) -> Open-Meteo, weather.gov, NTP
                               |
  +----------------------------+-----------------------------+
  | ESP32-S3 module                                          |
@@ -44,7 +44,7 @@ It's all one C program, built with Espressif's ESP-IDF framework. The screens an
 | Layer | Files / contents | Builds for |
 |---|---|---|
 | Board glue | `main.c`, `board.c`, `net.c`, `portal.c`, `settings.c` | firmware only |
-| Screens + logic | `ui.c`, `advice.c`, `wx.c` | board, PC, browser |
+| Screens + logic | `ui.c`, `advice.c` (clothes, special events), `wx.c` (forecast), `alerts.c` (NWS alerts) | board, PC, browser |
 | Artwork + fonts | 49 images, 6 sizes of Fredoka, as C arrays | board, PC, browser |
 | Libraries | LVGL 9.5 (graphics), cJSON (parsing) | board, PC, browser |
 | Board libraries | GT911 touch driver, DNS server for setup | firmware only |
@@ -59,9 +59,9 @@ FreeRTOS gives the program tasks, timers and locks, and nothing else. Two tasks 
 **Net task (core 0)**
 
 1. Wakes every 15 minutes, or on a Refresh tap.
-2. HTTPS GET to `api.open-meteo.com`.
-3. Parses about 6 KB of JSON (`wx.c`): today, yesterday, and the next 3 days.
-4. Picks clothes (`advice.c`), then takes the lock to hand the result to the UI.
+2. HTTPS GET to `api.open-meteo.com`, and parses about 6 KB of JSON (`wx.c`): today, yesterday, and the next 3 days.
+3. HTTPS GET to `api.weather.gov/alerts/active?point=lat,lon` for US National Weather Service alerts (`alerts.c`). It keeps the alerts that matter to a kid, most serious first, each with one line in kid words. If this call fails, the last alerts stay up for about an hour, then clear.
+4. Picks clothes (`advice.c`), including reminders for special events (soccer, a field trip) using the forecast for the hour they start, then takes the lock to hand everything to the UI.
 
 **Graphics task (core 1)**
 
@@ -90,6 +90,7 @@ The board has no keyboard, so setup happens on a phone. On first boot (or from S
 The DNS and redirect answers are the whole trick. A DNS server that answers every lookup with the board's own address, plus a web server that redirects any unknown page to the form, makes the phone's connectivity check fail in exactly the way that pops a sign-in sheet. The DHCP reply also carries the setup address directly (the newer "captive portal" DHCP option), for phones that look for it.
 
 - **Scanning while hosting.** The radio runs as hotspot and client at once, so the client side can scan for nearby networks to list on the form.
+- **Special events** are edited on the same form: a name, the weekdays it repeats (or one date), the start hour, and whether it's outside. Up to 8, saved to flash with the other settings.
 - **The QR code** is the standard WiFi QR format phone cameras already understand, so there's no network name to type.
 - **Security, plainly.** The hotspot is open, but it only exists during setup. The home WiFi password is stored on the board's flash without encryption, which is normal for hobby boards and worth knowing.
 
@@ -109,7 +110,7 @@ See `partitions.csv` for the exact offsets. At boot the code and constants get c
 
 ## One screen codebase, three places it runs
 
-Because the screens never touch hardware, the same files (`ui.c`, `advice.c`, `wx.c` + LVGL + artwork + fonts) compile three ways. Only the small glue file changes, and that's what made the screenshots and the browser emulator possible without the board on the desk.
+Because the screens never touch hardware, the same files (`ui.c`, `advice.c`, `wx.c`, `alerts.c` + LVGL + artwork + fonts) compile three ways. Only the small glue file changes, and that's what made the screenshots and the browser emulator possible without the board on the desk.
 
 | Target | Toolchain + glue | Output |
 |---|---|---|
@@ -121,4 +122,4 @@ The icons start as SVG drawings in a Python script (`tools/icons.py`) and get re
 
 ---
 
-Built on ESP-IDF 5.5.6, LVGL 9.5.0, cJSON and Espressif's GT911 driver. Pins and panel timing from Waveshare's demo code for this board. Weather from Open-Meteo.
+Built on ESP-IDF 5.5.6, LVGL 9.5.0, cJSON and Espressif's GT911 driver. Pins and panel timing from Waveshare's demo code for this board. Weather from Open-Meteo, alerts from the US National Weather Service.

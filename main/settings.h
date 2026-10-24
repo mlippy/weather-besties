@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "advice.h"
+
 typedef struct {
     char ssid[33];
     char pass[65];
@@ -14,7 +16,8 @@ typedef struct {
     bool celsius;
     bool night_off;        /* screen off at night (tap to wake) */
     uint8_t off_from, off_to;  /* hours, local time */
-    uint8_t bike_bus;          /* 0 = Sunday ... 6 = Saturday, 7 = no bike bus */
+    uint8_t nevents;
+    wb_event_t events[EVENT_MAX];  /* special events: soccer, field trips... */
 } wb_settings_t;
 
 void settings_defaults(wb_settings_t *s);

@@ -171,6 +171,12 @@ static const char *CSS =
     ".units input,.check input{width:auto;margin:0 8px 0 0;transform:scale(1.3)}"
     ".hint{font-size:14px;color:#5B6683;margin:6px 0 0}.hint a{color:var(--pink)}"
     ".check{display:flex;align-items:center;font-weight:600}"
+    ".ev{border-top:2px solid #F1F3F9;padding-top:12px;margin-top:12px}.ev:first-of-type{border:0;margin:0;padding:0}"
+    ".days{display:flex;gap:4px;margin:8px 0}.days label{flex:1;font-weight:600;font-size:14px;text-align:center;"
+    "border:2px solid #E6E9F2;border-radius:10px;padding:7px 0;margin:0}.days input{display:none}"
+    ".days label:has(input:checked){background:var(--pink);border-color:var(--pink);color:#fff}"
+    "button.add{border:0;background:#F1F3F9;color:var(--ink);border-radius:999px;padding:9px 16px;font-size:15px;"
+    "margin-top:12px}"
     "button.save{width:100%;border:0;border-radius:999px;background:var(--pink);color:#fff;font-size:19px;"
     "font-weight:700;padding:16px;margin-top:4px}";
 
@@ -180,6 +186,33 @@ static void hour_options(sbuf_t *b, int sel)
         int h12 = h % 12 ? h % 12 : 12;
         sb_add(b, "<option value=\"%d\"%s>%d %s</option>", h, h == sel ? " selected" : "", h12, h < 12 ? "AM" : "PM");
     }
+}
+
+/* One row of the special-events list. Field names: en<i> name, eh<i> hour, e<i>d<0-6> weekdays,
+ * et<i> date, e<i>o outside. */
+static void event_row(sbuf_t *b, int i, const wb_event_t *e, bool shown)
+{
+    static const char *wd = "SMTWTFS";
+    char name[3 * EVENT_NAME_LEN];
+    html_esc(e ? e->name : "", name, sizeof(name));
+    sb_add(b, "<div class=\"ev\" id=\"ev%d\"%s><div class=\"row\"><input name=\"en%d\" value=\"%s\" "
+              "maxlength=\"%d\" placeholder=\"Like Soccer or Field trip\"><select name=\"eh%d\" style=\"flex:0 0 108px\">",
+           i, shown ? "" : " style=\"display:none\"", i, name, EVENT_NAME_LEN - 1, i);
+    hour_options(b, e ? e->hour : 8);
+    sb_add(b, "</select></div><div class=\"days\">");
+    for (int d = 0; d < 7; d++) {
+        bool on = e && ((e->wdays >> d) & 1);
+        sb_add(b, "<label><input type=\"checkbox\" name=\"e%dd%d\" value=\"1\"%s>%c</label>", i, d,
+               on ? " checked" : "", wd[d]);
+    }
+    char date[16] = "";
+    if (e && !e->wdays && e->year) {
+        snprintf(date, sizeof(date), "%04d-%02d-%02d", e->year, e->month, e->day);
+    }
+    sb_add(b, "</div><div class=\"row\" style=\"align-items:center\"><input type=\"date\" name=\"et%d\" value=\"%s\">"
+              "<label class=\"check\" style=\"margin:0;font-weight:500\"><input type=\"checkbox\" name=\"e%do\" "
+              "value=\"1\"%s>Outside</label></div></div>",
+           i, date, i, (!e || e->outside) ? " checked" : "");
 }
 
 static esp_err_t page_root(httpd_req_t *req)
@@ -235,17 +268,25 @@ static esp_err_t page_root(httpd_req_t *req)
     hour_options(&b, S->off_from);
     sb_add(&b, "</select><select name=\"to\">");
     hour_options(&b, S->off_to);
-    sb_add(&b, "</select></div><p class=\"hint\">Off at, back on at. A tap wakes it for a minute.</p>"
-               "<label for=\"bbus\" style=\"margin-top:16px\">Bike bus day</label><select id=\"bbus\" name=\"bbus\">");
-    static const char *days[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "No bike bus"};
-    for (int d = 0; d < 8; d++) {
-        sb_add(&b, "<option value=\"%d\"%s>%s</option>", d, d == S->bike_bus ? " selected" : "", days[d]);
+    sb_add(&b, "</select></div><p class=\"hint\">Off at, back on at. A tap wakes it for a minute.</p></div>");
+
+    sb_add(&b, "<div class=\"card\"><label>Special events</label>"
+               "<p class=\"hint\" style=\"margin:0 0 12px\">Things like soccer or a field trip. Pick the days it repeats, "
+               "or one date. Outside events get reminders for gloves, rain gear or water. "
+               "Clear a name to remove it.</p>");
+    for (int i = 0; i < EVENT_MAX; i++) {
+        bool have = i < S->nevents;
+        event_row(&b, i, have ? &S->events[i] : NULL, have || i == S->nevents);
     }
-    sb_add(&b, "</select><p class=\"hint\">Cold mornings that day get a gloves reminder.</p></div>"
+    sb_add(&b, "<button class=\"add\" id=\"add\">+ Add another event</button></div>"
                "<button class=\"save\" type=\"submit\">Save</button></form></main>"
                "<script>document.querySelectorAll('.nets button').forEach(function(b){b.onclick=function(e){"
                "e.preventDefault();document.getElementById('ssid').value=b.dataset.s;"
-               "document.getElementById('pass').focus()}})</script></body></html>");
+               "document.getElementById('pass').focus()}});"
+               "document.getElementById('add').onclick=function(e){e.preventDefault();"
+               "var r=[].find.call(document.querySelectorAll('.ev'),function(x){return x.style.display=='none'});"
+               "if(r){r.style.display='';r.querySelector('input').focus()}if(!r||!r.nextElementSibling||"
+               "r.nextElementSibling.className!='ev')this.style.display='none'}</script></body></html>");
 
     httpd_resp_set_type(req, "text/html; charset=utf-8");
     httpd_resp_set_hdr(req, "Cache-Control", "no-store");
@@ -263,7 +304,7 @@ static void restart_cb(void *arg)
 static esp_err_t page_save(httpd_req_t *req)
 {
     int total = req->content_len;
-    if (total <= 0 || total > 2048) {
+    if (total <= 0 || total > 8192) {
         return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Bad form");
     }
     char *body = calloc(1, total + 1);
@@ -304,9 +345,42 @@ static esp_err_t page_save(httpd_req_t *req)
     if (form_get(body, "to", v, sizeof(v))) {
         n.off_to = (uint8_t)(atoi(v) % 24);
     }
-    if (form_get(body, "bbus", v, sizeof(v)) && v[0]) {
-        int d = atoi(v);
-        n.bike_bus = (uint8_t)(d >= 0 && d <= 7 ? d : 7);
+    n.nevents = 0;
+    memset(n.events, 0, sizeof(n.events));
+    for (int i = 0; i < EVENT_MAX; i++) {
+        char key[8];
+        wb_event_t e = {0};
+        snprintf(key, sizeof(key), "en%d", i);
+        if (!form_get(body, key, v, sizeof(v)) || !v[0]) {
+            continue;
+        }
+        snprintf(e.name, sizeof(e.name), "%s", v);
+        snprintf(key, sizeof(key), "eh%d", i);
+        if (form_get(body, key, v, sizeof(v))) {
+            e.hour = (uint8_t)(atoi(v) % 24);
+        }
+        for (int d = 0; d < 7; d++) {
+            snprintf(key, sizeof(key), "e%dd%d", i, d);
+            if (form_get(body, key, v, sizeof(v)) && v[0] == '1') {
+                e.wdays |= 1 << d;
+            }
+        }
+        int y, m, d;
+        snprintf(key, sizeof(key), "et%d", i);
+        if (!e.wdays && form_get(body, key, v, sizeof(v)) && sscanf(v, "%d-%d-%d", &y, &m, &d) == 3 &&
+            y >= 2024 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+            e.year = (uint16_t)y;
+            e.month = (uint8_t)m;
+            e.day = (uint8_t)d;
+        }
+        snprintf(key, sizeof(key), "e%do", i);
+        e.outside = form_get(body, key, v, sizeof(v)) && v[0] == '1';
+        if (!e.wdays && !e.year) {
+            free(body);
+            snprintf(v, sizeof(v), "Pick the days or a date for \"%.40s\"", e.name);
+            return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, v);
+        }
+        n.events[n.nevents++] = e;
     }
     free(body);
 

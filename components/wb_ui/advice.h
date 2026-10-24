@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include "wx.h"
 
@@ -17,24 +18,47 @@ typedef enum {
 } wear_t;
 
 #define ADVICE_MAX_WEAR 3
+#define ADVICE_MAX_EVENTS 2  /* events mentioned in one tip */
 
-/* Bike bus is a morning ride; gloves get a reminder when it's cold. */
-#define BIKE_BUS_COLD_F 50.0f
+/* Outdoor events: at or below this feels-like at the event's start, remind about gloves. */
+#define EVENT_COLD_F 50.0f
+/* At or above this, remind about water. */
+#define EVENT_HOT_F 85.0f
+/* Rain chance at the event's start that earns an umbrella reminder. */
+#define EVENT_RAIN_POP 50
 /* A drop this big in the daily high counts as "a lot colder" (and means gloves). */
 #define BIG_CHANGE_F 12.0f
 
+/* A special event: something on the calendar the advice should mention ("Soccer", "Field trip").
+ * Repeats on weekdays, or happens once on a date. */
+#define EVENT_MAX 8
+#define EVENT_NAME_LEN 24
+
 typedef struct {
-    int bike_bus_wday;   /* 0 = Sunday ... 6 = Saturday, -1 = no bike bus */
+    char name[EVENT_NAME_LEN];
+    uint8_t wdays;       /* bit 0 = Sunday ... bit 6 = Saturday; 0 = one date instead */
+    uint16_t year;       /* one-off date, used when wdays == 0 */
+    uint8_t month, day;
+    uint8_t hour;        /* starts at, local 0..23 */
+    bool outside;        /* weather reminders (gloves, umbrella, water) apply */
+} wb_event_t;
+
+typedef struct {
+    const wb_event_t *events;
+    int nevents;
 } advice_opts_t;
+
+/* Does the event happen on this date? wday: 0 = Sunday. */
+bool event_on(const wb_event_t *e, int year, int month, int day, int wday);
 
 typedef struct {
     char headline[64];   /* "Chilly 48° morning" (absolute) */
     char compare[80];    /* "A lot colder and cloudier than yesterday" (relative, may be empty) */
-    char tip[128];       /* "Bring a jacket! Remember your gloves for bike bus!" */
+    char tip[192];       /* "Bring a jacket! Soccer today: wear gloves!" */
     int nwear;
     wear_t wear[ADVICE_MAX_WEAR];
     bool tomorrow;       /* advice is about tomorrow (shown in the evening) */
-    bool bike_bus;       /* the advice day is a bike bus day */
+    int nevents;         /* events mentioned in the tip */
 } advice_t;
 
 void advice_make(const wx_t *wx, const advice_opts_t *opts, advice_t *out);

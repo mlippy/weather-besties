@@ -5,7 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "alerts.h"
 #include "board.h"
+#include "cJSON.h"
 #include "esp_crt_bundle.h"
 #include "esp_event.h"
 #include "esp_heap_caps.h"
@@ -30,6 +32,8 @@ static const char *TAG = "net";
 #define RETRY_FAST_MS (60 * 1000)
 #define RETRY_SLOW_MS (5 * 60 * 1000)
 #define CONNECT_WAIT_MS (30 * 1000)
+/* Keep showing the last alerts through this many failed alert checks in a row (15 min each). */
+#define ALERT_KEEP_FAILS 4
 
 static EventGroupHandle_t s_ev;
 static wb_settings_t *S;
@@ -39,6 +43,8 @@ static char s_ip[20];
 static volatile int s_utc_offset;
 static volatile bool s_have_offset;
 static wx_t s_wx;
+static wx_alerts_t s_alerts;
+static int s_alert_fails;
 
 /* ------------------------------------------------------------------ time */
 
@@ -152,7 +158,8 @@ bool net_http_get(const char *url, char **body, size_t *len)
         .crt_bundle_attach = esp_crt_bundle_attach,
         .timeout_ms = 15000,
         .buffer_size = 2048,
-        .user_agent = "WeatherBesties/" WB_VERSION,
+        /* weather.gov asks apps to say who they are */
+        .user_agent = "WeatherBesties/" WB_VERSION " (github.com/mlippy/weather-besties)",
     };
     esp_http_client_handle_t c = esp_http_client_init(&cfg);
     if (!c) {
@@ -285,6 +292,31 @@ static bool fetch_weather(void)
     return true;
 }
 
+/* US National Weather Service alerts for the spot. Outside the US this just fails quietly. */
+static void fetch_alerts(void)
+{
+    char url[160];
+    snprintf(url, sizeof(url), "https://api.weather.gov/alerts/active?status=actual&point=%.4f,%.4f", S->lat,
+             S->lon);
+    char *body;
+    size_t len;
+    static wx_alerts_t fresh;
+    bool ok = net_http_get(url, &body, &len);
+    if (ok) {
+        ok = alerts_parse_nws(body, len, &fresh);
+        free(body);
+    }
+    if (ok) {
+        s_alerts = fresh;
+        s_alert_fails = 0;
+        for (int i = 0; i < s_alerts.n; i++) {
+            ESP_LOGI(TAG, "alert: %s", s_alerts.a[i].event);
+        }
+    } else if (++s_alert_fails >= ALERT_KEEP_FAILS) {
+        s_alerts.n = 0; /* stale; better none than an old one */
+    }
+}
+
 static void show_weather(bool fresh_ok, const char *last_update)
 {
     ui_info_t info = {0};
@@ -302,6 +334,7 @@ static void show_weather(bool fresh_ok, const char *last_update)
         snprintf(status, sizeof(status), "Offline. Last update %s", last_update);
     }
     UI_LOCKED({
+        ui_set_alerts(&s_alerts);
         ui_show_weather(&s_wx);
         ui_set_footer(S->place_name, status, !fresh_ok);
         ui_set_info(&info);
@@ -370,6 +403,7 @@ static void net_task(void *arg)
         xEventGroupWaitBits(s_ev, EV_CONNECTED, pdFALSE, pdFALSE, pdMS_TO_TICKS(CONNECT_WAIT_MS));
         bool ok = (xEventGroupGetBits(s_ev) & EV_CONNECTED) && fetch_weather();
         if (ok) {
+            fetch_alerts();
             fails = 0;
             have = true;
             struct tm t;
@@ -397,9 +431,17 @@ static void net_task(void *arg)
     }
 }
 
+static void *json_malloc(size_t n)
+{
+    return heap_caps_malloc(n, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+}
+
 void net_start(wb_settings_t *s)
 {
     S = s;
+    /* Alert responses can be a few hundred KB of JSON; keep the parse tree out of internal RAM. */
+    cJSON_Hooks hooks = {.malloc_fn = json_malloc, .free_fn = free};
+    cJSON_InitHooks(&hooks);
     s_ev = xEventGroupCreate();
     xTaskCreatePinnedToCore(net_task, "net", 12288, NULL, 5, NULL, 0);
 }

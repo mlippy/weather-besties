@@ -57,7 +57,7 @@ void app_main(void)
 
     board_lvgl_lock(-1);
     ui_init(S.names);
-    ui_set_bike_bus_day(S.bike_bus <= 6 ? S.bike_bus : -1);
+    ui_set_events(S.events, S.nevents);
     ui_set_action_cb(net_ui_action, NULL);
     ui_set_time_cb(net_local_time);
     lv_timer_create(power_timer, 1000, NULL);

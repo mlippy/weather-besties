@@ -74,6 +74,7 @@ static char *slurp(const char *path, size_t *len)
 }
 
 static wx_t wx;
+static wx_alerts_t alerts;
 
 static void load(const char *dir, const char *name)
 {
@@ -86,6 +87,22 @@ static void load(const char *dir, const char *name)
         exit(1);
     }
     free(j);
+
+    /* Optional NWS alerts for the same moment: <name>.alerts.json */
+    memset(&alerts, 0, sizeof(alerts));
+    snprintf(path, sizeof(path), "%s/%s.alerts.json", dir, name);
+    FILE *af = fopen(path, "rb");
+    if (af) {
+        fclose(af);
+        j = slurp(path, &len);
+        if (!alerts_parse_nws(j, len, &alerts)) {
+            fprintf(stderr, "alerts parse failed: %s\n", name);
+            exit(1);
+        }
+        free(j);
+    }
+    ui_set_alerts(&alerts);
+
     memset(&now_tm, 0, sizeof(now_tm));
     now_tm.tm_year = wx.year - 1900;
     now_tm.tm_mon = wx.month - 1;
@@ -100,6 +117,9 @@ static void load(const char *dir, const char *name)
                wx.periods[i].pop);
     }
     printf("\n");
+    for (int i = 0; i < alerts.n; i++) {
+        printf("  alert: %s -> %s\n", alerts.a[i].event, alerts.a[i].kid);
+    }
 }
 
 static void show(const char *place, const char *status)
@@ -157,7 +177,7 @@ int main(int argc, char **argv)
     load(sc, "oct_morning");
     show("Upper Montclair, NJ", "Updated 9:45 AM");
     ui_info_t info = {.wifi = "HomeWiFi", .place = "Upper Montclair, New Jersey", .ip = "192.168.1.42",
-                      .updated = "Weather updated 9:45 AM", .version = "1.0.0"};
+                      .updated = "Weather updated 9:45 AM", .version = "1.2.0"};
     ui_set_info(&info);
     ui_open_settings();
     save(out, "09_settings");
@@ -165,5 +185,20 @@ int main(int argc, char **argv)
 
     ui_show_wifi_error("HomeWiFi", NULL);
     save(out, "10_wifi_error");
+
+    /* Special events: a one-off field trip on the cold Friday, soccer every Saturday. */
+    static const wb_event_t events[] = {
+        {.name = "Field trip", .year = 2026, .month = 10, .day = 23, .hour = 10, .outside = true},
+        {.name = "Soccer", .wdays = 1 << 6, .hour = 11, .outside = true},
+    };
+    ui_set_events(events, 2);
+    load(sc, "oct_morning");
+    show("Upper Montclair, NJ", "Updated 9:45 AM");
+    save(out, "11_event_field_trip");
+
+    load(sc, "fri_evening");
+    show("Upper Montclair, NJ", "Updated 7:45 PM");
+    save(out, "12_event_rainy_soccer_tomorrow");
+    ui_set_events(NULL, 0);
     return 0;
 }
