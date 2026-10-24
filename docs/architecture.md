@@ -44,7 +44,7 @@ It's all one C program, built with Espressif's ESP-IDF framework. The screens an
 | Layer | Files / contents | Builds for |
 |---|---|---|
 | Board glue | `main.c`, `board.c`, `net.c`, `portal.c`, `settings.c` | firmware only |
-| Screens + logic | `ui.c`, `advice.c` (clothes, special events), `wx.c` (forecast), `alerts.c` (NWS alerts), `cal.c` (iCal reader) | board, PC, browser |
+| Screens + logic | `ui.c`, `advice.c` (clothes, special events), `wx.c` (forecast), `alerts.c` (NWS alerts), `cal.c` (iCal reader), `thermo.c` (thermometer) | board, PC, browser |
 | Artwork + fonts | 49 images, 6 sizes of Fredoka, as C arrays | board, PC, browser |
 | Libraries | LVGL 9.5 (graphics), cJSON (parsing) | board, PC, browser |
 | Board libraries | GT911 touch driver, DNS server for setup | firmware only |
@@ -83,7 +83,7 @@ Every request the board makes has to fit the HTTP client's send buffer (request 
 | Where | What |
 |---|---|
 | Top bar | "Good morning, Piper!", the date and clock |
-| Today page, left | Weather picture, temperature, conditions, high/low, feels like; under the picture, a small moon (tonight's phase, drawn as two circles, no artwork) with sunrise and sunset |
+| Today page, left | Weather picture, temperature, a thermometer (fixed 0-100 °F scale, color by temperature, `thermo.c`), conditions, high/low, feels like; under the picture, a small moon (tonight's phase, drawn as two circles, no artwork) with sunrise and sunset |
 | Today page, right | The speech bubble: an optional alert bar (calm purple or blue), headline, "than yesterday" line (or the alert's kid line), the tip with any event reminders, and up to 3 clothes |
 | Today page, bottom | The next four parts of the day |
 | Next-days page (swipe left) | Three day cards with a short tip and the change from the day before |

@@ -17,7 +17,7 @@ This is not a general weather dashboard. It answers one kid-sized question in wo
 
 ## What it shows
 
-- The weather right now, in big friendly type.
+- The weather right now, in big friendly type, next to a **thermometer** on a fixed 0-100°F scale, so "halfway up" always means the same thing. Faint color zones on the tube show where cold and hot are, and the fill color says how it feels: purple freezing, blue cold, teal chilly, green cool, yellow nice, orange warm, red hot (the same cut-offs as the clothing advice).
 - A "what to wear" bubble with clothing picks (jacket, beanie, mittens, umbrella, boots...) based on feels-like temperature, rain, snow, storms, and sun.
 - Every day is compared with yesterday: warmer or colder (by the daily high), sunnier or cloudier (by hours of sun). A drop of 12°F or more says "a lot colder" and adds gloves.
 - The rest of the day in four chunks (morning, afternoon, evening, tonight, starting with the current one), then the next three days on a second page (swipe left).
@@ -47,7 +47,7 @@ Weather data comes from [Open-Meteo](https://open-meteo.com): free for non-comme
 
 Setting it up for the first time? [docs/deploy.md](docs/deploy.md) is the step-by-step checklist.
 
-For a first install you only need `firmware/weather-besties-v1.4.1.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`. It also erases saved settings, so for later updates use `firmware/weather-besties-v1.4.1-app.bin` at `0x10000` instead (see [updating](docs/deploy.md#7-updating-the-firmware-later)).
+For a first install you only need `firmware/weather-besties-v1.4.2.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`. It also erases saved settings, so for later updates use `firmware/weather-besties-v1.4.2-app.bin` at `0x10000` instead (see [updating](docs/deploy.md#7-updating-the-firmware-later)).
 
 **Chrome or Edge, no installs:** open the [esptool-js web flasher](https://espressif.github.io/esptool-js/), plug the board into the **UART** USB-C port, click Connect, pick the port, set Flash Address to `0x0`, choose the .bin, click Program. Takes about a minute.
 
@@ -55,7 +55,7 @@ For a first install you only need `firmware/weather-besties-v1.4.1.bin`. It is a
 
 ```
 pip install esptool
-python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.4.1.bin
+python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.4.2.bin
 ```
 
 **If it won't connect:** hold **BOOT**, tap **RESET**, let go of BOOT, then try again. If your computer doesn't see a serial port on the UART connector, try the other USB-C port (native USB).
@@ -130,6 +130,7 @@ For how the pieces fit together (hardware, tasks, setup hotspot, flash layout), 
 | `components/wb_ui/advice.c` | What-to-wear rules (temperature bands, rain, snow, storms, sun) and special events |
 | `components/wb_ui/alerts.c` | NWS alerts: which to show, kid words for each |
 | `components/wb_ui/cal.c` | Google Calendar (iCal) reader: repeating events, tags, filter words |
+| `components/wb_ui/thermo.c` | The thermometer: fixed scale, color zones and fill |
 | `components/wb_ui/wx.c` | Forecast parsing, parts of the day, moon phase |
 | `components/lv_conf.h` | LVGL settings, shared with the PC renderer |
 | `tools/icons.py` | The artwork (weather faces, clothes, cats), drawn as SVG |
@@ -145,12 +146,13 @@ For how the pieces fit together (hardware, tasks, setup hotspot, flash layout), 
 - Event reminders and the "a lot colder" threshold: `EVENT_COLD_F`, `EVENT_HOT_F`, `EVENT_RAIN_POP` and `BIG_CHANGE_F` in `components/wb_ui/advice.h`.
 - Which weather alerts show, and the kid title and line for each: the `SKIP` and `KID` tables at the top of `components/wb_ui/alerts.c`.
 - Calendar tags and the countdown range: the top of `components/wb_ui/cal.c` and `CAL_COUNTDOWN_DAYS` in `cal.h`.
+- Thermometer scale and colors: `THERMO_MIN_F` / `THERMO_MAX_F` in `components/wb_ui/thermo.h` and the `ZONES` table in `thermo.c` (keep its cut-offs in step with `BANDS` in `advice.c`).
 - Colors: the theme table at the top of `components/wb_ui/ui.c`.
 - Artwork: edit `tools/icons.py`, then run `python3 tools/make_assets.py` (needs `pip install resvg-py pillow pypng` and `npm install lv_font_conv` inside `tools/`).
 
 ## On the real board
 
-Boris ran his v1.4.0 on this board and fixed what broke there; 1.4.1 carries those fixes (see below). Piper's additions (events, alerts, calendar, countdowns, sun and moon, the WPA2 hotspot) compile cleanly and were rendered from the real UI code, but haven't run on the hardware yet. Things to watch on first boot:
+Boris ran his v1.4.0 on this board and fixed what broke there; 1.4.2 carries those fixes (see below). Piper's additions (events, alerts, calendar, countdowns, sun and moon, the WPA2 hotspot) compile cleanly and were rendered from the real UI code, but haven't run on the hardware yet. Things to watch on first boot:
 
 - Touch lands in the wrong place: flip `swap_xy` / `mirror_x` / `mirror_y` in `touch_init()` in `main/board.c`.
 - Picture shifts sideways or flickers while WiFi is busy: lower `LCD_PCLK_HZ` in `main/board.c` from 16 MHz to 14 MHz.
@@ -161,7 +163,7 @@ Boris ran his v1.4.0 on this board and fixed what broke there; 1.4.1 carries tho
 
 ## Fixes from Boris's v1.4.0
 
-This is a fork of [boriskozak/weather-besties](https://github.com/boriskozak/weather-besties). Version 1.4.1 brings over the functional fixes from his v1.4.0, which he found running on the real board:
+This is a fork of [boriskozak/weather-besties](https://github.com/boriskozak/weather-besties). Version 1.4.2 brings over the functional fixes from his v1.4.0, which he found running on the real board:
 
 - **The weather download:** the forecast request had outgrown ESP-IDF's 512-byte HTTP send buffer, so the board never sent it. The buffers are now 2 KB, and `make test` checks that every request (forecast, geocoding, alerts, the longest calendar link) fits with room to spare (`components/wb_ui/wb_request.c`, `sim/test_request.c`).
 - **Weak WiFi:** no modem power saving (it's wall powered), 30-second timeouts, quick retries after a blip, and the "can't reach" message only after a retry also fails.

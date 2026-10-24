@@ -7,6 +7,7 @@
 #include "advice.h"
 #include "assets/assets.h"
 #include "cal.h"
+#include "thermo.h"
 #include "lvgl.h"
 
 #define DEG "\xC2\xB0"
@@ -81,6 +82,7 @@ static lv_obj_t *lbl_greet, *lbl_time, *lbl_date;
 static lv_obj_t *tv, *tile0, *tile1;
 static lv_obj_t *img_hero, *lbl_temp, *lbl_cond, *lbl_hilo, *lbl_feels;
 static lv_obj_t *moon, *moon_shadow, *lbl_sun;
+static thermo_t s_thermo;
 static lv_obj_t *bubble, *bubble_tail, *alert_bar, *lbl_alert, *lbl_head, *lbl_cmp, *lbl_tip, *bubble_spacer, *wear_row;
 static lv_obj_t *wear_chip[ADVICE_MAX_WEAR], *wear_img[ADVICE_MAX_WEAR], *wear_lbl[ADVICE_MAX_WEAR];
 static lv_obj_t *pcard[WX_MAX_PERIODS], *p_lbl[WX_MAX_PERIODS], *p_img[WX_MAX_PERIODS], *p_temp[WX_MAX_PERIODS],
@@ -500,11 +502,14 @@ static void build_today(lv_obj_t *t)
     lbl_cond = label(t, &font_title, "");
     lv_obj_set_pos(lbl_cond, 204, 140);
 
-    lbl_hilo = label(t, &font_body, "");
-    lv_obj_set_pos(lbl_hilo, 204, 180);
+    lbl_hilo = label(t, &font_small, "");
+    lv_obj_set_pos(lbl_hilo, 204, 184);
 
     lbl_feels = label(t, &font_small, "");
     lv_obj_set_pos(lbl_feels, 204, 214);
+
+    /* Thermometer on a fixed 0-100 °F scale, between the big number and the bubble. */
+    thermo_create(&s_thermo, t, 401, 12, 240);
 
     /* Small sun + moon corner under the picture: tonight's moon, then sunrise and sunset. */
     moon = box(t);
@@ -722,6 +727,7 @@ static void apply_theme(const theme_t *th)
     lv_obj_set_style_bg_color(bubble, C(th->bubble), 0);
     lv_obj_set_style_bg_color(bubble_tail, C(th->bubble), 0);
     lv_obj_set_style_border_color(moon, C(th->text2), 0);
+    thermo_set_outline(&s_thermo, C(th->text));
     lv_obj_set_style_text_color(lbl_head, C(th->accent), 0);
     lv_obj_set_style_text_color(lbl_tip, C(th->bubble_text), 0);
     lv_obj_set_style_text_color(lbl_cmp, C(th->bubble_text), 0);
@@ -944,6 +950,7 @@ void ui_show_weather(const wx_t *wx)
     /* hero */
     lv_image_set_src(img_hero, ICON_L[wx_icon_for(wx->code, wx->is_day)]);
     lv_label_set_text_fmt(lbl_temp, "%d" DEG, iround(wx->temp));
+    thermo_set(&s_thermo, wx_to_f(wx, wx->temp));
     lv_label_set_text(lbl_cond, wx_describe(wx->code, wx->is_day));
     if (wx->ndays > 0) {
         lv_label_set_text_fmt(lbl_hilo, "High %d" DEG "   Low %d" DEG, iround(wx->days[0].tmax),

@@ -10,7 +10,7 @@ Boris is redesigning the main screen in [boriskozak/weather-besties](https://git
 
 **Plan: rebuild on top of his 2.0, keeping history linear.** Not a merge (adds a merge commit, 25 conflicting files at once) and not a plain `git rebase` of our commits (almost every one touches the `ui.c` he rewrote, and our 1.4.1 port just duplicates his fixes).
 
-1. **Keep what we have:** tag the current `main` as `piper-1.4.1`.
+1. **Keep what we have:** tag the current `main` with its version (e.g. `piper-1.4.2`).
 2. **Branch from his 2.0:** `git remote add upstream https://github.com/boriskozak/weather-besties.git`, `git fetch upstream`, new branch from `upstream/main`.
 3. **Re-apply our features, one focused commit each:**
    - Piper defaults: one name, no bike bus
@@ -21,6 +21,7 @@ Boris is redesigning the main screen in [boriskozak/weather-besties](https://git
    - Google Calendar: `cal.c` and `sim/test_cal.c` as is, settings, setup page, hourly fetch in `net.c`
    - Countdowns (his day chip or footer)
    - Sun and moon (next to his "33° now")
+   - Thermometer: `thermo.c` as is, placed next to his "33° now" (2.0 has no scale or color for the temperature; worth offering him)
    - Docs: deploy checklist, this queue, security notes, README
 
    About half copies over as whole files; the rest is re-wiring into his screens.
@@ -30,7 +31,7 @@ Boris is redesigning the main screen in [boriskozak/weather-besties](https://git
 **Staying linear afterwards:** for each new Boris update, `git fetch upstream && git rebase upstream/main`, then force-push. Two habits keep rebases small:
 
 - **Keep the fork thin:** our features in their own files (`cal.c`, `alerts.c`) with small hooks into his code, not edits spread through his `ui.c`.
-- **Offer the generic pieces upstream:** the calendar reader, calm alerts, WPA2 hotspot and touch-driver fix would help Cleo and Lila's board too. Each one he takes is one less patch we carry.
+- **Offer the generic pieces upstream:** the calendar reader, calm alerts, thermometer, WPA2 hotspot and touch-driver fix would help Cleo and Lila's board too. Each one he takes is one less patch we carry.
 
 ## Next up
 
