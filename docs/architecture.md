@@ -74,6 +74,20 @@ The screen hardware reads the framebuffer over and over by DMA, through 2 small 
 
 The clock comes from internet time (SNTP) plus the time-zone offset the forecast reports, which handles daylight saving for free.
 
+## What's on the screen
+
+| Where | What |
+|---|---|
+| Top bar | "Good morning, Piper!", the date and clock |
+| Today page, left | Weather picture, temperature, conditions, high/low, feels like; under the picture, a small moon (tonight's phase, drawn as two circles, no artwork) with sunrise and sunset |
+| Today page, right | The speech bubble: an optional alert bar (calm purple or blue), headline, "than yesterday" line (or the alert's kid line), the tip with any event reminders, and up to 3 clothes |
+| Today page, bottom | The next four parts of the day |
+| Next-days page (swipe left) | Three day cards with a short tip and the change from the day before |
+| Footer | A countdown ("11 more sleeps until Piper's birthday!") or else the town; page dots; last update |
+| Settings (long-press) | WiFi, town, update time, address, version, data sources, official alert name; Change settings, Refresh, Close |
+
+Long text never pushes the layout around: the bubble steps its fonts down until the advice fits.
+
 ## The setup hotspot
 
 The board has no keyboard, so setup happens on a phone. On first boot (or from Settings) the board stops being a WiFi client and becomes a small password-protected (WPA2) WiFi network called `WeatherBesties-XXXX`, the last 4 characters coming from its radio's hardware address. The password is new for every setup and shown on the screen. Three small servers on the board (hotspot + DHCP, DNS, web), all at `192.168.4.1`, then get the phone to open the setup page automatically, the same way hotel and airport WiFi do.
@@ -98,27 +112,29 @@ The DNS and redirect answers are the whole trick. A DNS server that answers ever
 
 ## Where it lives in flash
 
-The whole program is a single 3.4 MB image, flashed at `0x0`. Two thirds of it is artwork, fonts and other constant data, not code.
+The whole program is a single 3.6 MB image, flashed at `0x0` (or just the app, 3.6 MB at `0x10000`, for updates that keep settings). Two thirds of it is artwork, fonts and other constant data, not code.
 
 ```
 16 MB flash
 |64K| App slot, 7 MB                                  | Free, 8.9 MB          |
-|   | code 1.0 MB | artwork + data 2.2 MB | spare 3.6 MB|                       |
+|   | code 1.1 MB | artwork + data 2.4 MB | spare 3.5 MB|                       |
 
 first 64 KB: bootloader (21 KB), partition table, settings (24 KB), radio calibration
 ```
 
-See `partitions.csv` for the exact offsets. At boot the code and constants get copied into the 8 MB PSRAM and run from there, so saving settings to flash never makes the screen glitch.
+See `partitions.csv` for the exact offsets. The full image covers the settings area with blank bytes, which is why flashing it at `0x0` erases saved settings and the app-only image doesn't. At boot the code and constants get copied into the 8 MB PSRAM and run from there, so saving settings to flash never makes the screen glitch.
 
 ## One screen codebase, three places it runs
 
-Because the screens never touch hardware, the same files (`ui.c`, `advice.c`, `wx.c`, `alerts.c` + LVGL + artwork + fonts) compile three ways. Only the small glue file changes, and that's what made the screenshots and the browser emulator possible without the board on the desk.
+Because the screens never touch hardware, the same files (`ui.c`, `advice.c`, `wx.c`, `alerts.c`, `cal.c` + LVGL + artwork + fonts) compile three ways. Only the small glue file changes, and that's what made the screenshots and the browser emulator possible without the board on the desk.
 
 | Target | Toolchain + glue | Output |
 |---|---|---|
-| Board firmware | Xtensa GCC + `board.c` | 3.4 MB image, flashed at `0x0` |
+| Board firmware | Xtensa GCC + `board.c` | 3.6 MB image, flashed at `0x0` |
 | Screenshot renderer | GCC + `sim_main.c` | PC program, writes PNGs |
-| Browser emulator | clang wasm32 + `emu_main.c` | 2.7 MB WebAssembly + canvas |
+| Browser emulator | clang wasm32 + `emu_main.c` | WebAssembly + canvas (the checked-in build is older; `make web` refreshes it) |
+
+The calendar reader has its own tests (`sim/test_cal.c`, `make test`), run against a sample family calendar and checked against Google's real US-holidays feed.
 
 The icons start as SVG drawings in a Python script (`tools/icons.py`) and get rendered and packed into RGB565 pixel arrays with an alpha channel. The Fredoka font gets rasterized into bitmap tables at six sizes. Both end up as C files (`tools/make_assets.py`), so the board never needs a filesystem or an image decoder.
 

@@ -20,7 +20,7 @@ This is not a general weather dashboard. It answers one kid-sized question in wo
 - The weather right now, in big friendly type.
 - A "what to wear" bubble with clothing picks (jacket, beanie, mittens, umbrella, boots...) based on feels-like temperature, rain, snow, storms, and sun.
 - Every day is compared with yesterday: warmer or colder (by the daily high), sunnier or cloudier (by hours of sun). A drop of 12°F or more says "a lot colder" and adds gloves.
-- The rest of the day in four chunks (morning, midday, afternoon, evening), then the next three days on a second page (swipe left).
+- The rest of the day in four chunks (morning, afternoon, evening, tonight, starting with the current one), then the next three days on a second page (swipe left).
 - After 7 PM the bubble switches to tomorrow, so she can lay out the right clothes before bed.
 - **Special events** (none by default): add things like soccer every Saturday or a one-day field trip. On the day (and the evening before) the bubble mentions it, and for outdoor events it checks the forecast for the hour it starts: gloves at 50°F feels-like or below, rain gear or snow boots when it's likely wet, water at 85°F or above.
 - **Weather alerts** from the US National Weather Service, written to be calm for kids: a soft purple (warning) or blue (watch, advisory) "heads-up" bar with a friendly title and one gentle line, never the official name or a warning sign. "Winter Storm Warning" becomes "Big snow on the way: Cozy coat, hat and boots!", and a tornado warning becomes "Stay close to a grown-up: The grown-ups are keeping watch." The official name is under Settings for grown-ups, and the setup page can turn alerts off. Alerts for boats, fire crews and farmers are skipped. This is a reminder, not a safety alarm: your phone's emergency alerts are faster.
@@ -47,7 +47,7 @@ Weather data comes from [Open-Meteo](https://open-meteo.com): free for non-comme
 
 Setting it up for the first time? [docs/deploy.md](docs/deploy.md) is the step-by-step checklist.
 
-You only need `firmware/weather-besties-v1.3.1.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`.
+For a first install you only need `firmware/weather-besties-v1.3.1.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`. It also erases saved settings, so for later updates use `firmware/weather-besties-v1.3.1-app.bin` at `0x10000` instead (see [updating](docs/deploy.md#7-updating-the-firmware-later)).
 
 **Chrome or Edge, no installs:** open the [esptool-js web flasher](https://espressif.github.io/esptool-js/), plug the board into the **UART** USB-C port, click Connect, pick the port, set Flash Address to `0x0`, choose the .bin, click Program. Takes about a minute.
 
@@ -64,7 +64,7 @@ python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.3.1.bin
 
 1. The screen shows a QR code, a hotspot name like `WeatherBesties-3F2A`, and its password (new each time).
 2. Scan the QR with a phone (or join that WiFi network by hand with the password). A setup page pops up. If it doesn't, open `http://192.168.4.1`.
-3. Pick the home WiFi, type the password, then set: town or ZIP, names for the greeting, °F or °C, optional night hours, special events, and the Google Calendar link. Save.
+3. Pick the home WiFi (a guest network is best, see [deploy.md](docs/deploy.md#why-a-guest-network)), type the password, then set: town or ZIP, names for the greeting, °F or °C, optional night hours, weather alerts on or off, special events, and the Google Calendar link with its filter words. Save.
 4. The board restarts, joins WiFi, and shows the weather.
 
 ![Setup screen](docs/setup.png)
@@ -74,7 +74,7 @@ Defaults if you skip things: Upper Montclair, NJ, "Piper", Fahrenheit, no specia
 ## Using it
 
 - Swipe left for the next three days, right to come back.
-- Long-press the greeting, the clock, or any empty spot for 1.5 seconds to open Settings (change WiFi, town or special events, refresh now).
+- Long-press the greeting, the clock, or any empty spot for 1.5 seconds to open Settings. It shows the WiFi, town, last update, version, and the official name of any weather alert. **Refresh** fetches the weather, alerts and calendar now; **Change settings** reopens the setup hotspot (WiFi, town, events, calendar, alerts).
 - Settings are stored on the board and survive reboots and app-only updates (`firmware/*-app.bin` at `0x10000`). Flashing the full image at `0x0` erases them; see [docs/deploy.md](docs/deploy.md#7-updating-the-firmware-later).
 
 ## Build from source
@@ -86,6 +86,16 @@ idf.py set-target esp32s3
 idf.py build
 idf.py -p PORT flash monitor
 ```
+
+To make the two images in `firmware/` after a build:
+
+```
+cd build
+python -m esptool --chip esp32s3 merge_bin -o ../firmware/weather-besties-vX.Y.Z.bin @flash_args
+cp weather_besties.bin ../firmware/weather-besties-vX.Y.Z-app.bin
+```
+
+Bump `WB_VERSION` in `main/net.h` first; Settings shows it.
 
 Everything else is already in `components/`: LVGL 9.5.0, Espressif's GT911 touch driver, and the captive-portal DNS server from the ESP-IDF examples. Serial logs run at 115200 baud on the UART port.
 
@@ -99,6 +109,8 @@ make shots     # renders every screen to sim/out/*.png
 make test      # calendar reader tests
 make web       # builds the browser emulator in sim/web/ (needs wasi-sdk)
 ```
+
+The browser emulator checked in under `sim/web/` is an older build (from before Piper's changes); `make web` refreshes it.
 
 Sample forecasts for testing live in `sim/scenarios/` (snow morning, rainy afternoon, summer heat, and more), with sample weather alerts and a sample family calendar (`family.ics`).
 
@@ -145,6 +157,13 @@ The code compiles cleanly and every screen was rendered from the real UI code, b
 - Screen stays dark but the log says "display ready": the backlight goes through the IO expander, check the log for "expander write failed".
 - Alerts never show: the log prints an `alert:` line for each one it finds. If `api.weather.gov` calls fail instead, look for TLS or HTTP status errors from `net`.
 - Calendar: the log prints a `calendar:` line after each read, and the phone setup page shows the same status under the calendar link.
+- Setup hotspot: if a phone won't join from the QR code, join by hand with the password on the screen.
+
+## Security, briefly
+
+- The setup hotspot is WPA2 with a fresh password shown on the screen, so the WiFi password and calendar link are encrypted on their way from the phone.
+- On the board, settings (including the WiFi password and calendar link) are stored unencrypted in flash. Anyone holding the board with a USB cable could read them. Use a guest network, and **Reset** the calendar's secret address in Google Calendar if the board is ever lost. Encrypting stored settings is [deferred](docs/queue.md#deferred-indefinitely).
+- To wipe it (giving it away): flash the full image at `0x0`, or run `python -m esptool erase_flash`.
 
 ## Credits
 
