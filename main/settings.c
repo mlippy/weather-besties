@@ -14,13 +14,14 @@ static const char *TAG = "settings";
  *   {.name = "Bike bus", .wdays = 1 << 5, .hour = 8, .outside = true}                   every Friday, 8 AM
  *   {.name = "Field trip", .year = 2026, .month = 11, .day = 5, .hour = 10, .outside = true}   one day only
  *   {.name = "Library", .wdays = (1 << 2) | (1 << 4), .hour = 9}                         Tue + Thu, indoors
+ *   {.name = "Piper's birthday", .year = 2026, .month = 11, .day = 3, .all_day = true, .countdown = true}
  * wdays: bit 0 = Sunday ... bit 6 = Saturday. */
 static const wb_event_t DEFAULT_EVENTS[] = {
     {.name = ""}, /* none yet */
 };
 
 /* Stored as one blob; bump the version if wb_event_t changes. */
-#define EVENTS_VER 1
+#define EVENTS_VER 2
 typedef struct {
     uint8_t ver, n;
     wb_event_t ev[EVENT_MAX];
@@ -35,6 +36,7 @@ void settings_defaults(wb_settings_t *s)
     s->lon = -74.2013;
     s->has_coords = true;
     snprintf(s->names, sizeof(s->names), "Piper");
+    snprintf(s->cal_words, sizeof(s->cal_words), "Piper");
     s->celsius = false;
     s->night_off = false;
     s->alerts = true;
@@ -85,6 +87,8 @@ void settings_load(wb_settings_t *s)
     get_str(h, "pq", s->place_query, sizeof(s->place_query));
     get_str(h, "pn", s->place_name, sizeof(s->place_name));
     get_str(h, "names", s->names, sizeof(s->names));
+    get_str(h, "ical", s->ical_url, sizeof(s->ical_url));
+    get_str(h, "calw", s->cal_words, sizeof(s->cal_words));
     get_double(h, "lat", &s->lat);
     get_double(h, "lon", &s->lon);
     uint8_t b = s->has_coords;
@@ -127,6 +131,8 @@ void settings_save(const wb_settings_t *s)
     nvs_set_str(h, "pq", s->place_query);
     nvs_set_str(h, "pn", s->place_name);
     nvs_set_str(h, "names", s->names);
+    nvs_set_str(h, "ical", s->ical_url);
+    nvs_set_str(h, "calw", s->cal_words);
     nvs_set_blob(h, "lat", &s->lat, sizeof(s->lat));
     nvs_set_blob(h, "lon", &s->lon, sizeof(s->lon));
     nvs_set_u8(h, "coords", s->has_coords);

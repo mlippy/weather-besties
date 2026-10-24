@@ -8,6 +8,7 @@
 #include "alerts.h"
 #include "board.h"
 #include "cJSON.h"
+#include "cal.h"
 #include "esp_crt_bundle.h"
 #include "esp_event.h"
 #include "esp_heap_caps.h"
@@ -34,6 +35,8 @@ static const char *TAG = "net";
 #define CONNECT_WAIT_MS (30 * 1000)
 /* Keep showing the last alerts through this many failed alert checks in a row (15 min each). */
 #define ALERT_KEEP_FAILS 4
+#define CAL_REFRESH_US (60LL * 60 * 1000 * 1000)
+#define CAL_MAX_BYTES (8 * 1024 * 1024)
 
 static EventGroupHandle_t s_ev;
 static wb_settings_t *S;
@@ -45,6 +48,11 @@ static volatile bool s_have_offset;
 static wx_t s_wx;
 static wx_alerts_t s_alerts;
 static int s_alert_fails;
+static wb_event_t s_cal_events[CAL_MAX];
+static int s_ncal;
+static int64_t s_cal_at = -1;     /* esp_timer time of the last good read */
+static int s_cal_day = -1;        /* the day it was read for */
+static char s_cal_status[96] = "Not checked yet.";
 
 /* ------------------------------------------------------------------ time */
 
@@ -209,6 +217,62 @@ out:
     return ok;
 }
 
+/* Streams a (possibly big) download to cb a chunk at a time, following redirects. */
+static bool http_stream(const char *url, void (*cb)(const char *, size_t, void *), void *ctx, int *status_out,
+                        size_t *total)
+{
+    *total = 0;
+    *status_out = 0;
+    esp_http_client_config_t cfg = {
+        .url = url,
+        .crt_bundle_attach = esp_crt_bundle_attach,
+        .timeout_ms = 20000,
+        .buffer_size = 4096,
+        .user_agent = "WeatherBesties/" WB_VERSION " (github.com/mlippy/weather-besties)",
+        .max_redirection_count = 5,
+    };
+    esp_http_client_handle_t c = esp_http_client_init(&cfg);
+    char *buf = heap_caps_malloc(4096, MALLOC_CAP_SPIRAM);
+    bool ok = false;
+    if (!c || !buf) {
+        goto out;
+    }
+    for (int hop = 0; hop < 5; hop++) {
+        if (esp_http_client_open(c, 0) != ESP_OK) {
+            goto out;
+        }
+        esp_http_client_fetch_headers(c);
+        int st = esp_http_client_get_status_code(c);
+        *status_out = st;
+        if (st == 301 || st == 302 || st == 303 || st == 307 || st == 308) {
+            esp_http_client_flush_response(c, NULL);
+            esp_http_client_set_redirection(c);
+            esp_http_client_close(c);
+            continue;
+        }
+        if (st != 200) {
+            goto out;
+        }
+        while (*total < CAL_MAX_BYTES) {
+            int r = esp_http_client_read(c, buf, 4096);
+            if (r <= 0) {
+                break;
+            }
+            cb(buf, (size_t)r, ctx);
+            *total += (size_t)r;
+        }
+        ok = esp_http_client_is_complete_data_received(c);
+        break;
+    }
+out:
+    free(buf);
+    if (c) {
+        esp_http_client_close(c);
+        esp_http_client_cleanup(c);
+    }
+    return ok;
+}
+
 static void url_encode(const char *in, char *out, size_t cap)
 {
     static const char hex[] = "0123456789ABCDEF";
@@ -269,7 +333,7 @@ static bool fetch_weather(void)
              "&current=temperature_2m,apparent_temperature,is_day,weather_code,wind_speed_10m,wind_gusts_10m,precipitation"
              "&hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,is_day"
              "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max,"
-             "sunshine_duration"
+             "sunshine_duration,sunrise,sunset"
              "&temperature_unit=%s&wind_speed_unit=%s&precipitation_unit=%s&timezone=auto&forecast_days=4&past_days=1",
              S->lat, S->lon, S->celsius ? "celsius" : "fahrenheit", S->celsius ? "kmh" : "mph",
              S->celsius ? "mm" : "inch");
@@ -321,6 +385,56 @@ static void fetch_alerts(void)
     }
 }
 
+const char *net_calendar_status(void)
+{
+    return s_cal_status;
+}
+
+static void cal_chunk(const char *data, size_t len, void *ctx)
+{
+    cal_feed((cal_t *)ctx, data, len);
+}
+
+/* The family calendar, read hourly (or on Refresh, or when the day changes). Keeps the last good
+ * read if a fetch fails: its events carry their dates, so they stay right. */
+static void fetch_calendar(bool forced)
+{
+    if (!S->ical_url[0]) {
+        s_ncal = 0;
+        return;
+    }
+    int today = cal_dayno(s_wx.year, s_wx.month, s_wx.day);
+    int64_t now = esp_timer_get_time();
+    if (!forced && s_cal_at >= 0 && now - s_cal_at < CAL_REFRESH_US && today == s_cal_day) {
+        return;
+    }
+    static cal_t cal;
+    cal_begin(&cal, today, s_wx.utc_offset_s, S->cal_words);
+    int status;
+    size_t total;
+    bool ok = http_stream(S->ical_url, cal_chunk, &cal, &status, &total);
+    bool seen = cal_end(&cal);
+    char when[16];
+    fmt_clock(when, sizeof(when), s_wx.hour, s_wx.minute);
+    if (ok && seen) {
+        s_ncal = cal_to_events(&cal, s_cal_events, 0, CAL_MAX);
+        s_cal_at = now;
+        s_cal_day = today;
+        snprintf(s_cal_status, sizeof(s_cal_status), "Read at %s: %d events in the calendar, %d coming up.", when,
+                 cal.nevents_seen, s_ncal);
+    } else if (status == 404 || status == 403 || status == 401) {
+        s_ncal = 0;
+        snprintf(s_cal_status, sizeof(s_cal_status), "Google says the link doesn't work (%d). Copy it again?",
+                 status);
+    } else if (ok) {
+        snprintf(s_cal_status, sizeof(s_cal_status), "That link isn't a calendar. Use the iCal address.");
+    } else {
+        snprintf(s_cal_status, sizeof(s_cal_status), "Couldn't reach the calendar at %s (%d). Trying again soon.",
+                 when, status);
+    }
+    ESP_LOGI(TAG, "calendar: %s (%u bytes)", s_cal_status, (unsigned)total);
+}
+
 static void show_weather(bool fresh_ok, const char *last_update)
 {
     ui_info_t info = {0};
@@ -337,7 +451,14 @@ static void show_weather(bool fresh_ok, const char *last_update)
     } else {
         snprintf(status, sizeof(status), "Offline. Last update %s", last_update);
     }
+    static wb_event_t all[EVENT_LIST_MAX];
+    int n = S->nevents < EVENT_MAX ? S->nevents : EVENT_MAX;
+    memcpy(all, S->events, (size_t)n * sizeof(all[0]));
+    for (int i = 0; i < s_ncal && n < EVENT_LIST_MAX; i++) {
+        all[n++] = s_cal_events[i];
+    }
     UI_LOCKED({
+        ui_set_events(all, n);
         ui_set_alerts(&s_alerts);
         ui_show_weather(&s_wx);
         ui_set_footer(S->place_name, status, !fresh_ok);
@@ -400,6 +521,7 @@ static void net_task(void *arg)
 
     UI_LOCKED(ui_show_boot("Asking the sky..."));
     bool have = false;
+    bool forced = true;
     int fails = 0;
     char last[16] = "";
     while (1) {
@@ -408,6 +530,7 @@ static void net_task(void *arg)
         bool ok = (xEventGroupGetBits(s_ev) & EV_CONNECTED) && fetch_weather();
         if (ok) {
             fetch_alerts();
+            fetch_calendar(forced);
             fails = 0;
             have = true;
             struct tm t;
@@ -432,6 +555,7 @@ static void net_task(void *arg)
         if (b & EV_PORTAL) {
             go_portal();
         }
+        forced = (b & EV_REFRESH) != 0;
     }
 }
 

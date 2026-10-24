@@ -63,6 +63,10 @@ def build(today, now_hm, cur, yday, days, codes_fn, pops_fn, sunrise=7, sunset=1
             "precipitation_probability_max": [d[3] for d in alld],
             "uv_index_max": [d[4] for d in alld],
             "sunshine_duration": [round(d[5] * 3600) for d in alld],
+            "sunrise": [f"{(t0 + dt.timedelta(days=k - 1)).isoformat()}T{sunrise:02d}:{(17 + 3 * k) % 60:02d}"
+                        for k in range(len(alld))],
+            "sunset": [f"{(t0 + dt.timedelta(days=k - 1)).isoformat()}T{sunset:02d}:{(44 - 2 * k) % 60:02d}"
+                       for k in range(len(alld))],
         },
     }
 
@@ -151,10 +155,24 @@ A = {
     "rainy_afternoon": nws(("Severe Thunderstorm Warning", "Severe"), ("Flood Watch", "Moderate")),
 }
 
+# A family Google Calendar export (iCal). The screen keeps Piper's events and tagged ones.
+ICS = "\r\n".join([
+    "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Google Inc//Google Calendar 70.9054//EN", "X-WR-CALNAME:Family",
+    "BEGIN:VEVENT", "DTSTART;TZID=America/New_York:20261023T100000", "DTEND;TZID=America/New_York:20261023T140000",
+    "UID:trip@sample", "SUMMARY:Piper: Field trip \u2600\ufe0f", "END:VEVENT",
+    "BEGIN:VEVENT", "DTSTART;TZID=America/New_York:20260905T110000", "RRULE:FREQ=WEEKLY;BYDAY=SA",
+    "UID:soccer@sample", "SUMMARY:Piper soccer (outside)", "END:VEVENT",
+    "BEGIN:VEVENT", "DTSTART;VALUE=DATE:20181103", "RRULE:FREQ=YEARLY", "UID:bday@sample",
+    "SUMMARY:Piper\u2019s birthday \U0001F382", "END:VEVENT",
+    "BEGIN:VEVENT", "DTSTART:20261023T130000Z", "UID:dentist@sample", "SUMMARY:Dad dentist", "END:VEVENT",
+    "END:VCALENDAR", ""])
+
 for name, data in S.items():
     with open(os.path.join(OUT, name + ".json"), "w") as f:
         json.dump(data, f, separators=(",", ":"))
 for name, data in A.items():
     with open(os.path.join(OUT, name + ".alerts.json"), "w") as f:
         json.dump(data, f, separators=(",", ":"))
-print("wrote", ", ".join(S), "+ alerts for", ", ".join(A))
+with open(os.path.join(OUT, "family.ics"), "w", encoding="utf-8", newline="") as f:
+    f.write(ICS)
+print("wrote", ", ".join(S), "+ alerts for", ", ".join(A), "+ family.ics")

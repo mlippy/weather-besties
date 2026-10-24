@@ -6,6 +6,7 @@
 
 #include "advice.h"
 #include "assets/assets.h"
+#include "cal.h"
 #include "lvgl.h"
 
 #define DEG "\xC2\xB0"
@@ -60,9 +61,11 @@ static ui_time_cb_t s_time_cb;
 static const theme_t *s_theme = &TH_PARTLY;
 static int s_last_min = -1;
 static bool s_have_wx;
-static wb_event_t s_events[EVENT_MAX];
+static wb_event_t s_events[EVENT_LIST_MAX];
 static advice_opts_t s_opts = {.events = s_events};
 static wx_alerts_t s_alerts;
+static char s_place[64];
+static int s_today = -1;   /* dayno of the last forecast's date */
 
 static lv_obj_t *scr_boot, *scr_setup, *scr_main;
 
@@ -77,6 +80,7 @@ static lv_obj_t *lbl_greet, *lbl_time, *lbl_date;
 /* main: pages */
 static lv_obj_t *tv, *tile0, *tile1;
 static lv_obj_t *img_hero, *lbl_temp, *lbl_cond, *lbl_hilo, *lbl_feels;
+static lv_obj_t *moon, *moon_shadow, *lbl_sun;
 static lv_obj_t *bubble, *bubble_tail, *alert_bar, *lbl_alert, *lbl_head, *lbl_cmp, *lbl_tip, *bubble_spacer, *wear_row;
 static lv_obj_t *wear_chip[ADVICE_MAX_WEAR], *wear_img[ADVICE_MAX_WEAR], *wear_lbl[ADVICE_MAX_WEAR];
 static lv_obj_t *pcard[WX_MAX_PERIODS], *p_lbl[WX_MAX_PERIODS], *p_img[WX_MAX_PERIODS], *p_temp[WX_MAX_PERIODS],
@@ -451,6 +455,25 @@ static void build_today(lv_obj_t *t)
     lbl_feels = label(t, &font_small, "");
     lv_obj_set_pos(lbl_feels, 204, 214);
 
+    /* Small sun + moon corner under the picture: tonight's moon, then sunrise and sunset. */
+    moon = box(t);
+    lv_obj_set_size(moon, 30, 30);
+    lv_obj_set_pos(moon, 26, 206);
+    lv_obj_set_style_radius(moon, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_clip_corner(moon, true, 0);
+    lv_obj_set_style_bg_opa(moon, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(moon, C(0xFFF1B8), 0);
+    lv_obj_set_style_border_width(moon, 1, 0);
+    lv_obj_set_style_border_opa(moon, 90, 0);
+    moon_shadow = box(moon);
+    lv_obj_set_size(moon_shadow, 30, 30);
+    lv_obj_set_style_radius(moon_shadow, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_opa(moon_shadow, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(moon_shadow, C(0x56628C), 0);
+    lbl_sun = label(t, &font_tiny, "");
+    lv_obj_set_style_text_line_space(lbl_sun, -2, 0);
+    lv_obj_set_pos(lbl_sun, 66, 202);
+
     /* speech bubble: tail first so the bubble covers its lower half */
     bubble_tail = box(t);
     lv_obj_set_size(bubble_tail, 30, 30);
@@ -608,6 +631,8 @@ static void build_main(void)
 
     /* footer */
     lbl_place = label(scr_main, &font_tiny, "");
+    lv_obj_set_width(lbl_place, 340);
+    lv_label_set_long_mode(lbl_place, LV_LABEL_LONG_MODE_DOTS);
     lv_obj_set_pos(lbl_place, 24, 456);
     lbl_status = label(scr_main, &font_tiny, "");
     lv_obj_align(lbl_status, LV_ALIGN_TOP_RIGHT, -24, 456);
@@ -634,12 +659,13 @@ static void apply_theme(const theme_t *th)
     for (size_t i = 0; i < sizeof(txt) / sizeof(txt[0]); i++) {
         lv_obj_set_style_text_color(txt[i], C(th->text), 0);
     }
-    lv_obj_t *txt2[] = {lbl_date, lbl_hilo, lbl_feels};
+    lv_obj_t *txt2[] = {lbl_date, lbl_hilo, lbl_feels, lbl_sun};
     for (size_t i = 0; i < sizeof(txt2) / sizeof(txt2[0]); i++) {
         lv_obj_set_style_text_color(txt2[i], C(th->text2), 0);
     }
     lv_obj_set_style_bg_color(bubble, C(th->bubble), 0);
     lv_obj_set_style_bg_color(bubble_tail, C(th->bubble), 0);
+    lv_obj_set_style_border_color(moon, C(th->text2), 0);
     lv_obj_set_style_text_color(lbl_head, C(th->accent), 0);
     lv_obj_set_style_text_color(lbl_tip, C(th->bubble_text), 0);
     lv_obj_set_style_text_color(lbl_cmp, C(th->bubble_text), 0);
@@ -767,6 +793,70 @@ static void fit_bubble(void)
     lv_obj_set_style_text_font(lbl_tip, &font_tiny, 0);
 }
 
+/* "3 more sleeps until Piper's birthday!" for the nearest countdown event, if any. */
+static bool countdown_text(char *buf, size_t n)
+{
+    const wb_event_t *best = NULL;
+    int best_d = CAL_COUNTDOWN_DAYS + 1;
+    for (int i = 0; i < s_opts.nevents && s_today >= 0; i++) {
+        const wb_event_t *e = &s_events[i];
+        if (!e->countdown || e->wdays || !e->year) {
+            continue;
+        }
+        int d = cal_dayno(e->year, e->month, e->day) - s_today;
+        if (d >= 0 && d < best_d) {
+            best = e;
+            best_d = d;
+        }
+    }
+    if (!best) {
+        return false;
+    }
+    if (best_d == 0) {
+        snprintf(buf, n, "%s is today!", best->name);
+    } else {
+        snprintf(buf, n, "%d more sleep%s until %s!", best_d, best_d == 1 ? "" : "s", best->name);
+    }
+    return true;
+}
+
+/* Footer left: a countdown when there is one, else the town. */
+static void update_footer_left(void)
+{
+    char cd[96];
+    if (countdown_text(cd, sizeof(cd))) {
+        lv_label_set_text(lbl_place, cd);
+        lv_obj_set_style_text_color(lbl_place, C(s_theme->accent), 0);
+    } else {
+        lv_label_set_text(lbl_place, s_place);
+        lv_obj_set_style_text_color(lbl_place, C(s_theme->text), 0);
+    }
+}
+
+static void fmt_hm(char *buf, size_t n, int minutes)
+{
+    int h = minutes / 60 % 12;
+    snprintf(buf, n, "%d:%02d", h ? h : 12, minutes % 60);
+}
+
+static void update_sun_moon(const wx_t *wx)
+{
+    /* Waxing: the shadow slides off to the left; waning: it comes back from the right. */
+    float p = wx_moon_phase(wx->year, wx->month, wx->day, 21);
+    int x = p < 0.5f ? -(int)(p * 2 * 31) : 31 - (int)((p - 0.5f) * 2 * 31);
+    lv_obj_set_x(moon_shadow, x);
+
+    const wx_day_t *d = &wx->days[0];
+    char rise[12], set[12];
+    if (d->sunrise_min >= 0 && d->sunset_min >= 0) {
+        fmt_hm(rise, sizeof(rise), d->sunrise_min);
+        fmt_hm(set, sizeof(set), d->sunset_min);
+        lv_label_set_text_fmt(lbl_sun, "Sunrise %s\nSunset %s", rise, set);
+    } else {
+        lv_label_set_text(lbl_sun, "");
+    }
+}
+
 static void set_pop(lv_obj_t *drop, lv_obj_t *lbl, int pop)
 {
     if (pop >= 10) {
@@ -795,6 +885,9 @@ void ui_show_weather(const wx_t *wx)
                               iround(wx->days[0].tmin));
     }
     lv_label_set_text_fmt(lbl_feels, "Feels like %d" DEG, iround(wx->feels));
+    update_sun_moon(wx);
+    s_today = cal_dayno(wx->year, wx->month, wx->day);
+    update_footer_left();
 
     /* bubble */
     advice_t a;
@@ -885,7 +978,8 @@ void ui_show_weather(const wx_t *wx)
 
 void ui_set_footer(const char *place, const char *status, bool warn)
 {
-    lv_label_set_text(lbl_place, place ? place : "");
+    snprintf(s_place, sizeof(s_place), "%s", place ? place : "");
+    update_footer_left();
     lv_label_set_text(lbl_status, status ? status : "");
     lv_obj_set_style_text_color(lbl_status, warn ? C(0xE0457B) : C(s_theme->text), 0);
     lv_obj_align(lbl_status, LV_ALIGN_TOP_RIGHT, -24, 456);
@@ -908,11 +1002,14 @@ void ui_set_names(const char *names)
 
 void ui_set_events(const wb_event_t *events, int n)
 {
-    n = n < 0 ? 0 : n > EVENT_MAX ? EVENT_MAX : n;
+    n = n < 0 ? 0 : n > EVENT_LIST_MAX ? EVENT_LIST_MAX : n;
     if (n) {
         memcpy(s_events, events, (size_t)n * sizeof(s_events[0]));
     }
     s_opts.nevents = n;
+    if (lbl_place) {
+        update_footer_left();
+    }
 }
 
 void ui_set_alerts(const wx_alerts_t *alerts)

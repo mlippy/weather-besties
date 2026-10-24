@@ -39,6 +39,7 @@ typedef struct {
     int pop;
     float uv;
     float sun_h;      /* hours of sunshine */
+    int sunrise_min, sunset_min;  /* minutes after local midnight, -1 = unknown */
 } wx_day_t;
 
 typedef struct {
@@ -92,6 +93,7 @@ const char *wx_wday_name(int wday, bool short_name);
 const char *wx_month_name(int month, bool short_name);
 int wx_day_of_week(int y, int m, int d);
 float wx_to_f(const wx_t *wx, float t);  /* display units -> Fahrenheit */
+float wx_moon_phase(int y, int m, int d, int hour);  /* 0 = new, 0.25 = first quarter, 0.5 = full */
 
 #ifdef __cplusplus
 }

@@ -1,6 +1,6 @@
 # How it's built
 
-A 4.3-inch touchscreen weather station that tells Piper what to wear. It is one C program on a small microcontroller board: no Linux, no app store, just firmware that fetches a forecast (and any weather alerts) every 15 minutes and draws it.
+A 4.3-inch touchscreen weather station that tells Piper what to wear. It is one C program on a small microcontroller board: no Linux, no app store, just firmware that fetches a forecast (and any weather alerts) every 15 minutes, reads the family calendar every hour, and draws it.
 
 ## The board
 
@@ -14,7 +14,7 @@ It's a Waveshare ESP32-S3-Touch-LCD-4.3: an Espressif ESP32-S3 module soldered b
 | Touch | GT911 controller | 5-point capacitive, talks over I2C |
 
 ```
-                    Home WiFi (2.4 GHz) -> Open-Meteo, weather.gov, NTP
+                    Home WiFi (2.4 GHz) -> Open-Meteo, weather.gov, Google Calendar, NTP
                               |
  +----------------------------+-----------------------------+
  | ESP32-S3 module                                          |
@@ -44,7 +44,7 @@ It's all one C program, built with Espressif's ESP-IDF framework. The screens an
 | Layer | Files / contents | Builds for |
 |---|---|---|
 | Board glue | `main.c`, `board.c`, `net.c`, `portal.c`, `settings.c` | firmware only |
-| Screens + logic | `ui.c`, `advice.c` (clothes, special events), `wx.c` (forecast), `alerts.c` (NWS alerts) | board, PC, browser |
+| Screens + logic | `ui.c`, `advice.c` (clothes, special events), `wx.c` (forecast), `alerts.c` (NWS alerts), `cal.c` (iCal reader) | board, PC, browser |
 | Artwork + fonts | 49 images, 6 sizes of Fredoka, as C arrays | board, PC, browser |
 | Libraries | LVGL 9.5 (graphics), cJSON (parsing) | board, PC, browser |
 | Board libraries | GT911 touch driver, DNS server for setup | firmware only |
@@ -61,7 +61,8 @@ FreeRTOS gives the program tasks, timers and locks, and nothing else. Two tasks 
 1. Wakes every 15 minutes, or on a Refresh tap.
 2. HTTPS GET to `api.open-meteo.com`, and parses about 6 KB of JSON (`wx.c`): today, yesterday, and the next 3 days.
 3. HTTPS GET to `api.weather.gov/alerts/active?point=lat,lon` for US National Weather Service alerts (`alerts.c`). It keeps the alerts that matter to a kid, most serious first, and swaps each official name for a calm kid title and line ("Big snow on the way"). The official name only shows in Settings, for grown-ups. If this call fails, the last alerts stay up for about an hour, then clear.
-4. Picks clothes (`advice.c`), including reminders for special events (soccer, a field trip) using the forecast for the hour they start, then takes the lock to hand everything to the UI.
+4. Once an hour (or on Refresh, or when the day changes), streams the family calendar's secret iCal address through `cal.c` in 4 KB chunks, so even a calendar with years of history never has to fit in memory. It keeps Piper's events for today and tomorrow, plus countdown events up to 60 days out, working out repeats (weekly soccer, yearly birthdays), skipped and moved instances, and all-day events. If a read fails, the last good list stays, since its events carry their own dates.
+5. Picks clothes (`advice.c`), including reminders for special events (from the setup page and the calendar) using the forecast for the hour they start, then takes the lock to hand everything to the UI.
 
 **Graphics task (core 1)**
 
@@ -90,7 +91,8 @@ The board has no keyboard, so setup happens on a phone. On first boot (or from S
 The DNS and redirect answers are the whole trick. A DNS server that answers every lookup with the board's own address, plus a web server that redirects any unknown page to the form, makes the phone's connectivity check fail in exactly the way that pops a sign-in sheet. The DHCP reply also carries the setup address directly (the newer "captive portal" DHCP option), for phones that look for it.
 
 - **Scanning while hosting.** The radio runs as hotspot and client at once, so the client side can scan for nearby networks to list on the form.
-- **Special events** are edited on the same form: a name, the weekdays it repeats (or one date), the start hour, and whether it's outside. Up to 8, saved to flash with the other settings.
+- **Special events** are edited on the same form: a name, the weekdays it repeats (or one date), the start hour, whether it's outside, and whether to count down to it. Up to 8, saved to flash with the other settings.
+- **The calendar link** is treated like the WiFi password: saved to flash, never sent back to the page. The form shows only whether one is saved and how the last read went.
 - **The QR code** is the standard WiFi QR format phone cameras already understand, so there's no network name to type.
 - **Security, plainly.** The hotspot is open, but it only exists during setup. The home WiFi password is stored on the board's flash without encryption, which is normal for hobby boards and worth knowing.
 
@@ -122,4 +124,4 @@ The icons start as SVG drawings in a Python script (`tools/icons.py`) and get re
 
 ---
 
-Built on ESP-IDF 5.5.6, LVGL 9.5.0, cJSON and Espressif's GT911 driver. Pins and panel timing from Waveshare's demo code for this board. Weather from Open-Meteo, alerts from the US National Weather Service.
+Built on ESP-IDF 5.5.6, LVGL 9.5.0, cJSON and Espressif's GT911 driver. Pins and panel timing from Waveshare's demo code for this board. Weather from Open-Meteo, alerts from the US National Weather Service, events from the family Google Calendar.

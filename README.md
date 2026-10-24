@@ -8,7 +8,7 @@ Built on the Waveshare ESP32-S3-Touch-LCD-4.3 (800 x 480 touch screen), it lets 
 
 ## The idea
 
-This is not a general weather dashboard. It answers one kid-sized question in words and pictures she can understand on their own:
+This is not a general weather dashboard. It answers one kid-sized question in words and pictures she can understand on her own:
 
 **What kind of clothes do I need?**
 
@@ -24,14 +24,18 @@ This is not a general weather dashboard. It answers one kid-sized question in wo
 - After 7 PM the bubble switches to tomorrow, so she can lay out the right clothes before bed.
 - **Special events** (none by default): add things like soccer every Saturday or a one-day field trip. On the day (and the evening before) the bubble mentions it, and for outdoor events it checks the forecast for the hour it starts: gloves at 50°F feels-like or below, rain gear or snow boots when it's likely wet, water at 85°F or above.
 - **Weather alerts** from the US National Weather Service, written to be calm for kids: a soft purple (warning) or blue (watch, advisory) "heads-up" bar with a friendly title and one gentle line, never the official name or a warning sign. "Winter Storm Warning" becomes "Big snow on the way: Cozy coat, hat and boots!", and a tornado warning becomes "Stay close to a grown-up: The grown-ups are keeping watch." The official name is under Settings for grown-ups, and the setup page can turn alerts off. Alerts for boats, fire crews and farmers are skipped. This is a reminder, not a safety alarm: your phone's emergency alerts are faster.
+- **Google Calendar** (optional): paste the family calendar's secret iCal address on the setup page. Events with Piper's name (or other words you pick) show up like special events: "Soccer tomorrow: bring rain gear!" Add **(outside)** or ☀️ to a title for weather reminders. A leading name is dropped ("Piper: Soccer" shows as "Soccer"). Read every hour.
+- **Countdowns:** add **(countdown)**, 🎂 or 🎉 to a calendar title (or tick Countdown on a dated event) and the footer counts the sleeps: "11 more sleeps until Piper's birthday!" Up to 60 days ahead; the nearest one wins.
+- **Sun and moon:** a small corner under the weather picture shows tonight's moon phase and today's sunrise and sunset.
 - An optional "screen off at night" mode. A tap wakes the screen for a minute.
 
+![Calendar event and countdown](docs/calendar.png)
 ![Evening screen](docs/evening.png)
 ![Next days](docs/next-days.png)
 ![Weather alert](docs/alert.png)
 ![Special event](docs/event.png)
 
-Weather data comes from [Open-Meteo](https://open-meteo.com): free for non-commercial use, no API key, up to 10,000 calls a day. Alerts come from the [National Weather Service](https://www.weather.gov/documentation/services-web-api): free, no key, US only (elsewhere the board just shows no alerts). The board checks both every 15 minutes.
+Weather data comes from [Open-Meteo](https://open-meteo.com): free for non-commercial use, no API key, up to 10,000 calls a day. Alerts come from the [National Weather Service](https://www.weather.gov/documentation/services-web-api): free, no key, US only (elsewhere the board just shows no alerts). The board checks both every 15 minutes, and the calendar (if set) every hour.
 
 ## Hardware
 
@@ -41,7 +45,9 @@ Weather data comes from [Open-Meteo](https://open-meteo.com): free for non-comme
 
 ## Flash it
 
-You only need `firmware/weather-besties-v1.2.0.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`.
+Setting it up for the first time? [docs/deploy.md](docs/deploy.md) is the step-by-step checklist.
+
+You only need `firmware/weather-besties-v1.3.0.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`.
 
 **Chrome or Edge, no installs:** open the [esptool-js web flasher](https://espressif.github.io/esptool-js/), plug the board into the **UART** USB-C port, click Connect, pick the port, set Flash Address to `0x0`, choose the .bin, click Program. Takes about a minute.
 
@@ -49,7 +55,7 @@ You only need `firmware/weather-besties-v1.2.0.bin`. It is a single merged image
 
 ```
 pip install esptool
-python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.2.0.bin
+python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.3.0.bin
 ```
 
 **If it won't connect:** hold **BOOT**, tap **RESET**, let go of BOOT, then try again. If your computer doesn't see a serial port on the UART connector, try the other USB-C port (native USB).
@@ -58,18 +64,18 @@ python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.2.0.bin
 
 1. The screen shows a QR code and a hotspot name like `WeatherBesties-3F2A`.
 2. Scan the QR with a phone (or join that WiFi network by hand). A setup page pops up. If it doesn't, open `http://192.168.4.1`.
-3. Pick the home WiFi, type the password, then set: town or ZIP, names for the greeting, °F or °C, optional night hours, and any special events. Save.
+3. Pick the home WiFi, type the password, then set: town or ZIP, names for the greeting, °F or °C, optional night hours, special events, and the Google Calendar link. Save.
 4. The board restarts, joins WiFi, and shows the weather.
 
 ![Setup screen](docs/setup.png)
 
-Defaults if you skip things: Upper Montclair, NJ, "Piper", Fahrenheit, no special events, screen always on.
+Defaults if you skip things: Upper Montclair, NJ, "Piper", Fahrenheit, no special events, no calendar (keeps titles with "Piper" once one is added), alerts on, screen always on.
 
 ## Using it
 
 - Swipe left for the next three days, right to come back.
 - Long-press the greeting, the clock, or any empty spot for 1.5 seconds to open Settings (change WiFi, town or special events, refresh now).
-- Settings are stored on the board and survive reboots and reflashing the app.
+- Settings are stored on the board and survive reboots and app-only updates (`firmware/*-app.bin` at `0x10000`). Flashing the full image at `0x0` erases them; see [docs/deploy.md](docs/deploy.md#7-updating-the-firmware-later).
 
 ## Build from source
 
@@ -90,10 +96,11 @@ The UI, weather parsing, and advice logic are plain C with no ESP-IDF dependenci
 ```
 cd sim
 make shots     # renders every screen to sim/out/*.png
+make test      # calendar reader tests
 make web       # builds the browser emulator in sim/web/ (needs wasi-sdk)
 ```
 
-Sample forecasts for testing live in `sim/scenarios/` (snow morning, rainy afternoon, summer heat, and more).
+Sample forecasts for testing live in `sim/scenarios/` (snow morning, rainy afternoon, summer heat, and more), with sample weather alerts and a sample family calendar (`family.ics`).
 
 ## Layout
 
@@ -104,19 +111,20 @@ For how the pieces fit together (hardware, tasks, setup hotspot, flash layout), 
 |---|---|
 | `main/main.c` | Boot flow, night-off power timer |
 | `main/board.c` | Screen, touch, IO expander (backlight, touch reset), LVGL glue. Pins and timing from Waveshare's own demo |
-| `main/net.c` | WiFi, clock (SNTP), Open-Meteo and weather.gov calls, refresh loop |
+| `main/net.c` | WiFi, clock (SNTP), Open-Meteo, weather.gov and calendar calls, refresh loop |
 | `main/portal.c` | Setup hotspot, captive portal, phone form |
 | `main/settings.c` | Saved settings (NVS), and the `DEFAULT_EVENTS` list |
 | `components/wb_ui/ui.c` | All screens |
 | `components/wb_ui/advice.c` | What-to-wear rules (temperature bands, rain, snow, storms, sun) and special events |
 | `components/wb_ui/alerts.c` | NWS alerts: which to show, kid words for each |
-| `components/wb_ui/wx.c` | Forecast parsing, parts of the day |
+| `components/wb_ui/cal.c` | Google Calendar (iCal) reader: repeating events, tags, filter words |
+| `components/wb_ui/wx.c` | Forecast parsing, parts of the day, moon phase |
 | `components/lv_conf.h` | LVGL settings, shared with the PC renderer |
 | `tools/icons.py` | The artwork (weather faces, clothes, cats), drawn as SVG |
 | `tools/make_assets.py` | Turns artwork and the Fredoka font into C files |
 | `sim/` | PC renderer and browser emulator (same UI code) |
-| `firmware/` | Ready-to-flash image (address `0x0`) |
-| `docs/` | Screenshots rendered from the UI code, and [how it's built](docs/architecture.md) |
+| `firmware/` | Ready-to-flash images: full (`0x0`, first install) and app-only (`0x10000`, updates that keep settings) |
+| `docs/` | Screenshots, [how it's built](docs/architecture.md), [deployment checklist](docs/deploy.md), [ideas queue](docs/queue.md) |
 
 ## Tweaking
 
@@ -124,6 +132,7 @@ For how the pieces fit together (hardware, tasks, setup hotspot, flash layout), 
 - Special events the board starts with: the `DEFAULT_EVENTS` list at the top of `main/settings.c` (examples are in the comment). The phone setup page edits the same list, up to 8 events.
 - Event reminders and the "a lot colder" threshold: `EVENT_COLD_F`, `EVENT_HOT_F`, `EVENT_RAIN_POP` and `BIG_CHANGE_F` in `components/wb_ui/advice.h`.
 - Which weather alerts show, and the kid title and line for each: the `SKIP` and `KID` tables at the top of `components/wb_ui/alerts.c`.
+- Calendar tags and the countdown range: the top of `components/wb_ui/cal.c` and `CAL_COUNTDOWN_DAYS` in `cal.h`.
 - Colors: the theme table at the top of `components/wb_ui/ui.c`.
 - Artwork: edit `tools/icons.py`, then run `python3 tools/make_assets.py` (needs `pip install resvg-py pillow pypng` and `npm install lv_font_conv` inside `tools/`).
 
@@ -135,6 +144,7 @@ The code compiles cleanly and every screen was rendered from the real UI code, b
 - Picture shifts sideways or flickers while WiFi is busy: lower `LCD_PCLK_HZ` in `main/board.c` from 16 MHz to 14 MHz.
 - Screen stays dark but the log says "display ready": the backlight goes through the IO expander, check the log for "expander write failed".
 - Alerts never show: the log prints an `alert:` line for each one it finds. If `api.weather.gov` calls fail instead, look for TLS or HTTP status errors from `net`.
+- Calendar: the log prints a `calendar:` line after each read, and the phone setup page shows the same status under the calendar link.
 
 ## Credits
 

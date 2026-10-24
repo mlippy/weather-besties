@@ -31,8 +31,9 @@ typedef enum {
 
 /* A special event: something on the calendar the advice should mention ("Soccer", "Field trip").
  * Repeats on weekdays, or happens once on a date. */
-#define EVENT_MAX 8
-#define EVENT_NAME_LEN 24
+#define EVENT_MAX 8         /* typed on the setup page */
+#define EVENT_LIST_MAX 32   /* plus the ones from the calendar */
+#define EVENT_NAME_LEN 32
 
 typedef struct {
     char name[EVENT_NAME_LEN];
@@ -41,6 +42,8 @@ typedef struct {
     uint8_t month, day;
     uint8_t hour;        /* starts at, local 0..23 */
     bool outside;        /* weather reminders (gloves, umbrella, water) apply */
+    bool all_day;        /* no start time: mentioned all day, weather checked at 9 AM */
+    bool countdown;      /* one-date events: count the sleeps until it (shown in the footer) */
 } wb_event_t;
 
 typedef struct {

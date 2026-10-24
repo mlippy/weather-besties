@@ -211,8 +211,9 @@ static void event_row(sbuf_t *b, int i, const wb_event_t *e, bool shown)
     }
     sb_add(b, "</div><div class=\"row\" style=\"align-items:center\"><input type=\"date\" name=\"et%d\" value=\"%s\">"
               "<label class=\"check\" style=\"margin:0;font-weight:500\"><input type=\"checkbox\" name=\"e%do\" "
-              "value=\"1\"%s>Outside</label></div></div>",
-           i, date, i, (!e || e->outside) ? " checked" : "");
+              "value=\"1\"%s>Outside</label><label class=\"check\" style=\"margin:0;font-weight:500\">"
+              "<input type=\"checkbox\" name=\"e%dc\" value=\"1\"%s>Countdown</label></div></div>",
+           i, date, i, (!e || e->outside) ? " checked" : "", i, e && e->countdown ? " checked" : "");
 }
 
 static esp_err_t page_root(httpd_req_t *req)
@@ -282,8 +283,26 @@ static esp_err_t page_root(httpd_req_t *req)
         bool have = i < S->nevents;
         event_row(&b, i, have ? &S->events[i] : NULL, have || i == S->nevents);
     }
-    sb_add(&b, "<button class=\"add\" id=\"add\">+ Add another event</button></div>"
-               "<button class=\"save\" type=\"submit\">Save</button></form></main>"
+    sb_add(&b, "<button class=\"add\" id=\"add\">+ Add another event</button></div>");
+
+    /* The calendar link is a secret, like the WiFi password: never sent back to the page. */
+    char e4[200], st[160];
+    html_esc(S->cal_words, e4, sizeof(e4));
+    html_esc(net_calendar_status(), st, sizeof(st));
+    sb_add(&b, "<div class=\"card\"><label for=\"ical\">Google Calendar</label>"
+               "<input id=\"ical\" name=\"ical\" autocomplete=\"off\" autocapitalize=\"none\" placeholder=\"%s\">"
+               "<p class=\"hint\">In Google Calendar on a computer: Settings, pick the calendar, "
+               "<b>Integrate calendar</b>, copy <b>Secret address in iCal format</b>.</p>%s"
+               "<label for=\"calw\" style=\"margin-top:14px\">Only events with these words</label>"
+               "<input id=\"calw\" name=\"calw\" value=\"%s\" maxlength=\"60\" placeholder=\"Piper, Family\">"
+               "<p class=\"hint\">Commas between words. Add <b>(outside)</b> or &#9728;&#65039; to a title for weather "
+               "reminders, <b>(countdown)</b> or &#127874; to count the sleeps. Those always show.</p>"
+               "<p class=\"hint\">%s</p></div>",
+           S->ical_url[0] ? "Saved. Paste a new one to change it." : "https://calendar.google.com/calendar/ical/...",
+           S->ical_url[0] ? "<label class=\"check\" style=\"margin-top:6px;font-weight:500\"><input type=\"checkbox\" "
+                            "name=\"icaloff\" value=\"1\">Stop using the calendar</label>" : "",
+           e4, st);
+    sb_add(&b, "<button class=\"save\" type=\"submit\">Save</button></form></main>"
                "<script>document.querySelectorAll('.nets button').forEach(function(b){b.onclick=function(e){"
                "e.preventDefault();document.getElementById('ssid').value=b.dataset.s;"
                "document.getElementById('pass').focus()}});"
@@ -338,6 +357,16 @@ static esp_err_t page_save(httpd_req_t *req)
         n.has_coords = false; /* look it up after restart */
         snprintf(n.place_name, sizeof(n.place_name), "%s", v);
     }
+    char url[sizeof(n.ical_url)];
+    if (form_get(body, "ical", url, sizeof(url)) && url[0]) {
+        snprintf(n.ical_url, sizeof(n.ical_url), "%s", url);
+    }
+    if (form_get(body, "icaloff", v, sizeof(v)) && v[0] == '1') {
+        n.ical_url[0] = 0;
+    }
+    if (form_get(body, "calw", v, sizeof(v))) {
+        snprintf(n.cal_words, sizeof(n.cal_words), "%s", v);
+    }
     if (form_get(body, "names", v, sizeof(v))) {
         snprintf(n.names, sizeof(n.names), "%s", v);
     }
@@ -380,6 +409,8 @@ static esp_err_t page_save(httpd_req_t *req)
         }
         snprintf(key, sizeof(key), "e%do", i);
         e.outside = form_get(body, key, v, sizeof(v)) && v[0] == '1';
+        snprintf(key, sizeof(key), "e%dc", i);
+        e.countdown = !e.wdays && form_get(body, key, v, sizeof(v)) && v[0] == '1';
         if (!e.wdays && !e.year) {
             free(body);
             snprintf(v, sizeof(v), "Pick the days or a date for \"%.40s\"", e.name);

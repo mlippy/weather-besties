@@ -8,6 +8,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "cal.h"
 #include "lvgl.h"
 #include "ui.h"
 #include "wx.h"
@@ -166,7 +167,7 @@ int main(int argc, char **argv)
     show("Upper Montclair, NJ", "Updated 7:30 AM");
     save(out, "06_snow_morning");
     ui_info_t ainfo = {.wifi = "HomeWiFi", .place = "Upper Montclair, New Jersey", .ip = "192.168.1.42",
-                       .updated = "Weather updated 7:30 AM", .version = "1.2.0"};
+                       .updated = "Weather updated 7:30 AM", .version = "1.3.0"};
     ui_set_info(&ainfo);
     ui_open_settings();
     save(out, "13_settings_alert");
@@ -183,7 +184,7 @@ int main(int argc, char **argv)
     load(sc, "oct_morning");
     show("Upper Montclair, NJ", "Updated 9:45 AM");
     ui_info_t info = {.wifi = "HomeWiFi", .place = "Upper Montclair, New Jersey", .ip = "192.168.1.42",
-                      .updated = "Weather updated 9:45 AM", .version = "1.2.0"};
+                      .updated = "Weather updated 9:45 AM", .version = "1.3.0"};
     ui_set_info(&info);
     ui_open_settings();
     save(out, "09_settings");
@@ -192,13 +193,20 @@ int main(int argc, char **argv)
     ui_show_wifi_error("HomeWiFi", NULL);
     save(out, "10_wifi_error");
 
-    /* Special events: a one-off field trip on the cold Friday, soccer every Saturday. */
-    static const wb_event_t events[] = {
-        {.name = "Field trip", .year = 2026, .month = 10, .day = 23, .hour = 10, .outside = true},
-        {.name = "Soccer", .wdays = 1 << 6, .hour = 11, .outside = true},
-    };
-    ui_set_events(events, 2);
+    /* Special events from a sample family calendar: a field trip on the cold Friday, soccer every
+     * Saturday, and a birthday countdown. */
     load(sc, "oct_morning");
+    static wb_event_t events[EVENT_LIST_MAX];
+    static cal_t cal;
+    char path[512];
+    snprintf(path, sizeof(path), "%s/family.ics", sc);
+    size_t len;
+    char *ics = slurp(path, &len);
+    cal_begin(&cal, cal_dayno(wx.year, wx.month, wx.day), wx.utc_offset_s, "Piper, Family");
+    cal_feed(&cal, ics, len);
+    cal_end(&cal);
+    free(ics);
+    ui_set_events(events, cal_to_events(&cal, events, 0, EVENT_LIST_MAX));
     show("Upper Montclair, NJ", "Updated 9:45 AM");
     save(out, "11_event_field_trip");
 

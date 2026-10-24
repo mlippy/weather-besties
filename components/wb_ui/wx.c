@@ -246,6 +246,8 @@ bool wx_parse_openmeteo(const char *json, size_t len, bool fahrenheit, wx_t *out
     const cJSON *dpop = cJSON_GetObjectItemCaseSensitive(daily, "precipitation_probability_max");
     const cJSON *duv = cJSON_GetObjectItemCaseSensitive(daily, "uv_index_max");
     const cJSON *dsun = cJSON_GetObjectItemCaseSensitive(daily, "sunshine_duration");
+    const cJSON *drise = cJSON_GetObjectItemCaseSensitive(daily, "sunrise");
+    const cJSON *dset = cJSON_GetObjectItemCaseSensitive(daily, "sunset");
     int dtotal = cJSON_GetArraySize(dt);
     int d0 = 0;
     for (int i = 0; i < dtotal; i++) {
@@ -273,6 +275,15 @@ bool wx_parse_openmeteo(const char *json, size_t len, bool fahrenheit, wx_t *out
         dd->pop = (int)arr_num(dpop, i, 0);
         dd->uv = (float)arr_num(duv, i, 0);
         dd->sun_h = (float)(arr_num(dsun, i, 0) / 3600.0);
+        dd->sunrise_min = dd->sunset_min = -1;
+        int yy, mm, ddd, hh, mi;
+        const cJSON *sr = cJSON_GetArrayItem(drise, i), *ss = cJSON_GetArrayItem(dset, i);
+        if (cJSON_IsString(sr) && parse_time(sr->valuestring, &yy, &mm, &ddd, &hh, &mi)) {
+            dd->sunrise_min = hh * 60 + mi;
+        }
+        if (cJSON_IsString(ss) && parse_time(ss->valuestring, &yy, &mm, &ddd, &hh, &mi)) {
+            dd->sunset_min = hh * 60 + mi;
+        }
         if (i < d0) {
             out->has_yday = true;
         } else {
@@ -439,4 +450,15 @@ void wx_derive_periods(wx_t *wx)
         }
         h = we;
     }
+}
+
+float wx_moon_phase(int y, int m, int d, int hour)
+{
+    /* Days since a known new moon (2000-01-06 18:14 UTC), in synodic months. Good to a few hours. */
+    int a = (14 - m) / 12, yy = y + 4800 - a, mm = m + 12 * a - 3;
+    long jdn = d + (153 * mm + 2) / 5 + 365L * yy + yy / 4 - yy / 100 + yy / 400 - 32045;
+    double days = (double)jdn + hour / 24.0 - 0.5 - 2451550.26;
+    double p = days / 29.530588853;
+    p -= (long)p;
+    return (float)(p < 0 ? p + 1 : p);
 }

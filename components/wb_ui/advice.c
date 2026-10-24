@@ -192,7 +192,7 @@ static void event_tip(const wx_t *wx, advice_t *a, const wb_event_t *e, int day,
 {
     char s[96];
     const char *when = day ? "tomorrow" : "today";
-    int h = day * 24 + e->hour;
+    int h = day * 24 + (e->all_day ? 9 : e->hour);
     bool have = e->outside && h < wx->nhours;
     float f = have ? wx_to_f(wx, wx->h_feels[h]) : 0;
     int pop = have ? wx->h_pop[h] : 0;
@@ -435,7 +435,7 @@ void advice_make(const wx_t *wx, const advice_opts_t *opts, advice_t *a)
             if (!e->name[0] || !event_on(e, td->year, td->month, td->day, td->wday)) {
                 continue;
             }
-            if (day == 0 && wx->hour >= e->hour + 2) {
+            if (day == 0 && !e->all_day && wx->hour >= e->hour + 2) {
                 continue;
             }
             a->nevents++;

@@ -7,11 +7,12 @@
 #include "settings.h"
 #include "ui.h"
 
-#define WB_VERSION "1.2.0"
+#define WB_VERSION "1.3.0"
 
 void net_start(wb_settings_t *s);
 void net_ui_action(ui_action_t a, void *user);  /* UI button callback */
 bool net_local_time(struct tm *out);            /* local clock at the weather location */
+const char *net_calendar_status(void);          /* one line for the setup page */
 
 /* Shared with portal.c */
 bool net_http_get(const char *url, char **body, size_t *len);
