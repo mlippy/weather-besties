@@ -83,6 +83,7 @@ static lv_obj_t *tv, *tile0, *tile1;
 static lv_obj_t *img_hero, *lbl_temp, *lbl_cond, *lbl_hilo, *lbl_feels;
 static lv_obj_t *moon, *moon_shadow, *lbl_sun;
 static thermo_t s_thermo;
+static thermo_t s_dthermo[3];   /* mini ones on the next-days cards, for each day's high */
 static lv_obj_t *bubble, *bubble_tail, *alert_bar, *lbl_alert, *lbl_head, *lbl_cmp, *lbl_tip, *bubble_spacer, *wear_row;
 static lv_obj_t *wear_chip[ADVICE_MAX_WEAR], *wear_img[ADVICE_MAX_WEAR], *wear_lbl[ADVICE_MAX_WEAR];
 static lv_obj_t *pcard[WX_MAX_PERIODS], *p_lbl[WX_MAX_PERIODS], *p_img[WX_MAX_PERIODS], *p_temp[WX_MAX_PERIODS],
@@ -509,7 +510,7 @@ static void build_today(lv_obj_t *t)
     lv_obj_set_pos(lbl_feels, 204, 214);
 
     /* Thermometer on a fixed 0-100 °F scale, between the big number and the bubble. */
-    thermo_create(&s_thermo, t, 401, 12, 240);
+    thermo_create(&s_thermo, t, 401, 12, 40, 240);
 
     /* Small sun + moon corner under the picture: tonight's moon, then sunrise and sunset. */
     moon = box(t);
@@ -625,6 +626,7 @@ static void build_days(lv_obj_t *t)
         lv_obj_align(d_name[i], LV_ALIGN_TOP_MID, 0, 14);
         d_img[i] = lv_image_create(c);
         lv_obj_align(d_img[i], LV_ALIGN_TOP_MID, 0, 58);
+        thermo_create(&s_dthermo[i], c, 14, 56, 24, 116);
         d_temp[i] = label(c, &font_temp_l, "");
         lv_obj_align(d_temp[i], LV_ALIGN_TOP_MID, 0, 176);
 
@@ -728,6 +730,9 @@ static void apply_theme(const theme_t *th)
     lv_obj_set_style_bg_color(bubble_tail, C(th->bubble), 0);
     lv_obj_set_style_border_color(moon, C(th->text2), 0);
     thermo_set_outline(&s_thermo, C(th->text));
+    for (int i = 0; i < 3; i++) {
+        thermo_set_outline(&s_dthermo[i], C(th->text));
+    }
     lv_obj_set_style_text_color(lbl_head, C(th->accent), 0);
     lv_obj_set_style_text_color(lbl_tip, C(th->bubble_text), 0);
     lv_obj_set_style_text_color(lbl_cmp, C(th->bubble_text), 0);
@@ -1018,6 +1023,7 @@ void ui_show_weather(const wx_t *wx)
             lv_obj_remove_flag(dcard[i], LV_OBJ_FLAG_HIDDEN);
             lv_label_set_text(d_name[i], di == 1 ? "Tomorrow" : wx_wday_name(d->wday, false));
             lv_image_set_src(d_img[i], ICON_M[wx_icon_for(d->code, true)]);
+            thermo_set(&s_dthermo[i], wx_to_f(wx, d->tmax));
             lv_label_set_text_fmt(d_temp[i], "%d" DEG " / %d" DEG, iround(d->tmax), iround(d->tmin));
             set_pop(d_drop[i], d_pop[i], d->pop);
             char line[48];

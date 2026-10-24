@@ -1,8 +1,5 @@
 #include "thermo.h"
 
-#define W 40          /* bulb diameter = overall width */
-#define TUBE_W 20
-#define BORDER 3
 #define ZONE_OPA 70   /* the faint "where is cold, where is hot" stripes */
 
 /* Upper edge (°F) and color of each zone. Same cut-offs as the clothing bands in advice.c,
@@ -36,13 +33,12 @@ uint32_t thermo_color(float f)
  * top down to where the tube meets the bulb. */
 static int scale_top(const thermo_t *t)
 {
-    (void)t;
-    return TUBE_W / 2;
+    return t->tube_w / 2;
 }
 
 static int scale_bottom(const thermo_t *t)
 {
-    return t->tube_h - W / 2 - 4;
+    return t->tube_h - t->w / 2 - t->border - 1;
 }
 
 static int y_for(const thermo_t *t, float f)
@@ -64,18 +60,22 @@ static lv_obj_t *plain(lv_obj_t *parent)
     return o;
 }
 
-void thermo_create(thermo_t *t, lv_obj_t *parent, int x, int y, int h)
+void thermo_create(thermo_t *t, lv_obj_t *parent, int x, int y, int w, int h)
 {
+    t->w = w;
+    t->tube_w = w / 2;
+    t->border = w >= 32 ? 3 : 2;
     t->root = plain(parent);
     lv_obj_set_pos(t->root, x, y);
-    lv_obj_set_size(t->root, W, h);
-    t->tube_h = h - W / 2;   /* the tube runs down to the bulb's middle */
+    lv_obj_set_size(t->root, w, h);
+    t->tube_h = h - w / 2;   /* the tube runs down to the bulb's middle */
+    const int tx = (w - t->tube_w) / 2;
 
     /* tube: white glass with the faint zones, then the fill on top */
     t->tube = plain(t->root);
-    lv_obj_set_pos(t->tube, (W - TUBE_W) / 2, 0);
-    lv_obj_set_size(t->tube, TUBE_W, t->tube_h);
-    lv_obj_set_style_radius(t->tube, TUBE_W / 2, 0);
+    lv_obj_set_pos(t->tube, tx, 0);
+    lv_obj_set_size(t->tube, t->tube_w, t->tube_h);
+    lv_obj_set_style_radius(t->tube, t->tube_w / 2, 0);
     lv_obj_set_style_clip_corner(t->tube, true, 0);
     lv_obj_set_style_bg_opa(t->tube, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(t->tube, lv_color_white(), 0);
@@ -86,32 +86,40 @@ void thermo_create(thermo_t *t, lv_obj_t *parent, int x, int y, int h)
         lo = ZONES[i].max_f;
         lv_obj_t *z = plain(t->tube);
         lv_obj_set_pos(z, 0, top);
-        lv_obj_set_size(z, TUBE_W, bottom - top);
+        lv_obj_set_size(z, t->tube_w, bottom - top);
         lv_obj_set_style_bg_opa(z, ZONE_OPA, 0);
         lv_obj_set_style_bg_color(z, lv_color_hex(ZONES[i].color), 0);
     }
     t->fill = plain(t->tube);
     lv_obj_set_x(t->fill, 0);
-    lv_obj_set_width(t->fill, TUBE_W);
+    lv_obj_set_width(t->fill, t->tube_w);
     lv_obj_set_style_bg_opa(t->fill, LV_OPA_COVER, 0);
 
     /* outline of the tube, drawn over the zones and the fill */
     t->glass = plain(t->root);
-    lv_obj_set_pos(t->glass, (W - TUBE_W) / 2, 0);
-    lv_obj_set_size(t->glass, TUBE_W, t->tube_h);
-    lv_obj_set_style_radius(t->glass, TUBE_W / 2, 0);
-    lv_obj_set_style_border_width(t->glass, BORDER, 0);
+    lv_obj_set_pos(t->glass, tx, 0);
+    lv_obj_set_size(t->glass, t->tube_w, t->tube_h);
+    lv_obj_set_style_radius(t->glass, t->tube_w / 2, 0);
+    lv_obj_set_style_border_width(t->glass, t->border, 0);
+
+    /* freezing tick: a short line through the tube at 32 F, poking out on both sides */
+    t->freeze = plain(t->root);
+    int fy = y_for(t, THERMO_FREEZE_F);
+    lv_obj_set_pos(t->freeze, tx - t->tube_w / 3, fy - t->border / 2);
+    lv_obj_set_size(t->freeze, t->tube_w + 2 * (t->tube_w / 3), t->border);
+    lv_obj_set_style_radius(t->freeze, t->border, 0);
+    lv_obj_set_style_bg_opa(t->freeze, LV_OPA_COVER, 0);
 
     /* bulb, then a little neck that hides the bulb's outline where the tube joins it */
     t->bulb = plain(t->root);
-    lv_obj_set_pos(t->bulb, 0, h - W);
-    lv_obj_set_size(t->bulb, W, W);
+    lv_obj_set_pos(t->bulb, 0, h - w);
+    lv_obj_set_size(t->bulb, w, w);
     lv_obj_set_style_radius(t->bulb, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_opa(t->bulb, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(t->bulb, BORDER, 0);
+    lv_obj_set_style_border_width(t->bulb, t->border, 0);
     t->bulb_glass = plain(t->root);
-    lv_obj_set_pos(t->bulb_glass, (W - TUBE_W) / 2 + BORDER, h - W - 2);
-    lv_obj_set_size(t->bulb_glass, TUBE_W - 2 * BORDER, BORDER + 6);
+    lv_obj_set_pos(t->bulb_glass, tx + t->border, h - w - 2);
+    lv_obj_set_size(t->bulb_glass, t->tube_w - 2 * t->border, t->border + 6);
     lv_obj_set_style_bg_opa(t->bulb_glass, LV_OPA_COVER, 0);
 
     thermo_set_outline(t, lv_color_hex(0x2B3450));
@@ -133,4 +141,5 @@ void thermo_set_outline(thermo_t *t, lv_color_t c)
 {
     lv_obj_set_style_border_color(t->glass, c, 0);
     lv_obj_set_style_border_color(t->bulb, c, 0);
+    lv_obj_set_style_bg_color(t->freeze, c, 0);
 }

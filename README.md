@@ -17,10 +17,10 @@ This is not a general weather dashboard. It answers one kid-sized question in wo
 
 ## What it shows
 
-- The weather right now, in big friendly type, next to a **thermometer** on a fixed 0-100°F scale, so "halfway up" always means the same thing. Faint color zones on the tube show where cold and hot are, and the fill color says how it feels: purple freezing, blue cold, teal chilly, green cool, yellow nice, orange warm, red hot (the same cut-offs as the clothing advice).
+- The weather right now, in big friendly type, next to a **thermometer** on a fixed 0-100°F scale, so "halfway up" always means the same thing. Faint color zones on the tube show where cold and hot are, and the fill color says how it feels: purple freezing, blue cold, teal chilly, green cool, yellow nice, orange warm, red hot (the same cut-offs as the clothing advice). A tick marks freezing (32°F).
 - A "what to wear" bubble with clothing picks (jacket, beanie, mittens, umbrella, boots...) based on feels-like temperature, rain, snow, storms, and sun.
 - Every day is compared with yesterday: warmer or colder (by the daily high), sunnier or cloudier (by hours of sun). A drop of 12°F or more says "a lot colder" and adds gloves.
-- The rest of the day in four chunks (morning, afternoon, evening, tonight, starting with the current one), then the next three days on a second page (swipe left).
+- The rest of the day in four chunks (morning, afternoon, evening, tonight, starting with the current one), then the next three days on a second page (swipe left), each with a mini thermometer for its high on the same fixed scale, so days compare at a glance.
 - After 7 PM the bubble switches to tomorrow, so she can lay out the right clothes before bed.
 - **Special events** (none by default): add things like soccer every Saturday or a one-day field trip. On the day (and the evening before) the bubble mentions it, and for outdoor events it checks the forecast for the hour it starts: gloves at 50°F feels-like or below, rain gear or snow boots when it's likely wet, water at 85°F or above.
 - **Weather alerts** from the US National Weather Service, written to be calm for kids: a soft purple (warning) or blue (watch, advisory) "heads-up" bar with a friendly title and one gentle line, never the official name or a warning sign. "Winter Storm Warning" becomes "Big snow on the way: Cozy coat, hat and boots!", and a tornado warning becomes "Stay close to a grown-up: The grown-ups are keeping watch." The official name is under Settings for grown-ups, and the setup page can turn alerts off. Alerts for boats, fire crews and farmers are skipped. This is a reminder, not a safety alarm: your phone's emergency alerts are faster.
@@ -47,7 +47,7 @@ Weather data comes from [Open-Meteo](https://open-meteo.com): free for non-comme
 
 Setting it up for the first time? [docs/deploy.md](docs/deploy.md) is the step-by-step checklist.
 
-For a first install you only need `firmware/weather-besties-v1.4.2.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`. It also erases saved settings, so for later updates use `firmware/weather-besties-v1.4.2-app.bin` at `0x10000` instead (see [updating](docs/deploy.md#7-updating-the-firmware-later)).
+For a first install you only need `firmware/weather-besties-v1.4.3.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`. It also erases saved settings, so for later updates use `firmware/weather-besties-v1.4.3-app.bin` at `0x10000` instead (see [updating](docs/deploy.md#7-updating-the-firmware-later)).
 
 **Chrome or Edge, no installs:** open the [esptool-js web flasher](https://espressif.github.io/esptool-js/), plug the board into the **UART** USB-C port, click Connect, pick the port, set Flash Address to `0x0`, choose the .bin, click Program. Takes about a minute.
 
@@ -55,7 +55,7 @@ For a first install you only need `firmware/weather-besties-v1.4.2.bin`. It is a
 
 ```
 pip install esptool
-python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.4.2.bin
+python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.4.3.bin
 ```
 
 **If it won't connect:** hold **BOOT**, tap **RESET**, let go of BOOT, then try again. If your computer doesn't see a serial port on the UART connector, try the other USB-C port (native USB).
@@ -152,7 +152,7 @@ For how the pieces fit together (hardware, tasks, setup hotspot, flash layout), 
 
 ## On the real board
 
-Boris ran his v1.4.0 on this board and fixed what broke there; 1.4.2 carries those fixes (see below). Piper's additions (events, alerts, calendar, countdowns, sun and moon, the WPA2 hotspot) compile cleanly and were rendered from the real UI code, but haven't run on the hardware yet. Things to watch on first boot:
+Boris ran his v1.4.0 on this board and fixed what broke there; 1.4.3 carries those fixes (see below). Piper's additions (events, alerts, calendar, countdowns, sun and moon, the WPA2 hotspot) compile cleanly and were rendered from the real UI code, but haven't run on the hardware yet. Things to watch on first boot:
 
 - Touch lands in the wrong place: flip `swap_xy` / `mirror_x` / `mirror_y` in `touch_init()` in `main/board.c`.
 - Picture shifts sideways or flickers while WiFi is busy: lower `LCD_PCLK_HZ` in `main/board.c` from 16 MHz to 14 MHz.
@@ -163,7 +163,7 @@ Boris ran his v1.4.0 on this board and fixed what broke there; 1.4.2 carries tho
 
 ## Fixes from Boris's v1.4.0
 
-This is a fork of [boriskozak/weather-besties](https://github.com/boriskozak/weather-besties). Version 1.4.2 brings over the functional fixes from his v1.4.0, which he found running on the real board:
+This is a fork of [boriskozak/weather-besties](https://github.com/boriskozak/weather-besties). Version 1.4.3 brings over the functional fixes from his v1.4.0, which he found running on the real board:
 
 - **The weather download:** the forecast request had outgrown ESP-IDF's 512-byte HTTP send buffer, so the board never sent it. The buffers are now 2 KB, and `make test` checks that every request (forecast, geocoding, alerts, the longest calendar link) fits with room to spare (`components/wb_ui/wb_request.c`, `sim/test_request.c`).
 - **Weak WiFi:** no modem power saving (it's wall powered), 30-second timeouts, quick retries after a blip, and the "can't reach" message only after a retry also fails.

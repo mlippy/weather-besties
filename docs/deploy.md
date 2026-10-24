@@ -34,7 +34,7 @@ The secret address is a password for that calendar: anyone with it can read the 
 
 1. Plug the board into the computer using the USB-C port labeled **UART**.
 2. Open the [esptool-js web flasher](https://espressif.github.io/esptool-js/), click **Connect**, pick the port.
-3. Set **Flash Address** to `0x0`, choose `firmware/weather-besties-v1.4.2.bin`, click **Program**. About a minute.
+3. Set **Flash Address** to `0x0`, choose `firmware/weather-besties-v1.4.3.bin`, click **Program**. About a minute.
 4. Press **RESET** on the board (or unplug and plug it back in).
 
 If it won't connect: hold **BOOT**, tap **RESET**, let go of BOOT, and try again. If no serial port shows up, try the other USB-C port.
@@ -57,7 +57,7 @@ If it won't connect: hold **BOOT**, tap **RESET**, let go of BOOT, and try again
 - [ ] The weather shows, and the town at the bottom left is right
 - [ ] The clock shows the right time (it may take a minute after the first weather update)
 - [ ] Swipe left shows the next three days; swipe right comes back. **Touch in the wrong place?** See the README, "On the real board".
-- [ ] Hold a finger on the greeting for 1.5 s: Settings opens and shows the WiFi, town and version **1.4.2**
+- [ ] Hold a finger on the greeting for 1.5 s: Settings opens and shows the WiFi, town and version **1.4.3**
 - [ ] **Calendar:** put a test event in the family calendar for tomorrow, like "Piper test (outside)". On the board, open Settings and tap the refresh button. It should show in the bubble after 7 PM, or in the morning. To see what the board read, open Settings, tap **Change settings**, and look under the calendar link: "Read at 7:15 PM: 240 events in the calendar, 3 coming up." Then tap Save (or just restart the board) to leave setup.
 - [ ] **Countdown:** with a (countdown) event in the next 60 days, the bottom left shows "N more sleeps until ...!"
 - [ ] Delete the test event
@@ -79,7 +79,7 @@ There are two images in `firmware/`:
 | `weather-besties-vX.Y.Z.bin` | `0x0` | **Erased** (WiFi, town, events, calendar link). Use for a first install or a fresh start. |
 | `weather-besties-vX.Y.Z-app.bin` | `0x10000` | **Kept.** Use this for updates. |
 
-Command line: `python -m esptool --chip esp32s3 write_flash 0x10000 weather-besties-v1.4.2-app.bin`
+Command line: `python -m esptool --chip esp32s3 write_flash 0x10000 weather-besties-v1.4.3-app.bin`
 
 ## If something's wrong
 

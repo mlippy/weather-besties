@@ -83,10 +83,10 @@ Every request the board makes has to fit the HTTP client's send buffer (request 
 | Where | What |
 |---|---|
 | Top bar | "Good morning, Piper!", the date and clock |
-| Today page, left | Weather picture, temperature, a thermometer (fixed 0-100 °F scale, color by temperature, `thermo.c`), conditions, high/low, feels like; under the picture, a small moon (tonight's phase, drawn as two circles, no artwork) with sunrise and sunset |
+| Today page, left | Weather picture, temperature, a thermometer (fixed 0-100 °F scale, color by temperature, a tick at freezing, `thermo.c`), conditions, high/low, feels like; under the picture, a small moon (tonight's phase, drawn as two circles, no artwork) with sunrise and sunset |
 | Today page, right | The speech bubble: an optional alert bar (calm purple or blue), headline, "than yesterday" line (or the alert's kid line), the tip with any event reminders, and up to 3 clothes |
 | Today page, bottom | The next four parts of the day |
-| Next-days page (swipe left) | Three day cards with a short tip and the change from the day before |
+| Next-days page (swipe left) | Three day cards, each with a mini thermometer for the high (same scale), a short tip and the change from the day before |
 | Footer | A countdown ("11 more sleeps until Piper's birthday!") or else the town; page dots; last update |
 | Settings (long-press) | WiFi, town, update time, address, version, data sources, official alert name; Change settings, Refresh, Close |
 

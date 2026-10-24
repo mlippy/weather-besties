@@ -10,7 +10,7 @@ Boris is redesigning the main screen in [boriskozak/weather-besties](https://git
 
 **Plan: rebuild on top of his 2.0, keeping history linear.** Not a merge (adds a merge commit, 25 conflicting files at once) and not a plain `git rebase` of our commits (almost every one touches the `ui.c` he rewrote, and our 1.4.1 port just duplicates his fixes).
 
-1. **Keep what we have:** tag the current `main` with its version (e.g. `piper-1.4.2`).
+1. **Keep what we have:** tag the current `main` with its version (e.g. `piper-1.4.3`).
 2. **Branch from his 2.0:** `git remote add upstream https://github.com/boriskozak/weather-besties.git`, `git fetch upstream`, new branch from `upstream/main`.
 3. **Re-apply our features, one focused commit each:**
    - Piper defaults: one name, no bike bus

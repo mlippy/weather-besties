@@ -91,7 +91,7 @@ EXPORT(emu_load) void emu_load(int i)
     int h12 = s_wx.hour % 12 ? s_wx.hour % 12 : 12;
     snprintf(s_status, sizeof(s_status), "Updated %d:%02d %s", h12, s_wx.minute, s_wx.hour < 12 ? "AM" : "PM");
     ui_info_t info = {.wifi = "HomeWiFi", .place = "Upper Montclair, New Jersey", .ip = "192.168.1.42",
-                      .version = "1.4.2"};
+                      .version = "1.4.3"};
     snprintf(info.updated, sizeof(info.updated), "Weather updated %d:%02d %s", h12, s_wx.minute, s_wx.hour < 12 ? "AM" : "PM");
     ui_set_info(&info);
     ui_show_page(0);
