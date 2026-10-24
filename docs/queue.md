@@ -6,12 +6,31 @@ Things we'd like to add later, roughly in order. Each has a sketch of how it wou
 
 ### Weather Besties 2.0 (his clothing-guide redesign)
 
-Boris is redesigning the main screen in [boriskozak/weather-besties](https://github.com/boriskozak/weather-besties) (`docs/REDESIGN_PLAN.md` there): a full-body cat dressed in the day's outfit, garment tiles that check off as clothes get laid out, Today / Tomorrow / Next days tabs, honest handling of stale data, and a cat picker. **Wait until he has finished it and run it on his board**, then port Piper's features onto it:
+Boris is redesigning the main screen in [boriskozak/weather-besties](https://github.com/boriskozak/weather-besties) (`docs/REDESIGN_PLAN.md` there): a full-body cat dressed in the day's outfit, garment tiles that check off as clothes get laid out, Today / Tomorrow / Next days tabs, honest handling of stale data, and a cat picker. **Wait until he has finished it and run it on his board.**
 
-- Keep as is: `cal.c` (calendar) and its tests, `alerts.c` (calm alerts), the WPA2 setup hotspot, `wb_request` and its test, settings and the setup page (merge his cat picker in).
-- Re-home on his layout: special-event and calendar reminders (his `outfit.c` replaces `advice.c` and has a single bike-bus option), the calm alert strip, the countdown, and the sun and moon.
-- Defaults back to Piper: one name, no bike bus.
-- Expect conflicts in `ui.c`, `net.c`, `settings.c`, `main.c`, `sim/`, and the README. A trial merge of his 2.0 onto 1.3.1 hit 25 conflicting files.
+**Plan: rebuild on top of his 2.0, keeping history linear.** Not a merge (adds a merge commit, 25 conflicting files at once) and not a plain `git rebase` of our commits (almost every one touches the `ui.c` he rewrote, and our 1.4.1 port just duplicates his fixes).
+
+1. **Keep what we have:** tag the current `main` as `piper-1.4.1`.
+2. **Branch from his 2.0:** `git remote add upstream https://github.com/boriskozak/weather-besties.git`, `git fetch upstream`, new branch from `upstream/main`.
+3. **Re-apply our features, one focused commit each:**
+   - Piper defaults: one name, no bike bus
+   - Touch-driver build fix (`components/esp_lcd_touch_gt911/CMakeLists.txt`), if he still needs it
+   - WPA2 setup hotspot (`main/portal.c`, `ui_show_setup`)
+   - Calm NWS alerts: `alerts.c` as is, plus a calm strip in his layout
+   - Special events: redone in his `outfit.c` (which replaces our `advice.c`), plus the setup-page list
+   - Google Calendar: `cal.c` and `sim/test_cal.c` as is, settings, setup page, hourly fetch in `net.c`
+   - Countdowns (his day chip or footer)
+   - Sun and moon (next to his "33° now")
+   - Docs: deploy checklist, this queue, security notes, README
+
+   About half copies over as whole files; the rest is re-wiring into his screens.
+4. **Check it:** `make shots`, `make test`, a firmware build, then the real board.
+5. **Make it `main`:** one force-push (`git push --force-with-lease origin main`), since it replaces `main`'s history. GitHub refused a branch delete from the Claude session, so this may need running by hand.
+
+**Staying linear afterwards:** for each new Boris update, `git fetch upstream && git rebase upstream/main`, then force-push. Two habits keep rebases small:
+
+- **Keep the fork thin:** our features in their own files (`cal.c`, `alerts.c`) with small hooks into his code, not edits spread through his `ui.c`.
+- **Offer the generic pieces upstream:** the calendar reader, calm alerts, WPA2 hotspot and touch-driver fix would help Cleo and Lila's board too. Each one he takes is one less patch we carry.
 
 ## Next up
 
