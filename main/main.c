@@ -1,5 +1,5 @@
 /*
- * Weather Besties: a weather station for Cleo and Lila.
+ * Weather Besties: a weather station for Piper.
  * Board: Waveshare ESP32-S3-Touch-LCD-4.3. Weather: Open-Meteo (no API key).
  */
 #include <stdio.h>

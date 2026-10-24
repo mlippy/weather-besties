@@ -17,7 +17,7 @@ void settings_defaults(wb_settings_t *s)
     s->lat = 40.8462;
     s->lon = -74.2013;
     s->has_coords = true;
-    snprintf(s->names, sizeof(s->names), "Cleo & Lila");
+    snprintf(s->names, sizeof(s->names), "Piper");
     s->celsius = false;
     s->night_off = false;
     s->off_from = 21;

@@ -53,7 +53,7 @@ static const lv_image_dsc_t *ICON_M[] = WB_WX_ICONS_M;
 static const lv_image_dsc_t *ICON_S[] = WB_WX_ICONS_S;
 static const lv_image_dsc_t *WEAR_ICONS[] = WB_WEAR_ICONS;
 
-static char s_names[48] = "Cleo & Lila";
+static char s_names[48] = "Piper";
 static ui_action_cb_t s_act_cb;
 static void *s_act_user;
 static ui_time_cb_t s_time_cb;

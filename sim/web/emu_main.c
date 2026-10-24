@@ -115,7 +115,7 @@ EXPORT(emu_init) void emu_init(void)
     lv_indev_set_read_cb(ind, read_cb);
     lv_indev_set_long_press_time(ind, 1500);
 
-    ui_init("Cleo & Lila");
+    ui_init("Piper");
     ui_set_time_cb(time_cb);
     ui_set_action_cb(on_action, NULL);
     emu_load(0);

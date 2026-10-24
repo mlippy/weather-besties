@@ -1,6 +1,6 @@
 # How it's built
 
-A 4.3-inch touchscreen weather station that tells kids what to wear. It is one C program on a small microcontroller board: no Linux, no app store, just firmware that fetches a forecast every 15 minutes and draws it.
+A 4.3-inch touchscreen weather station that tells Piper what to wear. It is one C program on a small microcontroller board: no Linux, no app store, just firmware that fetches a forecast every 15 minutes and draws it.
 
 ## The board
 

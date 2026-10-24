@@ -121,7 +121,7 @@ int main(int argc, char **argv)
     lv_display_set_buffers(d, fb, NULL, sizeof(fb), LV_DISPLAY_RENDER_MODE_DIRECT);
     lv_display_set_flush_cb(d, flush_cb);
 
-    ui_init("Cleo & Lila");
+    ui_init("Piper");
     ui_set_time_cb(time_cb);
 
     ui_show_boot(NULL);
