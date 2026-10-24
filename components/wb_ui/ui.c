@@ -363,7 +363,7 @@ static void build_settings(void)
 
     set_info = label(p, &font_body, "");
     lv_obj_set_style_text_color(set_info, C(0x3B4868), 0);
-    lv_obj_set_style_text_line_space(set_info, 8, 0);
+    lv_obj_set_style_text_line_space(set_info, 3, 0);
     lv_obj_set_width(set_info, 544);
     lv_label_set_long_mode(set_info, LV_LABEL_LONG_MODE_WRAP);
     lv_obj_set_pos(set_info, 0, 54);
@@ -391,6 +391,12 @@ void ui_set_info(const ui_info_t *i)
              "Data: Open-Meteo.com and weather.gov",
              i->wifi[0] ? i->wifi : "not set", i->place[0] ? i->place : "not set",
              i->updated[0] ? i->updated : "No weather yet", i->ip[0] ? i->ip : "-", i->version);
+    /* The official alert name, for grown-ups (the main screen only shows kid words). */
+    if (s_alerts.n > 0) {
+        size_t n = strlen(buf);
+        snprintf(buf + n, sizeof(buf) - n, "\n" LV_SYMBOL_WARNING "  %s%s", s_alerts.a[0].event,
+                 s_alerts.n > 1 ? " and more" : "");
+    }
     lv_label_set_text(set_info, buf);
 }
 
@@ -468,7 +474,7 @@ static void build_today(lv_obj_t *t)
     lv_obj_set_style_shadow_color(bubble, C(0x1B2542), 0);
     lv_obj_set_flex_flow(bubble, LV_FLEX_FLOW_COLUMN);
 
-    /* NWS alert: a red (warning) or orange (watch, advisory) bar on top of the advice */
+    /* NWS alert: a purple (warning) or blue (watch, advisory) heads-up bar on top of the advice */
     alert_bar = box(bubble);
     lv_obj_set_size(alert_bar, lv_pct(100), LV_SIZE_CONTENT);
     lv_obj_set_style_radius(alert_bar, 14, 0);
@@ -794,23 +800,17 @@ void ui_show_weather(const wx_t *wx)
     advice_t a;
     advice_make(wx, &s_opts, &a);
     lv_label_set_text(lbl_head, a.headline);
-    /* An alert's kid line takes the place of the "than yesterday" line. */
+    /* An alert's kid line takes the place of the "than yesterday" line. Calm colors, no warning
+     * sign, kid words only; the official name is in Settings for grown-ups. */
     if (s_alerts.n > 0) {
         const wx_alert_t *al = &s_alerts.a[0];
-        uint32_t col = al->level == ALERT_WARNING ? 0xD7263D : 0xE07A1F;
-        lv_obj_set_style_bg_color(alert_bar, C(col), 0);
-        if (s_alerts.n > 1) {
-            lv_label_set_text_fmt(lbl_alert, LV_SYMBOL_WARNING " %s +%d", al->event, s_alerts.n - 1);
-        } else {
-            lv_label_set_text_fmt(lbl_alert, LV_SYMBOL_WARNING " %s", al->event);
-        }
+        lv_obj_set_style_bg_color(alert_bar, C(al->level == ALERT_WARNING ? 0x7B61C9 : 0x3E8ED0), 0);
+        lv_label_set_text(lbl_alert, al->title);
         lv_obj_remove_flag(alert_bar, LV_OBJ_FLAG_HIDDEN);
         lv_label_set_text(lbl_cmp, al->kid);
-        lv_obj_set_style_text_color(lbl_cmp, C(col), 0);
     } else {
         lv_obj_add_flag(alert_bar, LV_OBJ_FLAG_HIDDEN);
         lv_label_set_text(lbl_cmp, a.compare);
-        lv_obj_set_style_text_color(lbl_cmp, C(s_theme->bubble_text), 0);
     }
     if (lv_label_get_text(lbl_cmp)[0]) {
         lv_obj_remove_flag(lbl_cmp, LV_OBJ_FLAG_HIDDEN);

@@ -9,35 +9,38 @@
 static const char *SKIP[] = {"Marine", "Small Craft", "Gale", "Seas", "Brisk Wind", "Hurricane Force Wind",
                              "Frost", "Freeze", "Red Flag", "Fire Weather", "Low Water", "Hydrologic", "Test"};
 
-/* First match wins, so the specific names come before the general ones. */
+/* First match wins, so the specific names come before the general ones.
+ * Written for kids: calm, no scary words, grown-ups are in charge. The official
+ * name still shows in Settings for the grown-ups. */
 static const struct {
     const char *key;
+    const char *title;
     const char *kid;
 } KID[] = {
-    {"Tornado Warning", "Tornado warning! Go to your safe place with a grown-up."},
-    {"Tornado", "Tornadoes could happen. Stay near a grown-up."},
-    {"Extreme Wind", "Dangerous wind! Stay inside, away from windows."},
-    {"Hurricane", "Hurricane! Stay inside with your family."},
-    {"Tropical Storm", "Big storm with wind and rain. Stay inside."},
-    {"Severe Thunderstorm Warning", "Big storm coming! Go inside now."},
-    {"Thunderstorm", "Big storms could happen. Go inside if you hear thunder."},
-    {"Flood", "Flooding! Stay away from big puddles and streams."},
-    {"Blizzard", "Blizzard! Stay inside where it's warm."},
-    {"Ice Storm", "Ice everywhere! Walk slowly and carefully."},
-    {"Winter Storm", "Big snow storm! Bundle up and stay warm."},
-    {"Winter Weather", "Snow or ice. Boots on and walk carefully."},
-    {"Snow", "Lots of snow! Bundle up."},
-    {"Wind Chill", "Dangerously cold! Cover your ears, hands and face."},
-    {"Cold", "Dangerously cold! Cover your ears, hands and face."},
-    {"Heat", "Very hot! Drink lots of water and stay in the shade."},
-    {"Wind", "Very windy! Hold on to your hat."},
-    {"Air Quality", "The air isn't healthy today. Play inside."},
-    {"Smoke", "Smoky air today. Play inside."},
-    {"Dust", "Dusty air today. Play inside."},
-    {"Fog", "Thick fog. Be extra careful near streets."},
-    {"Rip Current", "Dangerous waves. Stay out of the ocean."},
-    {"Beach Hazards", "Dangerous waves. Stay out of the ocean."},
-    {"Surf", "Dangerous waves. Stay out of the ocean."},
+    {"Tornado Warning", "Stay close to a grown-up", "Strong storms nearby. The grown-ups are keeping watch."},
+    {"Tornado", "Stormy day ahead", "Storms could get strong. Stay near a grown-up."},
+    {"Extreme Wind", "Super strong wind", "A good day to stay inside and cozy."},
+    {"Hurricane", "Big storm coming", "Your family has a plan. Cozy inside together."},
+    {"Tropical Storm", "Big rainy, windy storm", "A good day for indoor fun."},
+    {"Severe Thunderstorm Warning", "Thunderstorm nearby", "Time to head inside until it passes."},
+    {"Thunderstorm", "Thunder might rumble", "If you hear thunder, head inside."},
+    {"Flood", "Extra puddly day", "Stay away from big puddles and streams."},
+    {"Blizzard", "Big snowstorm", "Stay inside where it's warm and cozy."},
+    {"Ice Storm", "Icy and slippery", "Walk slowly, like a penguin!"},
+    {"Winter Storm", "Big snow on the way", "Cozy coat, hat and boots!"},
+    {"Winter Weather", "Snowy, slippery day", "Boots on, and walk like a penguin!"},
+    {"Snow", "Lots of snow", "Bundle up!"},
+    {"Wind Chill", "Extra cold day", "Hat, gloves, and cover your cheeks!"},
+    {"Cold", "Extra cold day", "Hat, gloves, and cover your cheeks!"},
+    {"Heat", "Extra hot day", "Lots of water and shady spots."},
+    {"Wind", "Super windy", "Hold on to your hat!"},
+    {"Air Quality", "Hazy air today", "A good day for indoor play."},
+    {"Smoke", "Hazy air today", "A good day for indoor play."},
+    {"Dust", "Dusty air today", "A good day for indoor play."},
+    {"Fog", "Foggy day", "Hold a grown-up's hand near streets."},
+    {"Rip Current", "Big waves today", "Splash on the sand, not in the ocean."},
+    {"Beach Hazards", "Big waves today", "Splash on the sand, not in the ocean."},
+    {"Surf", "Big waves today", "Splash on the sand, not in the ocean."},
 };
 
 static bool ends_with(const char *s, const char *suffix)
@@ -79,9 +82,11 @@ bool alerts_add(wx_alerts_t *al, const char *event, const char *severity)
 
     wx_alert_t x = {.level = lvl};
     snprintf(x.event, sizeof(x.event), "%s", event);
-    snprintf(x.kid, sizeof(x.kid), "%s", "Weather alert. Ask a grown-up about it.");
+    snprintf(x.title, sizeof(x.title), "%s", "Weather heads-up");
+    snprintf(x.kid, sizeof(x.kid), "%s", "Ask a grown-up about today's weather.");
     for (size_t i = 0; i < sizeof(KID) / sizeof(KID[0]); i++) {
         if (strstr(event, KID[i].key)) {
+            snprintf(x.title, sizeof(x.title), "%s", KID[i].title);
             snprintf(x.kid, sizeof(x.kid), "%s", KID[i].kid);
             break;
         }

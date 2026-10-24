@@ -268,7 +268,11 @@ static esp_err_t page_root(httpd_req_t *req)
     hour_options(&b, S->off_from);
     sb_add(&b, "</select><select name=\"to\">");
     hour_options(&b, S->off_to);
-    sb_add(&b, "</select></div><p class=\"hint\">Off at, back on at. A tap wakes it for a minute.</p></div>");
+    sb_add(&b, "</select></div><p class=\"hint\">Off at, back on at. A tap wakes it for a minute.</p>"
+               "<label class=\"check\" style=\"margin-top:16px\"><input type=\"checkbox\" name=\"alrt\" value=\"1\"%s>"
+               "Show weather alerts</label><p class=\"hint\">From weather.gov (US only), in calm kid words. "
+               "The official alert name is under Settings on the screen.</p></div>",
+           S->alerts ? " checked" : "");
 
     sb_add(&b, "<div class=\"card\"><label>Special events</label>"
                "<p class=\"hint\" style=\"margin:0 0 12px\">Things like soccer or a field trip. Pick the days it repeats, "
@@ -339,6 +343,7 @@ static esp_err_t page_save(httpd_req_t *req)
     }
     n.celsius = form_get(body, "units", v, sizeof(v)) && v[0] == 'c';
     n.night_off = form_get(body, "noff", v, sizeof(v)) && v[0] == '1';
+    n.alerts = form_get(body, "alrt", v, sizeof(v)) && v[0] == '1';
     if (form_get(body, "from", v, sizeof(v))) {
         n.off_from = (uint8_t)(atoi(v) % 24);
     }

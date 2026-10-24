@@ -15,6 +15,7 @@ typedef struct {
     char names[48];        /* shown in the greeting */
     bool celsius;
     bool night_off;        /* screen off at night (tap to wake) */
+    bool alerts;           /* show weather.gov alerts on the screen */
     uint8_t off_from, off_to;  /* hours, local time */
     uint8_t nevents;
     wb_event_t events[EVENT_MAX];  /* special events: soccer, field trips... */

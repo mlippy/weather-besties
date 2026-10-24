@@ -148,6 +148,7 @@ A = {
     "snow_morning": nws(("Winter Storm Warning", "Moderate"), ("Wind Chill Advisory", "Moderate"),
                         ("Winter Storm Warning", "Moderate"), ("Small Craft Advisory", "Minor")),
     "summer_hot": nws(("Heat Advisory", "Moderate"), ("Frost Advisory", "Minor")),
+    "rainy_afternoon": nws(("Severe Thunderstorm Warning", "Severe"), ("Flood Watch", "Moderate")),
 }
 
 for name, data in S.items():

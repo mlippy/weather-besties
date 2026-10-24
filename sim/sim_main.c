@@ -165,6 +165,12 @@ int main(int argc, char **argv)
     load(sc, "snow_morning");
     show("Upper Montclair, NJ", "Updated 7:30 AM");
     save(out, "06_snow_morning");
+    ui_info_t ainfo = {.wifi = "HomeWiFi", .place = "Upper Montclair, New Jersey", .ip = "192.168.1.42",
+                       .updated = "Weather updated 7:30 AM", .version = "1.2.0"};
+    ui_set_info(&ainfo);
+    ui_open_settings();
+    save(out, "13_settings_alert");
+    ui_close_settings();
 
     load(sc, "summer_hot");
     show("Upper Montclair, NJ", "Updated 1:00 PM");

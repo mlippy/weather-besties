@@ -60,7 +60,7 @@ FreeRTOS gives the program tasks, timers and locks, and nothing else. Two tasks 
 
 1. Wakes every 15 minutes, or on a Refresh tap.
 2. HTTPS GET to `api.open-meteo.com`, and parses about 6 KB of JSON (`wx.c`): today, yesterday, and the next 3 days.
-3. HTTPS GET to `api.weather.gov/alerts/active?point=lat,lon` for US National Weather Service alerts (`alerts.c`). It keeps the alerts that matter to a kid, most serious first, each with one line in kid words. If this call fails, the last alerts stay up for about an hour, then clear.
+3. HTTPS GET to `api.weather.gov/alerts/active?point=lat,lon` for US National Weather Service alerts (`alerts.c`). It keeps the alerts that matter to a kid, most serious first, and swaps each official name for a calm kid title and line ("Big snow on the way"). The official name only shows in Settings, for grown-ups. If this call fails, the last alerts stay up for about an hour, then clear.
 4. Picks clothes (`advice.c`), including reminders for special events (soccer, a field trip) using the forecast for the hour they start, then takes the lock to hand everything to the UI.
 
 **Graphics task (core 1)**

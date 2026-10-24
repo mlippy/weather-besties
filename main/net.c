@@ -295,6 +295,10 @@ static bool fetch_weather(void)
 /* US National Weather Service alerts for the spot. Outside the US this just fails quietly. */
 static void fetch_alerts(void)
 {
+    if (!S->alerts) {
+        s_alerts.n = 0;
+        return;
+    }
     char url[160];
     snprintf(url, sizeof(url), "https://api.weather.gov/alerts/active?status=actual&point=%.4f,%.4f", S->lat,
              S->lon);

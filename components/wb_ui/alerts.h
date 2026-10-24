@@ -1,6 +1,6 @@
 /*
- * Weather alerts from the US National Weather Service (api.weather.gov), boiled
- * down to what a kid needs to hear. Plain C, shared with the desktop renderer.
+ * Weather alerts from the US National Weather Service (api.weather.gov), turned
+ * into a calm heads-up a kid can read. Plain C, shared with the desktop renderer.
  */
 #pragma once
 
@@ -16,8 +16,9 @@ extern "C" {
 typedef enum { ALERT_ADVISORY = 1, ALERT_WATCH = 2, ALERT_WARNING = 3 } alert_level_t;
 
 typedef struct {
-    char event[48];       /* "Winter Storm Warning" */
-    char kid[96];         /* "Big snow storm! Bundle up and stay warm." */
+    char event[48];       /* official name, for grown-ups: "Winter Storm Warning" */
+    char title[40];       /* for the kid: "Big snow on the way" */
+    char kid[96];         /* "Cozy coat, hat and boots!" */
     alert_level_t level;
 } wx_alert_t;
 

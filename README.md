@@ -23,7 +23,7 @@ This is not a general weather dashboard. It answers one kid-sized question in wo
 - The rest of the day in four chunks (morning, midday, afternoon, evening), then the next three days on a second page (swipe left).
 - After 7 PM the bubble switches to tomorrow, so she can lay out the right clothes before bed.
 - **Special events** (none by default): add things like soccer every Saturday or a one-day field trip. On the day (and the evening before) the bubble mentions it, and for outdoor events it checks the forecast for the hour it starts: gloves at 50°F feels-like or below, rain gear or snow boots when it's likely wet, water at 85°F or above.
-- **Weather alerts** from the US National Weather Service: tornado, storm, flood, winter storm, extreme cold or heat, air quality and so on show as a red (warning) or orange (watch, advisory) bar in the bubble, with one line in kid words ("Big snow storm! Bundle up and stay warm."). Alerts for boats, fire crews and farmers are skipped.
+- **Weather alerts** from the US National Weather Service, written to be calm for kids: a soft purple (warning) or blue (watch, advisory) "heads-up" bar with a friendly title and one gentle line, never the official name or a warning sign. "Winter Storm Warning" becomes "Big snow on the way: Cozy coat, hat and boots!", and a tornado warning becomes "Stay close to a grown-up: The grown-ups are keeping watch." The official name is under Settings for grown-ups, and the setup page can turn alerts off. Alerts for boats, fire crews and farmers are skipped. This is a reminder, not a safety alarm: your phone's emergency alerts are faster.
 - An optional "screen off at night" mode. A tap wakes the screen for a minute.
 
 ![Evening screen](docs/evening.png)
@@ -123,7 +123,7 @@ For how the pieces fit together (hardware, tasks, setup hotspot, flash layout), 
 - Clothing rules: the `BANDS` table at the top of `components/wb_ui/advice.c` (temperatures are feels-like in °F).
 - Special events the board starts with: the `DEFAULT_EVENTS` list at the top of `main/settings.c` (examples are in the comment). The phone setup page edits the same list, up to 8 events.
 - Event reminders and the "a lot colder" threshold: `EVENT_COLD_F`, `EVENT_HOT_F`, `EVENT_RAIN_POP` and `BIG_CHANGE_F` in `components/wb_ui/advice.h`.
-- Which weather alerts show, and what they say: the `SKIP` and `KID` tables at the top of `components/wb_ui/alerts.c`.
+- Which weather alerts show, and the kid title and line for each: the `SKIP` and `KID` tables at the top of `components/wb_ui/alerts.c`.
 - Colors: the theme table at the top of `components/wb_ui/ui.c`.
 - Artwork: edit `tools/icons.py`, then run `python3 tools/make_assets.py` (needs `pip install resvg-py pillow pypng` and `npm install lv_font_conv` inside `tools/`).
 
