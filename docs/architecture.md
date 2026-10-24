@@ -76,12 +76,12 @@ The clock comes from internet time (SNTP) plus the time-zone offset the forecast
 
 ## The setup hotspot
 
-The board has no keyboard, so setup happens on a phone. On first boot (or from Settings) the board stops being a WiFi client and becomes a small open WiFi network called `WeatherBesties-XXXX`, the last 4 characters coming from its radio's hardware address. Three small servers on the board (hotspot + DHCP, DNS, web), all at `192.168.4.1`, then get the phone to open the setup page automatically, the same way hotel and airport WiFi do.
+The board has no keyboard, so setup happens on a phone. On first boot (or from Settings) the board stops being a WiFi client and becomes a small password-protected (WPA2) WiFi network called `WeatherBesties-XXXX`, the last 4 characters coming from its radio's hardware address. The password is new for every setup and shown on the screen. Three small servers on the board (hotspot + DHCP, DNS, web), all at `192.168.4.1`, then get the phone to open the setup page automatically, the same way hotel and airport WiFi do.
 
 | Step | Phone | Board |
 |---|---|---|
-| 1 | Scans the QR code on screen: `WIFI:T:nopass;S:WeatherBesties-3F2A;;` | |
-| 2 | Joins the open network | DHCP: "you're 192.168.4.2, setup page at .4.1" |
+| 1 | Scans the QR code on screen: `WIFI:T:WPA;S:WeatherBesties-3F2A;P:kite7mango;;` | |
+| 2 | Joins the hotspot with that password | DHCP: "you're 192.168.4.2, setup page at .4.1" |
 | 3 | "Am I online?" Looks up `captive.apple.com` | DNS: `192.168.4.1`, for every name asked |
 | 4 | `GET /hotspot-detect.html` | `302` redirect to `http://192.168.4.1/` |
 | 5 | Pops a sign-in sheet, `GET /` | Form with nearby networks |
@@ -93,8 +93,8 @@ The DNS and redirect answers are the whole trick. A DNS server that answers ever
 - **Scanning while hosting.** The radio runs as hotspot and client at once, so the client side can scan for nearby networks to list on the form.
 - **Special events** are edited on the same form: a name, the weekdays it repeats (or one date), the start hour, whether it's outside, and whether to count down to it. Up to 8, saved to flash with the other settings.
 - **The calendar link** is treated like the WiFi password: saved to flash, never sent back to the page. The form shows only whether one is saved and how the last read went.
-- **The QR code** is the standard WiFi QR format phone cameras already understand, so there's no network name to type.
-- **Security, plainly.** The hotspot is open, but it only exists during setup. The home WiFi password is stored on the board's flash without encryption, which is normal for hobby boards and worth knowing.
+- **The QR code** is the standard WiFi QR format phone cameras already understand, so there's no network name or password to type.
+- **Security, plainly.** The hotspot uses WPA2 with a random 10-character password made fresh for each setup, so the home WiFi password and calendar link are encrypted on their way from the phone. Once saved, they sit in the board's flash without encryption: anyone holding the board with a USB cable could read them. That's normal for hobby boards; putting the board on a guest network limits what a leak would expose. Encrypting the stored settings is in the [queue](queue.md), deferred.
 
 ## Where it lives in flash
 

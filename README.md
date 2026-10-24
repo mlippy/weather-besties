@@ -47,7 +47,7 @@ Weather data comes from [Open-Meteo](https://open-meteo.com): free for non-comme
 
 Setting it up for the first time? [docs/deploy.md](docs/deploy.md) is the step-by-step checklist.
 
-You only need `firmware/weather-besties-v1.3.0.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`.
+You only need `firmware/weather-besties-v1.3.1.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`.
 
 **Chrome or Edge, no installs:** open the [esptool-js web flasher](https://espressif.github.io/esptool-js/), plug the board into the **UART** USB-C port, click Connect, pick the port, set Flash Address to `0x0`, choose the .bin, click Program. Takes about a minute.
 
@@ -55,15 +55,15 @@ You only need `firmware/weather-besties-v1.3.0.bin`. It is a single merged image
 
 ```
 pip install esptool
-python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.3.0.bin
+python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.3.1.bin
 ```
 
 **If it won't connect:** hold **BOOT**, tap **RESET**, let go of BOOT, then try again. If your computer doesn't see a serial port on the UART connector, try the other USB-C port (native USB).
 
 ## First start
 
-1. The screen shows a QR code and a hotspot name like `WeatherBesties-3F2A`.
-2. Scan the QR with a phone (or join that WiFi network by hand). A setup page pops up. If it doesn't, open `http://192.168.4.1`.
+1. The screen shows a QR code, a hotspot name like `WeatherBesties-3F2A`, and its password (new each time).
+2. Scan the QR with a phone (or join that WiFi network by hand with the password). A setup page pops up. If it doesn't, open `http://192.168.4.1`.
 3. Pick the home WiFi, type the password, then set: town or ZIP, names for the greeting, °F or °C, optional night hours, special events, and the Google Calendar link. Save.
 4. The board restarts, joins WiFi, and shows the weather.
 

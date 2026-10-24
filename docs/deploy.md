@@ -6,9 +6,13 @@ A checklist for getting the board running in Piper's room. About 20 minutes.
 
 - [ ] The board (Waveshare ESP32-S3-Touch-LCD-4.3) and a USB-C cable that carries **data**, not just power
 - [ ] A computer with **Chrome or Edge** (for flashing), and a phone (for setup)
-- [ ] The home **2.4 GHz** WiFi name and password (the board can't use 5 GHz-only networks)
+- [ ] The home **2.4 GHz** WiFi name and password (the board can't use 5 GHz-only networks). **Use your guest or IoT network if your router has one**, see below.
 - [ ] Your town or ZIP code
 - [ ] A USB power adapter (5 V, 1 A or more) and a spot near where Piper gets dressed, within WiFi range
+
+### Why a guest network
+
+The board saves the WiFi password on its flash without encryption, so anyone who takes the board and plugs in a USB cable could read it. On a guest or IoT network that only gets them onto the guest network, not your computers and phones. Most routers (and mesh systems like eero, Google/Nest Wifi, Orbi, Deco) have a guest network option in their app; turn it on, make sure it's on 2.4 GHz (or "2.4 and 5 GHz"), and give the board that name and password. The board only needs the internet, so the guest network's isolation doesn't get in its way.
 
 ## 2. Get the family calendar link
 
@@ -30,16 +34,16 @@ The secret address is a password for that calendar: anyone with it can read the 
 
 1. Plug the board into the computer using the USB-C port labeled **UART**.
 2. Open the [esptool-js web flasher](https://espressif.github.io/esptool-js/), click **Connect**, pick the port.
-3. Set **Flash Address** to `0x0`, choose `firmware/weather-besties-v1.3.0.bin`, click **Program**. About a minute.
+3. Set **Flash Address** to `0x0`, choose `firmware/weather-besties-v1.3.1.bin`, click **Program**. About a minute.
 4. Press **RESET** on the board (or unplug and plug it back in).
 
 If it won't connect: hold **BOOT**, tap **RESET**, let go of BOOT, and try again. If no serial port shows up, try the other USB-C port.
 
 ## 4. Set it up from your phone
 
-1. The screen shows a QR code and a name like `WeatherBesties-3F2A`. Scan the QR code with the phone camera (or join that WiFi by hand).
+1. The screen shows a QR code, a name like `WeatherBesties-3F2A`, and a password. Scan the QR code with the phone camera; it joins with the password for you (or join that WiFi by hand and type the password). The password is new every time setup starts.
 2. A setup page opens (if not, browse to `http://192.168.4.1`). Fill in:
-   - [ ] Home WiFi and password
+   - [ ] Home WiFi and password (the guest network, if you have one)
    - [ ] Town or ZIP
    - [ ] Name on the screen: **Piper**
    - [ ] °F or °C, and night hours if you want the screen off at night
@@ -53,7 +57,7 @@ If it won't connect: hold **BOOT**, tap **RESET**, let go of BOOT, and try again
 - [ ] The weather shows, and the town at the bottom left is right
 - [ ] The clock shows the right time (it may take a minute after the first weather update)
 - [ ] Swipe left shows the next three days; swipe right comes back. **Touch in the wrong place?** See the README, "Not yet checked on the real board".
-- [ ] Hold a finger on the greeting for 1.5 s: Settings opens and shows the WiFi, town and version **1.3.0**
+- [ ] Hold a finger on the greeting for 1.5 s: Settings opens and shows the WiFi, town and version **1.3.1**
 - [ ] **Calendar:** put a test event in the family calendar for tomorrow, like "Piper test (outside)". On the board, open Settings and tap the refresh button. It should show in the bubble after 7 PM, or in the morning. To see what the board read, open Settings, tap **Change settings**, and look under the calendar link: "Read at 7:15 PM: 240 events in the calendar, 3 coming up." Then tap Save (or just restart the board) to leave setup.
 - [ ] **Countdown:** with a (countdown) event in the next 60 days, the bottom left shows "N more sleeps until ...!"
 - [ ] Delete the test event
@@ -75,12 +79,13 @@ There are two images in `firmware/`:
 | `weather-besties-vX.Y.Z.bin` | `0x0` | **Erased** (WiFi, town, events, calendar link). Use for a first install or a fresh start. |
 | `weather-besties-vX.Y.Z-app.bin` | `0x10000` | **Kept.** Use this for updates. |
 
-Command line: `python -m esptool --chip esp32s3 write_flash 0x10000 weather-besties-v1.3.0-app.bin`
+Command line: `python -m esptool --chip esp32s3 write_flash 0x10000 weather-besties-v1.3.1-app.bin`
 
 ## If something's wrong
 
 | What you see | Try |
 |---|---|
+| Phone won't join the setup hotspot | Type the password shown on the screen; some phones ignore the QR password the first time. |
 | "Can't reach WiFi" | Check the password and that the network is 2.4 GHz. Tap **Set up WiFi** to fix it. |
 | "Couldn't find your town" | Use "Town, ST" instead of a ZIP. |
 | Calendar status says the link doesn't work | Copy the secret address again (it changes if someone reset it). |

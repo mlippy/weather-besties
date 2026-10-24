@@ -303,18 +303,19 @@ static void build_setup(void)
     lv_obj_set_pos(setup_steps, 0, 178);
 }
 
-void ui_show_setup(const char *ap_name, const char *url)
+void ui_show_setup(const char *ap_name, const char *password, const char *url)
 {
-    char qr[96];
-    snprintf(qr, sizeof(qr), "WIFI:T:nopass;S:%s;;", ap_name);
+    /* Standard WiFi QR: the phone camera joins with the password, nothing to type. */
+    char qr[128];
+    snprintf(qr, sizeof(qr), "WIFI:T:WPA;S:%s;P:%s;;", ap_name, password);
     lv_qrcode_update(setup_qr, qr, strlen(qr));
 
     char steps[320];
     snprintf(steps, sizeof(steps),
-             "1. Join the WiFi called\n    %s\n"
+             "1. Join the WiFi called\n    %s\n    password  %s\n"
              "2. A setup page pops up.\n    (No page? Open %s)\n"
-             "3. Pick your home WiFi and town. Done!",
-             ap_name, url);
+             "3. Pick your WiFi and town. Done!",
+             ap_name, password, url);
     lv_label_set_text(setup_steps, steps);
     if (lv_screen_active() != scr_setup) {
         lv_screen_load(scr_setup);

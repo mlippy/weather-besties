@@ -91,7 +91,7 @@ EXPORT(emu_load) void emu_load(int i)
     int h12 = s_wx.hour % 12 ? s_wx.hour % 12 : 12;
     snprintf(s_status, sizeof(s_status), "Updated %d:%02d %s", h12, s_wx.minute, s_wx.hour < 12 ? "AM" : "PM");
     ui_info_t info = {.wifi = "HomeWiFi", .place = "Upper Montclair, New Jersey", .ip = "192.168.1.42",
-                      .version = "1.3.0"};
+                      .version = "1.3.1"};
     snprintf(info.updated, sizeof(info.updated), "Weather updated %d:%02d %s", h12, s_wx.minute, s_wx.hour < 12 ? "AM" : "PM");
     ui_set_info(&info);
     ui_show_page(0);
@@ -102,7 +102,7 @@ static void on_action(ui_action_t a, void *user)
 {
     (void)user;
     if (a == UI_ACT_SETUP) {
-        ui_show_setup("WeatherBesties-3F2A", "192.168.4.1");
+        ui_show_setup("WeatherBesties-3F2A", "kite7mango", "192.168.4.1");
     } else {
         emu_load(s_cur);
     }
@@ -158,7 +158,7 @@ EXPORT(emu_screen) void emu_screen(int which)
         show_current();
         ui_open_settings();
         break;
-    case 3: ui_close_settings(); ui_show_setup("WeatherBesties-3F2A", "192.168.4.1"); break;
+    case 3: ui_close_settings(); ui_show_setup("WeatherBesties-3F2A", "kite7mango", "192.168.4.1"); break;
     case 4: ui_close_settings(); ui_show_boot(NULL); break;
     case 5: ui_close_settings(); ui_show_wifi_error("HomeWiFi", NULL); break;
     default: break;

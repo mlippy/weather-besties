@@ -27,6 +27,17 @@ A small sensor on the board's unused sensor header shows the temperature in Pipe
 - **Sunscreen:** a sunscreen icon on high-UV days (UV is already used for sunglasses).
 - **Bedtime mode:** after a set hour, dim to a soft night-light showing tomorrow's outfit.
 
+## Deferred indefinitely
+
+### Encrypt stored settings (NVS encryption)
+
+**Status: deferred until a real risk calls for it.** Pick this up only if the threat changes, e.g. the board moves somewhere strangers can handle it, or it needs credentials worth more than a guest-network WiFi password.
+
+- **What it fixes:** the WiFi password and calendar link sit in flash as plain text, so anyone holding the board with a USB cable can read them (`esptool read_flash`). Today that's mitigated by putting the board on a guest network, and by **Reset** on the calendar's secret address if the board is lost.
+- **How:** ESP-IDF NVS encryption with the HMAC-based key scheme (`CONFIG_NVS_ENCRYPTION`, `CONFIG_NVS_SEC_KEY_PROTECT_USING_HMAC`). The key lives in an eFuse key block the CPU can use but not read out. App-only updates keep working; full flash encryption isn't required.
+- **Why it's deferred:** burning the eFuse key is permanent and can't be undone. A mistake (wrong key block, wrong purpose) can leave the board unable to read its settings. The cost of getting it wrong is higher than the risk it removes for a board in a kid's room on a guest network.
+- **If we do it:** test on a spare board first, write the exact `espefuse` steps into deploy.md, and keep a "wipe settings" path working.
+
 ## Known gaps
 
 - **Not yet run on the real board.** See "Not yet checked on the real board" in the README and the checklist in [deploy.md](deploy.md).

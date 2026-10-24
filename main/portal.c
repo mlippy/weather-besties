@@ -1,5 +1,5 @@
 /*
- * First-time setup: the board becomes a WiFi hotspot ("WeatherBesties-XXXX"),
+ * First-time setup: the board becomes a WPA2 WiFi hotspot ("WeatherBesties-XXXX", password on screen),
  * phones get pushed to a small settings page, and saving it restarts the board.
  */
 #include <ctype.h>
@@ -15,6 +15,7 @@
 #include "esp_http_server.h"
 #include "esp_log.h"
 #include "esp_mac.h"
+#include "esp_random.h"
 #include "esp_netif.h"
 #include "esp_system.h"
 #include "esp_timer.h"
@@ -29,6 +30,7 @@ static const char *TAG = "portal";
 
 static wb_settings_t *S;
 static char s_ap[32];
+static char s_ap_pass[12];
 static char s_nets[MAX_NETS][33];
 static int s_nnets;
 static esp_timer_handle_t s_restart;
@@ -473,6 +475,15 @@ void portal_run(wb_settings_t *s)
     esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP);
     snprintf(s_ap, sizeof(s_ap), "WeatherBesties-%02X%02X", mac[4], mac[5]);
 
+    /* A fresh WPA2 password for each setup, shown on screen and in the QR code, so the home WiFi
+     * password and calendar link never cross the air unencrypted. No look-alikes (0/O, 1/l/I). */
+    static const char abc[] = "abcdefghjkmnpqrstuvwxyz23456789";
+    for (int i = 0; i < 10; i++) {
+        uint32_t r = esp_random() ^ (uint32_t)esp_timer_get_time();
+        s_ap_pass[i] = abc[r % (sizeof(abc) - 1)];
+    }
+    s_ap_pass[10] = 0;
+
     if (board_lvgl_lock(-1)) {
         ui_show_boot("Getting setup ready...");
         board_lvgl_unlock();
@@ -484,7 +495,9 @@ void portal_run(wb_settings_t *s)
     ap.ap.ssid_len = strlen(s_ap);
     ap.ap.channel = 6;
     ap.ap.max_connection = 4;
-    ap.ap.authmode = WIFI_AUTH_OPEN;
+    snprintf((char *)ap.ap.password, sizeof(ap.ap.password), "%s", s_ap_pass);
+    ap.ap.authmode = WIFI_AUTH_WPA2_PSK;
+    ap.ap.pmf_cfg.capable = true;
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap));
     ESP_ERROR_CHECK(esp_wifi_start());
@@ -517,7 +530,7 @@ void portal_run(wb_settings_t *s)
 
     ESP_LOGI(TAG, "setup hotspot '%s' is up at http://192.168.4.1", s_ap);
     if (board_lvgl_lock(-1)) {
-        ui_show_setup(s_ap, "192.168.4.1");
+        ui_show_setup(s_ap, s_ap_pass, "192.168.4.1");
         board_lvgl_unlock();
     }
     while (1) {

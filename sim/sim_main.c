@@ -148,7 +148,7 @@ int main(int argc, char **argv)
     ui_show_boot(NULL);
     save(out, "01_boot");
 
-    ui_show_setup("WeatherBesties-3F2A", "192.168.4.1");
+    ui_show_setup("WeatherBesties-3F2A", "kite7mango", "192.168.4.1");
     save(out, "02_setup");
 
     load(sc, "oct_morning");
@@ -167,7 +167,7 @@ int main(int argc, char **argv)
     show("Upper Montclair, NJ", "Updated 7:30 AM");
     save(out, "06_snow_morning");
     ui_info_t ainfo = {.wifi = "HomeWiFi", .place = "Upper Montclair, New Jersey", .ip = "192.168.1.42",
-                       .updated = "Weather updated 7:30 AM", .version = "1.3.0"};
+                       .updated = "Weather updated 7:30 AM", .version = "1.3.1"};
     ui_set_info(&ainfo);
     ui_open_settings();
     save(out, "13_settings_alert");
@@ -184,7 +184,7 @@ int main(int argc, char **argv)
     load(sc, "oct_morning");
     show("Upper Montclair, NJ", "Updated 9:45 AM");
     ui_info_t info = {.wifi = "HomeWiFi", .place = "Upper Montclair, New Jersey", .ip = "192.168.1.42",
-                      .updated = "Weather updated 9:45 AM", .version = "1.3.0"};
+                      .updated = "Weather updated 9:45 AM", .version = "1.3.1"};
     ui_set_info(&info);
     ui_open_settings();
     save(out, "09_settings");

@@ -45,7 +45,8 @@ void ui_set_action_cb(ui_action_cb_t cb, void *user);
 void ui_set_time_cb(ui_time_cb_t cb);
 
 void ui_show_boot(const char *msg);
-void ui_show_setup(const char *ap_name, const char *url);
+/* password: the setup hotspot's WPA2 password (letters and digits only, for the QR code) */
+void ui_show_setup(const char *ap_name, const char *password, const char *url);
 void ui_show_connecting(const char *ssid);
 void ui_show_wifi_error(const char *ssid, const char *detail);
 
