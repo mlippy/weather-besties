@@ -94,6 +94,9 @@ Sample forecasts for testing live in `sim/scenarios/` (snow morning, rainy after
 
 ## Layout
 
+For how the pieces fit together (hardware, tasks, setup hotspot, flash layout), see [docs/architecture.md](docs/architecture.md).
+
+
 | Path | What |
 |---|---|
 | `main/main.c` | Boot flow, night-off power timer |
@@ -109,7 +112,7 @@ Sample forecasts for testing live in `sim/scenarios/` (snow morning, rainy after
 | `tools/make_assets.py` | Turns artwork and the Fredoka font into C files |
 | `sim/` | PC renderer and browser emulator (same UI code) |
 | `firmware/` | Ready-to-flash image (address `0x0`) |
-| `docs/` | Screenshots rendered from the UI code |
+| `docs/` | Screenshots rendered from the UI code, and [how it's built](docs/architecture.md) |
 
 ## Tweaking
 
