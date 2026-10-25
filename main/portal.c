@@ -292,6 +292,18 @@ static esp_err_t page_root(httpd_req_t *req)
                "has an Update button too.</p></div>",
            S->alerts ? " checked" : "", S->auto_update ? " checked" : "");
 
+    sb_add(&b, "<div class=\"card\"><label>Jackets and coats</label>"
+               "<p class=\"hint\" style=\"margin:0 0 12px\">By how it feels outside when it's time to go (8 AM, or "
+               "now), in &deg;F. A warm afternoon only adds &quot;take it off later&quot;.</p>"
+               "<div class=\"row\"><label style=\"flex:1\">Winter coat at or below"
+               "<input name=\"tcoat\" type=\"number\" min=\"10\" max=\"80\" value=\"%d\"></label>"
+               "<label style=\"flex:1\">Light jacket to"
+               "<input name=\"tjack\" type=\"number\" min=\"11\" max=\"85\" value=\"%d\"></label>"
+               "<label style=\"flex:1\">Hoodie to"
+               "<input name=\"thood\" type=\"number\" min=\"12\" max=\"90\" value=\"%d\"></label></div>"
+               "<p class=\"hint\">Warmer than that: no layer. Started at 45, 57 and 64.</p></div>",
+           S->coat_f, S->jacket_f, S->hoodie_f);
+
     sb_add(&b, "<div class=\"card\"><label>Special events</label>"
                "<p class=\"hint\" style=\"margin:0 0 12px\">Things like soccer or a field trip. Pick the days it repeats, "
                "or one date. Outside events get reminders for gloves, rain gear or water. "
@@ -392,6 +404,16 @@ static esp_err_t page_save(httpd_req_t *req)
         snprintf(n.pet_name, sizeof(n.pet_name), "%s", v);
     }
     n.celsius = form_get(body, "units", v, sizeof(v)) && v[0] == 'c';
+    {   /* the jacket cut-offs: kept only when they climb (coat < jacket < hoodie) */
+        int tc = form_get(body, "tcoat", v, sizeof(v)) ? atoi(v) : n.coat_f;
+        int tj = form_get(body, "tjack", v, sizeof(v)) ? atoi(v) : n.jacket_f;
+        int th = form_get(body, "thood", v, sizeof(v)) ? atoi(v) : n.hoodie_f;
+        if (tc >= 10 && tc < tj && tj < th && th <= 90) {
+            n.coat_f = (uint8_t)tc;
+            n.jacket_f = (uint8_t)tj;
+            n.hoodie_f = (uint8_t)th;
+        }
+    }
     n.night_off = form_get(body, "noff", v, sizeof(v)) && v[0] == '1';
     n.alerts = form_get(body, "alrt", v, sizeof(v)) && v[0] == '1';
     if (form_get(body, "pet", v, sizeof(v)) && v[0] >= '0' && v[0] <= '3') {

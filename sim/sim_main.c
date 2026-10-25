@@ -653,6 +653,17 @@ int main(int argc, char **argv)
     show();
     save(out, "66_dress_calendar");
     dump(out, "66_dress_calendar");
+    /* The setup page's jacket cut-offs: the cold-morning scenario in the winter kit by
+     * Boris's numbers, a light jacket once the coat cut-off is lowered to 30. */
+    ui_set_dress_days(NULL, 0);
+    load(sc, "halloween_cold");
+    show();
+    save(out, "72_temps_default");
+    dump(out, "72_temps_default");
+    ui_set_outfit_temps(30, 50, 60);
+    save(out, "73_temps_lowered");
+    dump(out, "73_temps_lowered");
+    ui_set_outfit_temps(0, 0, 0);
     ui_set_cat_choice(0);
 
     ui_show_wifi_error("HomeWiFi", NULL);

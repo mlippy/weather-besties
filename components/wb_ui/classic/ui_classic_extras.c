@@ -36,3 +36,10 @@ void ui_set_dress_days(const int *daynos, int n)
     (void)daynos;   /* the classic screens have no dress look */
     (void)n;
 }
+
+void ui_set_outfit_temps(int coat_f, int jacket_f, int hoodie_f)
+{
+    (void)coat_f;   /* the classic screens use the BANDS table in advice.c */
+    (void)jacket_f;
+    (void)hoodie_f;
+}

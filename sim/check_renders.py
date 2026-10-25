@@ -1997,6 +1997,12 @@ def main():
     n = count_where(Image.open(os.path.join(OUT, "60_dog_myday.png")), (180, 8, 560, 46), is_cd_pink)
     check(n < 50, f"60_dog_myday: no countdown pill without a countdown ({n} px)")
 
+    # The jacket cut-offs from setup: Boris's numbers give the winter kit on the cold
+    # morning; a coat cut-off of 30 makes the same morning a light-jacket day.
+    for name, want in (("72_temps_default", "snow"), ("73_temps_lowered", "pants")):
+        look = dump(name)["look_name"]
+        check(look == want, f"{name}: the {want} look (look_name={look})")
+
     # A held finger opens Settings on every page (Settings' Update pill, its pale grey).
     def is_pill_grey(r, g, b):
         return abs(r - 0xED) <= 3 and abs(g - 0xF1) <= 3 and abs(b - 0xF5) <= 3
