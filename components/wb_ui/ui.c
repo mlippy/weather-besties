@@ -10,6 +10,9 @@
 #include "assets/cat2_sets.h"
 #include "assets/pippa_sets.h"
 #include "cal.h"
+#include "dog/dog_sets.h"   /* the family's Brittany: a fourth pet choice (tools/dog/) */
+#include "ui_select.h"
+#include "ui_v2_extras.h"   /* this fork's thermometer, Update pill, name in the title */
 #include "cat.h"
 #include "lvgl.h"
 #include "outfit.h"
@@ -125,7 +128,8 @@ static ui_action_cb_t s_act_cb;
 static void *s_act_user;
 static ui_time_cb_t s_time_cb;
 static ui_cat_cb_t s_cat_cb;
-static int s_cat_choice;   /* 0 black, 1 pink, 2 take turns */
+static int s_cat_choice;   /* 0 black, 1 pink, 2 take turns, 3 the dog */
+#define PET_DOG 3
 
 static outfit_opts_t s_opts = {.bike_bus_wday = 5}; /* Friday */
 
@@ -587,7 +591,7 @@ static lv_obj_t *cmp_pill, *lbl_cmp;   /* iter-12 relative-temperature pill */
 static lv_obj_t *settings;
 static lv_obj_t *set_val[5];        /* info row values: WiFi, Town, Updated, Address, Version */
 static lv_obj_t *set_speed_pill, *set_speed_lbl;
-static lv_obj_t *cat_pill[3], *cat_pill_lbl[3];
+static lv_obj_t *cat_pill[4], *cat_pill_lbl[4];
 
 #ifdef WB_SIM
 /* Scenario dump stash (filled at the end of render(), read by
@@ -706,6 +710,16 @@ static void on_setup_btn(lv_event_t *e)
  * judge read the bare head crop as a severed asset; inside the badge
  * it is a deliberate logo, identical on all three screens. */
 #define BADGE_D 160
+static lv_obj_t *s_badge_img[4];
+static int s_nbadge;
+
+static void badges_refresh(void)
+{
+    for (int i = 0; i < s_nbadge; i++) {
+        lv_image_set_src(s_badge_img[i], s_cat_choice == PET_DOG ? &img_dog_head : &img_pippa_head);
+    }
+}
+
 static void cats_pair(lv_obj_t *parent, int y, bool center)
 {
     lv_obj_t *badge = box(parent);
@@ -721,8 +735,11 @@ static void cats_pair(lv_obj_t *parent, int y, bool center)
         lv_obj_set_pos(badge, 0, y);
     }
     lv_obj_t *a = lv_image_create(badge);
-    lv_image_set_src(a, &img_pippa_head);
+    lv_image_set_src(a, s_cat_choice == PET_DOG ? &img_dog_head : &img_pippa_head);
     lv_obj_center(a);
+    if (s_nbadge < 4) {
+        s_badge_img[s_nbadge++] = a;
+    }
 }
 
 static void solid_bg(lv_obj_t *o, uint32_t col)
@@ -852,18 +869,19 @@ static void build_setup(void)
     lv_obj_set_pos(setup_steps, 0, 220);
 }
 
-void ui_show_setup(const char *ap_name, const char *url)
+void ui_show_setup(const char *ap_name, const char *password, const char *url)
 {
-    char qr[96];
-    snprintf(qr, sizeof(qr), "WIFI:T:nopass;S:%s;;", ap_name);
+    /* WPA2 hotspot: the QR code carries the password too (main/portal.c makes a fresh one). */
+    char qr[128];
+    snprintf(qr, sizeof(qr), "WIFI:T:WPA;S:%s;P:%s;;", ap_name, password);
     lv_qrcode_update(setup_qr, qr, strlen(qr));
 
     char steps[320];
     snprintf(steps, sizeof(steps),
-             "1. Join the WiFi called\n    %s\n"
+             "1. Join the WiFi called\n    %s\n    password  %s\n"
              "2. A setup page pops up.\n    (No page? Open %s)\n"
-             "3. Pick your home WiFi and town. Done!",
-             ap_name, url);
+             "3. Pick your WiFi and town!",
+             ap_name, password, url);
     lv_label_set_text(setup_steps, steps);
     if (lv_screen_active() != scr_setup) {
         lv_screen_load(scr_setup);
@@ -914,7 +932,7 @@ static void style_cat_pills(void)
     /* One pill language for every Settings control (iter-08): the
      * light pill_button fill when off, the ink fill when on, no
      * outline-only variant. */
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         bool on = s_cat_choice == i;
         lv_obj_set_style_bg_color(cat_pill[i], on ? C(COL_INK) : C(0xEEF1F7), 0);
         lv_obj_set_style_bg_opa(cat_pill[i], LV_OPA_COVER, 0);
@@ -927,6 +945,7 @@ static void on_cat_pill(lv_event_t *e)
     intptr_t which = (intptr_t)lv_event_get_user_data(e);
     s_cat_choice = (int)which;
     style_cat_pills();
+    badges_refresh();
     if (s_cat_cb) {
         s_cat_cb(s_cat_choice);   /* firmware saves + calls ui_set_cat_choice, which re-renders */
     } else {
@@ -1015,7 +1034,7 @@ static void build_settings(void)
     lv_obj_set_pos(t, 56, 14);
 
     /* Cat choice (plan 3.6). */
-    lv_obj_t *cat_lbl = label(settings, &font_body, "Cat");
+    lv_obj_t *cat_lbl = label(settings, &font_body, "Pet");
     lv_obj_set_style_text_color(cat_lbl, C(COL_INK), 0);
     lv_obj_set_pos(cat_lbl, 56, 72);
     lv_obj_t *cat_row = box(settings);
@@ -1023,8 +1042,9 @@ static void build_settings(void)
     lv_obj_set_size(cat_row, 604, 46);
     lv_obj_set_flex_flow(cat_row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(cat_row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    static const char *cat_names[3] = {"Black cat", "Pink cat", "Take turns"};
-    for (int i = 0; i < 3; i++) {
+    /* Four pets since the Brittany joined: short names so the row still fits. */
+    static const char *cat_names[4] = {"Black", "Pink", "Both", "Dog"};   /* the dog: ui_set_pet_name */
+    for (int i = 0; i < 4; i++) {
         lv_obj_t *b = lv_button_create(cat_row);
         lv_obj_remove_style_all(b);
         lv_obj_set_style_radius(b, LV_RADIUS_CIRCLE, 0);
@@ -1043,9 +1063,9 @@ static void build_settings(void)
          * or both side by side for Take turns. The disc stays white
          * in both selection states, like the cats-pair badge on the
          * outfit pages. */
-        const lv_image_dsc_t *thumbs[2] = {&img_pippa_head_thumb, &img_pippa_head_pink_thumb};
-        for (int t = 0; t < 2; t++) {
-            if ((i == 0 && t == 1) || (i == 1 && t == 0)) {
+        const lv_image_dsc_t *thumbs[3] = {&img_pippa_head_thumb, &img_pippa_head_pink_thumb, &img_dog_head_thumb};
+        for (int t = 0; t < 3; t++) {
+            if ((i == 0 && t != 0) || (i == 1 && t != 1) || (i == 2 && t == 2) || (i == PET_DOG && t != 2)) {
                 continue;
             }
             lv_obj_t *disc = box(b);
@@ -1104,6 +1124,7 @@ static void build_settings(void)
     lv_obj_set_style_text_color(set_speed_lbl, C(COL_INK), 0);
     lv_obj_center(set_speed_lbl);
     lv_obj_add_event_cb(set_speed_pill, on_speed_pill, LV_EVENT_CLICKED, NULL);
+    v2_update_pill_create(settings, 744, 364, fire);   /* this fork: update now (ui_v2_extras.c) */
 
     /* The tools row (iter-11): one deliberate geometry for the three
      * actions. Equal widths are impossible honestly: "Change WiFi or
@@ -1170,8 +1191,9 @@ static void on_long_press(lv_event_t *e)
 
 void ui_set_cat_choice(int choice)
 {
-    s_cat_choice = choice >= 0 && choice <= 2 ? choice : 0;
+    s_cat_choice = choice >= 0 && choice <= PET_DOG ? choice : 0;
     style_cat_pills();
+    badges_refresh();
     render();
 }
 
@@ -1398,9 +1420,28 @@ static void pippa_show_static(void)
         hide(pippa_img);
         return;
     }
+    if (s_cat_choice == PET_DOG) {
+        /* The dog: same stage slot, her own sprite for the same outfit. Black variants are
+         * even (pippa_sets.h), so variant / 2 is the outfit look (dog_sets.h order). */
+        int d = s_pippa == PIPPA_BASE ? WB_DOG_BASE : s_pippa / 2;
+        lv_image_set_src(pippa_img, WB_DOG_SPRITES[d]);
+        lv_obj_set_pos(pippa_img, WB_DOG_SPRITE_POS[d].x, WB_DOG_SPRITE_POS[d].y);
+        show_obj(pippa_img);
+        return;
+    }
     lv_image_set_src(pippa_img, WB_PIPPA_SPRITES[s_pippa]);
     lv_obj_set_pos(pippa_img, WB_PIPPA_SPRITE_POS[s_pippa].x, WB_PIPPA_SPRITE_POS[s_pippa].y);
     show_obj(pippa_img);
+}
+
+/* The full sprite for a Pippa variant, or the dog's for the same outfit when she's the pet
+ * (My Day draws her too). */
+static const lv_image_dsc_t *pet_sprite(int var)
+{
+    if (s_cat_choice == PET_DOG) {
+        return WB_DOG_SPRITES[var == PIPPA_BASE ? WB_DOG_BASE : var / 2];
+    }
+    return WB_PIPPA_SPRITES[var];
 }
 
 static void pippa_show_frame(int frame)
@@ -1427,7 +1468,7 @@ static int pippa_heart_frame_at(uint32_t elapsed)
  * fine against the manifest's 110-500 ms frames). */
 static void pippa_tick(uint32_t now)
 {
-    if (!pippa_img || !s_pippa_playing || s_pippa != PIPPA_DRESS) {
+    if (!pippa_img || !s_pippa_playing || s_pippa != PIPPA_DRESS || s_cat_choice == PET_DOG) {
         return;
     }
 #ifdef WB_SIM
@@ -1880,6 +1921,7 @@ static void build_outfit_page(lv_obj_t *scr)
     page_outfit = box(scr);
     lv_obj_set_size(page_outfit, UI_W, UI_H);
     lv_obj_add_event_cb(page_outfit, on_long_press, LV_EVENT_LONG_PRESSED, NULL);
+    lv_obj_add_flag(page_outfit, LV_OBJ_FLAG_CLICKABLE);   /* this fork's fix: box() isn't touchable, so the long press never arrived */
 
     lbl_title = label(page_outfit, &font_h1, "");
     lv_obj_set_style_text_color(lbl_title, C(COL_INK), 0);
@@ -1903,6 +1945,7 @@ static void build_outfit_page(lv_obj_t *scr)
      * progress pill on the left, clear of the stale banner's centre. */
     wx_icon = lv_image_create(page_outfit);
     lv_obj_set_pos(wx_icon, 486, 4);
+    v2_thermo_create(page_outfit);
     lbl_wx1 = label(page_outfit, &font_label, "");
     lv_obj_set_style_text_color(lbl_wx1, C(COL_INK), 0);
     lv_obj_set_width(lbl_wx1, 206);
@@ -1973,6 +2016,7 @@ static void build_forecast_page(lv_obj_t *scr)
     page_forecast = box(scr);
     lv_obj_set_size(page_forecast, UI_W, UI_H);
     lv_obj_add_event_cb(page_forecast, on_long_press, LV_EVENT_LONG_PRESSED, NULL);
+    lv_obj_add_flag(page_forecast, LV_OBJ_FLAG_CLICKABLE);   /* this fork's fix: box() isn't touchable, so the long press never arrived */
 
     lv_obj_t *t = label(page_forecast, &font_h1, "Next few days");
     lv_obj_set_style_text_color(t, C(COL_INK), 0);
@@ -2079,6 +2123,7 @@ static void build_myday_page(lv_obj_t *scr)
     page_myday = box(scr);
     lv_obj_set_size(page_myday, UI_W, UI_H);
     lv_obj_add_event_cb(page_myday, on_long_press, LV_EVENT_LONG_PRESSED, NULL);
+    lv_obj_add_flag(page_myday, LV_OBJ_FLAG_CLICKABLE);   /* this fork's fix: box() isn't touchable, so the long press never arrived */
 
     lv_obj_t *t = label(page_myday, &font_h1, "My Day");
     lv_obj_set_style_text_color(t, C(COL_INK), 0);
@@ -2580,7 +2625,7 @@ static void cat2_apply(const outfit_t *o, const cat_season_t *seas, bool unavail
      * left the cat pixel-identical to her unchecked state, so the
      * reward depended on which flow the child used). The sparkles
      * complete the treatment on all of them (see celebrate()). */
-    if (s_pippa == PIPPA_DRESS && s_done_hold) {
+    if (s_pippa == PIPPA_DRESS && s_done_hold && s_cat_choice != PET_DOG) {   /* the heart animation is Pippa's */
         if (!s_pippa_playing && s_pippa_frame < 0) {
             s_pippa_playing = true;
             s_pippa_start = lv_tick_get();
@@ -2684,8 +2729,9 @@ static void render_forecast(const wx_t *wx, const struct tm *now)
          * and bottom-aligned on the band's base (y 206) so her feet
          * share one baseline across the three cards. */
         int var = pippa_variant_for(o.look, o.year, o.month, o.day);
-        lv_image_set_src(fc_pippa[i], WB_PIPPA_MINIS[var]);
-        lv_obj_set_pos(fc_pippa[i], 10, 206 - (int)WB_PIPPA_MINIS[var]->header.h);
+        const lv_image_dsc_t *mini = s_cat_choice == PET_DOG ? WB_DOG_MINIS[var / 2] : WB_PIPPA_MINIS[var];
+        lv_image_set_src(fc_pippa[i], mini);
+        lv_obj_set_pos(fc_pippa[i], 10, 206 - (int)mini->header.h);
         show_obj(fc_pippa[i]);
         /* The list under the band carries the day's FULL prescription,
          * the same tile list the outfit page would show for this
@@ -2746,7 +2792,8 @@ enum {
     EV_ICON_GIFT, EV_ICON_STAR, EV_ICON_TOOTH, EV_ICON_PAW, EV_ICON_COUNT
 };
 static const lv_image_dsc_t *EVENT_ICONS[] = WB_EVENT_ICONS;
-static const char *const EV_ICON_NAMES[EV_ICON_COUNT] = {
+/* Only the PC renderer's dumps read these; unused on the board (this fork's build fix). */
+__attribute__((unused)) static const char *const EV_ICON_NAMES[EV_ICON_COUNT] = {
     "camera", "book", "soccer", "videocall", "cupcake", "piano", "school",
     "balloon", "music", "palette", "swim", "snow", "gift", "star", "tooth", "paw"
 };
@@ -3975,7 +4022,7 @@ static void render_myday(const struct tm *now)
             mlook = mo.look;
         }
         int var = pippa_variant_for(mlook, now->tm_year + 1900, now->tm_mon + 1, now->tm_mday);
-        const lv_image_dsc_t *spr = WB_PIPPA_SPRITES[var];
+        const lv_image_dsc_t *spr = pet_sprite(var);
         lv_image_set_src(md_pippa, spr);
         lv_image_set_scale(md_pippa, MD_MSG_SCALE);
         int bw = (int)spr->header.w * MD_MSG_SCALE / 256;
@@ -4065,7 +4112,7 @@ static void render_myday(const struct tm *now)
                                         : "fall");
 #endif
     }
-    const lv_image_dsc_t *spr = WB_PIPPA_SPRITES[var];
+    const lv_image_dsc_t *spr = pet_sprite(var);
     lv_image_set_src(md_cat, spr);
     /* Iter-23 (round 19): she stands at MD_CAT_SCALE, not native
      * size — the concept's near-full-height stance. Her scaled
@@ -4349,6 +4396,22 @@ static void render(void)
     } else {
         title = "Ready for tomorrow?";
     }
+    {   /* this fork: the name from setup in the title when it fits beside the weather (ui_v2_extras.c) */
+        static const char *const morning[] = {"Let's get dressed, %s!", "Good morning, %s!"};
+        static const char *const later[] = {"What to wear, %s?", "Hi %s!"};
+        static const char *const tomorrow[] = {"Ready for tomorrow, %s?", "Get ready, %s!"};
+        static const char *const done_today[] = {"All dressed, %s!", "Great job, %s!"};
+        static const char *const done_tomorrow[] = {"All ready, %s!", "Great job, %s!"};
+        const char *const *f = NULL;
+        if (all_done) {
+            f = page == 0 ? done_today : done_tomorrow;
+        } else if (avail) {
+            f = page == 0 ? (now.tm_hour < 12 ? morning : later) : tomorrow;
+        }
+        if (f) {
+            title = v2_named_title(title, s_names, f, 2, 420);
+        }
+    }
     lv_label_set_text(lbl_title, title);
     lv_obj_set_style_text_font(lbl_title, text_w(title, &font_h1) > 470 ? &font_label : &font_h1, 0);
 
@@ -4419,6 +4482,7 @@ static void render(void)
         lv_obj_set_x(lbl_wx2, 772 - tw);
         lv_obj_set_width(lbl_wx2, tw);
         lv_obj_set_x(wx_icon, 772 - tw - 80);
+        v2_thermo_show(772 - tw - 80, wx_to_f(&s_wx, page == 0 ? o.t_now : o.hi));
         /* Relative temperature (iter-12): the shown day's daily HIGH
          * against the previous day's daily HIGH, compared in
          * Fahrenheit. The previous day is the day before the SHOWN
@@ -4469,6 +4533,7 @@ static void render(void)
         }
     } else {
         hide(wx_icon);
+        v2_thermo_hide();
         hide(cmp_pill);
         lv_label_set_text(lbl_wx1, "--");
         lv_label_set_text(lbl_wx2, "");
@@ -4693,6 +4758,7 @@ static void render(void)
         lv_obj_center(lbl_stale_big);
         show_obj(stale_banner);
         hide(wx_icon);   /* the banner takes the header icon's slot */
+        v2_thermo_hide();
     } else {
         hide(stale_banner);
     }
@@ -4821,6 +4887,13 @@ void ui_init(const char *names)
     lv_timer_create(clock_tick, 1000, NULL);
     s_built = true;
     lv_screen_load(scr_boot);
+}
+
+void ui_set_pet_name(const char *name)
+{
+    if (cat_pill_lbl[PET_DOG]) {
+        lv_label_set_text(cat_pill_lbl[PET_DOG], name && name[0] ? name : "Dog");
+    }
 }
 
 void ui_set_names(const char *names)

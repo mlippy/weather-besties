@@ -9,6 +9,24 @@
 static const char *TAG = "settings";
 #define NS "wb"
 
+/* Special events the board starts with. Add rows here, or on the phone setup page. Examples:
+ *   {.name = "Soccer", .wdays = 1 << 6, .hour = 9, .outside = true}                     every Saturday, 9 AM
+ *   {.name = "Bike bus", .wdays = 1 << 5, .hour = 8, .outside = true}                   every Friday, 8 AM
+ *   {.name = "Field trip", .year = 2026, .month = 11, .day = 5, .hour = 10, .outside = true}   one day only
+ *   {.name = "Library", .wdays = (1 << 2) | (1 << 4), .hour = 9}                         Tue + Thu, indoors
+ *   {.name = "Birthday", .year = 2026, .month = 11, .day = 3, .all_day = true, .countdown = true}
+ * wdays: bit 0 = Sunday ... bit 6 = Saturday. */
+static const wb_event_t DEFAULT_EVENTS[] = {
+    {.name = ""}, /* none yet */
+};
+
+/* Stored as one blob; bump the version if wb_event_t changes. */
+#define EVENTS_VER 2
+typedef struct {
+    uint8_t ver, n;
+    wb_event_t ev[EVENT_MAX];
+} events_blob_t;
+
 void settings_defaults(wb_settings_t *s)
 {
     memset(s, 0, sizeof(*s));
@@ -17,13 +35,19 @@ void settings_defaults(wb_settings_t *s)
     s->lat = 40.8462;
     s->lon = -74.2013;
     s->has_coords = true;
-    snprintf(s->names, sizeof(s->names), "Cleo & Lila");
+    /* Names stay blank until someone types them on the setup page: none are built in. */
     s->celsius = false;
     s->night_off = false;
+    s->alerts = true;
+    s->auto_update = true;
+    s->cat = 3;      /* the family's Brittany */
     s->off_from = 21;
     s->off_to = 6;
-    s->bike_bus = 5; /* Friday */
-    s->cat = 0;      /* black cat */
+    for (size_t i = 0; i < sizeof(DEFAULT_EVENTS) / sizeof(DEFAULT_EVENTS[0]) && s->nevents < EVENT_MAX; i++) {
+        if (DEFAULT_EVENTS[i].name[0]) {
+            s->events[s->nevents++] = DEFAULT_EVENTS[i];
+        }
+    }
 }
 
 static void get_str(nvs_handle_t h, const char *key, char *dst, size_t cap)
@@ -64,6 +88,8 @@ void settings_load(wb_settings_t *s)
     get_str(h, "pq", s->place_query, sizeof(s->place_query));
     get_str(h, "pn", s->place_name, sizeof(s->place_name));
     get_str(h, "names", s->names, sizeof(s->names));
+    get_str(h, "ical", s->ical_url, sizeof(s->ical_url));
+    get_str(h, "calw", s->cal_words, sizeof(s->cal_words));
     get_double(h, "lat", &s->lat);
     get_double(h, "lon", &s->lon);
     uint8_t b = s->has_coords;
@@ -75,11 +101,26 @@ void settings_load(wb_settings_t *s)
     b = s->night_off;
     get_u8(h, "noff", &b);
     s->night_off = b;
+    b = s->alerts;
+    get_u8(h, "alrt", &b);
+    s->alerts = b;
+    b = s->auto_update;
+    get_u8(h, "autoup", &b);
+    s->auto_update = b;
     get_u8(h, "nfrom", &s->off_from);
-    get_u8(h, "nto", &s->off_to);
-    get_u8(h, "bbus", &s->bike_bus);
     get_u8(h, "cat", &s->cat);
-    get_str(h, "cal", s->cal_url, sizeof(s->cal_url));
+    get_str(h, "petn", s->pet_name, sizeof(s->pet_name));
+    get_u8(h, "nto", &s->off_to);
+    events_blob_t eb;
+    size_t len = sizeof(eb);
+    if (nvs_get_blob(h, "events", &eb, &len) == ESP_OK && len == sizeof(eb) && eb.ver == EVENTS_VER &&
+        eb.n <= EVENT_MAX) {
+        s->nevents = eb.n;
+        memcpy(s->events, eb.ev, sizeof(s->events));
+        for (int i = 0; i < EVENT_MAX; i++) {
+            s->events[i].name[EVENT_NAME_LEN - 1] = 0;
+        }
+    }
     nvs_close(h);
     ESP_LOGI(TAG, "loaded: wifi='%s' place='%s' (%.4f, %.4f)", s->ssid, s->place_name, s->lat, s->lon);
 }
@@ -96,16 +137,23 @@ void settings_save(const wb_settings_t *s)
     nvs_set_str(h, "pq", s->place_query);
     nvs_set_str(h, "pn", s->place_name);
     nvs_set_str(h, "names", s->names);
+    nvs_set_str(h, "ical", s->ical_url);
+    nvs_set_str(h, "calw", s->cal_words);
     nvs_set_blob(h, "lat", &s->lat, sizeof(s->lat));
     nvs_set_blob(h, "lon", &s->lon, sizeof(s->lon));
     nvs_set_u8(h, "coords", s->has_coords);
     nvs_set_u8(h, "cel", s->celsius);
     nvs_set_u8(h, "noff", s->night_off);
+    nvs_set_u8(h, "alrt", s->alerts);
+    nvs_set_u8(h, "autoup", s->auto_update);
     nvs_set_u8(h, "nfrom", s->off_from);
-    nvs_set_u8(h, "nto", s->off_to);
-    nvs_set_u8(h, "bbus", s->bike_bus);
     nvs_set_u8(h, "cat", s->cat);
-    nvs_set_str(h, "cal", s->cal_url);
+    nvs_set_str(h, "petn", s->pet_name);
+    nvs_set_u8(h, "nto", s->off_to);
+    events_blob_t eb = {.ver = EVENTS_VER, .n = s->nevents};
+    memcpy(eb.ev, s->events, sizeof(eb.ev));
+    nvs_set_blob(h, "events", &eb, sizeof(eb));
+    nvs_erase_key(h, "bbus"); /* the old single bike-bus day */
     nvs_commit(h);
     nvs_close(h);
 }

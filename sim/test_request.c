@@ -10,10 +10,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "update.h"
 #include "wb_request.h"
 
 /* Longest user agent the firmware could send ("WeatherBesties/" WB_VERSION). */
-#define UA_WORST "WeatherBesties/99.99.99"
+#define UA_WORST WB_USER_AGENT_PREFIX "99.99.99" WB_USER_AGENT_SUFFIX
 /* Spare room we insist on, so a small query change doesn't land right at the edge. */
 #define TX_MARGIN 256
 
@@ -39,7 +40,7 @@ int main(void)
     /* The real one, Upper Montclair. */
     n = wb_forecast_url(url, sizeof(url), 40.8462, -74.2013, false);
     check("forecast, Upper Montclair, F", url, n);
-    int montclair = wb_request_head_len(url, "WeatherBesties/1.1.2");
+    int montclair = wb_request_head_len(url, WB_USER_AGENT_PREFIX "1.4.1" WB_USER_AGENT_SUFFIX);
 
     /* Worst cases: widest coordinates, both unit systems. */
     const double lats[] = {-89.9999, 89.9999};
@@ -66,6 +67,24 @@ int main(void)
     worst[63] = 0;
     n = wb_geocode_url(url, sizeof(url), worst);
     check("geocode, 63 chars all encoded", url, n);
+
+    /* weather.gov alerts */
+    n = wb_alerts_url(url, sizeof(url), -89.9999, -179.9999);
+    check("alerts, widest coordinates", url, n);
+
+    /* Google Calendar: the longest address setup keeps, on Google's host. */
+    char cal[WB_ICAL_URL_MAX + 1];
+    n = snprintf(cal, sizeof(cal), "https://calendar.google.com/calendar/ical/");
+    while (n < WB_ICAL_URL_MAX) {
+        cal[n++] = 'x';
+    }
+    cal[n] = 0;
+    check("calendar, longest saved address", cal, n);
+
+    /* Over-the-air updates: the manifest and an app file with a long name. */
+    check("update manifest", WB_UPDATE_MANIFEST, (int)strlen(WB_UPDATE_MANIFEST));
+    n = snprintf(url, sizeof(url), "%s%s", WB_UPDATE_BASE, "weather-besties-v99.99.99-app-with-a-long-name-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.bin");
+    check("update app file (95-char name)", url, n);
 
     printf("\nESP-IDF's default send buffer is 512. The Montclair forecast needs %d, so it %s.\n", montclair,
            montclair > 512 ? "has to stay raised" : "would fit the default");

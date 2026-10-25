@@ -751,13 +751,13 @@ def main():
     if ncr is not None:
         nc_runs.append(tuple(ncr))
     clusters = [list(r) for r in nc_runs if r[1] - r[0] >= 100]
-    check(len(clusters) == 3, f"33_settings: three Cat pills found in their row ({clusters})")
-    if len(clusters) == 3:
-        gap1 = clusters[1][0] - clusters[0][1] - 1
-        gap2 = clusters[2][0] - clusters[1][1] - 1
-        check(abs(gap1 - gap2) <= 2, f"33_settings: Cat pill gaps are equal ({gap1} px and {gap2} px, need within 2)")
-        check(clusters[0][0] <= 145 and clusters[2][1] >= 738,
-              f"33_settings: Cat pill row spans the measure ({clusters[0][0]}..{clusters[2][1]}, need ~140..744)")
+    # Four pet pills since the family's Brittany joined (black, pink, both, dog).
+    check(len(clusters) == 4, f"33_settings: four pet pills found in their row ({clusters})")
+    if len(clusters) == 4:
+        gaps = [clusters[i + 1][0] - clusters[i][1] - 1 for i in range(3)]
+        check(max(gaps) - min(gaps) <= 2, f"33_settings: pet pill gaps are equal ({gaps} px, need within 2)")
+        check(clusters[0][0] <= 145 and clusters[3][1] >= 738,
+              f"33_settings: pet pill row spans the measure ({clusters[0][0]}..{clusters[3][1]}, need ~140..744)")
 
     # The cat is IN the Cat chooser (iter-11): the black head's dark
     # fur and the pink head's pink fur both appear in the pill row's
@@ -1949,6 +1949,55 @@ def main():
     print(f"  Pippa ink height: populated {hp}, message {hm}")
     check(hp >= 250 and abs(hp - hm) <= 2,
           f"41_myday_empty: Pippa one drawn height in every state (populated {hp} vs message {hm} ink rows, need equal within 2)")
+    # the family's Brittany (pet choice 3): her copper-orange coat is on stage in every
+    # dog shot, Pippa's black fur is not, and the badge and pill show her head.
+    def is_dog_orange(r, g, b):
+        return abs(r - 217) <= 14 and abs(g - 120) <= 16 and abs(b - 47) <= 18
+
+    def is_cat_black(r, g, b):
+        return r < 55 and g < 55 and b < 50
+
+    for name in ("50_dog_dress", "51_dog_morning", "52_dog_rain_tomorrow", "53_dog_snow", "54_dog_hot",
+                 "55_dog_warm", "56_dog_all_done"):
+        img = Image.open(os.path.join(OUT, name + ".png"))
+        orange = count_where(img, (40, 90, 280, 360), is_dog_orange)
+        black = count_where(img, (40, 90, 280, 360), is_cat_black)
+        check(orange > 1500, f"{name}: the dog's orange coat is on stage ({orange} px, need > 1500)")
+        # her big pupils and lids are dark too (~500 px); the black cat is thousands
+        check(black < 1000, f"{name}: no black cat on stage ({black} px, need < 1000)")
+    img = Image.open(os.path.join(OUT, "57_dog_next_days.png"))
+    n = count_where(img, (0, 120, 800, 400), is_dog_orange)
+    check(n > 600, f"57_dog_next_days: the dog minis are on the forecast cards ({n} orange px, need > 600)")
+    # This fork's thermometer (thermo.c via ui_v2_extras.c) left of the weather icon: red on the
+    # hot day, not red on the cold morning.
+    def is_thermo_red(r, g, b):
+        return abs(r - 0xE5) <= 12 and abs(g - 0x48) <= 14 and abs(b - 0x3C) <= 14
+
+    n = count_where(Image.open(os.path.join(OUT, "29_hot.png")), (400, 0, 520, 80), is_thermo_red)
+    check(n > 60, f"29_hot: the thermometer reads hot ({n} red px, need > 60)")
+    n = count_where(Image.open(os.path.join(OUT, "51_dog_morning.png")), (400, 0, 520, 80), is_thermo_red)
+    check(n < 20, f"51_dog_morning: the thermometer doesn't read hot on a cold morning ({n} red px, need < 20)")
+    # The name from setup in the title on the family's board (Boris's own shots keep names off).
+    for name, want in (("51_dog_morning", "Kid"), ("52_dog_rain_tomorrow", "Kid")):
+        title = dump(name)["title"]
+        check(want in title, f"{name}: her name is in the title (title={title})")
+
+    # A held finger opens Settings on every page (Settings' Update pill, its pale grey).
+    def is_pill_grey(r, g, b):
+        return abs(r - 0xED) <= 3 and abs(g - 0xF1) <= 3 and abs(b - 0xF5) <= 3
+
+    for name in ("61_hold_today", "62_hold_myday", "63_hold_next_days"):
+        n = count_where(Image.open(os.path.join(OUT, name + ".png")), (600, 364, 744, 412), is_pill_grey)
+        check(n > 2000, f"{name}: a 1.5 s hold opened Settings ({n} pill px, need > 2000)")
+    img = Image.open(os.path.join(OUT, "60_dog_myday.png"))
+    n = count_where(img, (560, 40, 800, 420), is_dog_orange)
+    check(n > 1500, f"60_dog_myday: the dog stands on My Day ({n} orange px, need > 1500)")
+    img = Image.open(os.path.join(OUT, "58_dog_settings.png"))
+    n = count_where(img, (600, 62, 744, 108), is_dog_orange)
+    check(n > 60, f"58_dog_settings: the dog's head rides the selected pill ({n} orange px, need > 60)")
+    img = Image.open(os.path.join(OUT, "59_dog_setup.png"))
+    n = count_where(img, (380, 10, 540, 170), is_dog_orange)
+    check(n > 1500, f"59_dog_setup: the dog is in the setup badge ({n} orange px, need > 1500)")
 
     if failures:
         print(f"\n{len(failures)} render check(s) FAILED")

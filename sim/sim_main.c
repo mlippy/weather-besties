@@ -16,6 +16,7 @@
 #include "cal.h"
 #include "lvgl.h"
 #include "ui.h"
+#include "ui_v2_extras.h"
 #include "wx.h"
 
 static uint16_t fb[UI_W * UI_H];
@@ -220,10 +221,19 @@ static void fixture_cal(bool with_events)
                       d10, d10);
     }
     n += snprintf(ics + n, sizeof(ics) - n, "END:VCALENDAR\r\n");
-    if (!cal_parse(ics, (size_t)n)) {
+    /* Through this fork's calendar reader (the one the board uses), no filter words: the
+     * fixture is a kids-only calendar. */
+    static cal_t cal;
+    struct tm lt = now_tm;
+    lt.tm_isdst = -1;
+    mktime(&lt);
+    cal_begin(&cal, cal_dayno(now_tm.tm_year + 1900, now_tm.tm_mon + 1, now_tm.tm_mday), (int)lt.tm_gmtoff, "");
+    cal_feed(&cal, ics, (size_t)n);
+    if (!cal_end(&cal)) {
         fprintf(stderr, "fixture calendar did not parse\n");
         exit(1);
     }
+    cal_publish(&cal);
 }
 
 /* Records the fixture fetch at a fixed time on the sim clock, so
@@ -245,6 +255,29 @@ static void fixture_fetched(void)
     fixture_fetched_at(7, 2);
 }
 
+/* A pretend finger, so the tests can hold the screen like a kid does (the board's
+ * long-press time is 1.5 s, main/board.c). */
+static bool s_touch;
+static lv_point_t s_touch_pt;
+
+static void touch_read(lv_indev_t *in, lv_indev_data_t *data)
+{
+    (void)in;
+    data->point = s_touch_pt;
+    data->state = s_touch ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
+}
+
+/* Holds a finger still at (x, y) for ms, then lifts it. */
+static void hold(int x, int y, int hold_ms)
+{
+    s_touch_pt.x = x;
+    s_touch_pt.y = y;
+    s_touch = true;
+    pump(hold_ms / 40);
+    s_touch = false;
+    pump(5);
+}
+
 int main(int argc, char **argv)
 {
     const char *out = argc > 1 ? argv[1] : "out";
@@ -256,7 +289,13 @@ int main(int argc, char **argv)
     lv_display_set_buffers(d, fb, NULL, sizeof(fb), LV_DISPLAY_RENDER_MODE_DIRECT);
     lv_display_set_flush_cb(d, flush_cb);
 
+    lv_indev_t *touch = lv_indev_create();   /* before ui_init: it hooks every indev for swipes */
+    lv_indev_set_type(touch, LV_INDEV_TYPE_POINTER);
+    lv_indev_set_read_cb(touch, touch_read);
+    lv_indev_set_long_press_time(touch, 1500);
+
     ui_init("Cleo & Lila");
+    v2_set_name_in_title(false);   /* Boris's shots and checks: no names on screen */
     ui_set_time_cb(time_cb);
     ui_info_t info = {.wifi = "HomeWiFi", .place = "Upper Montclair, New Jersey", .ip = "192.168.1.42",
                       .updated = "Weather updated 7:30 AM", .version = "2.0.0"};
@@ -265,7 +304,7 @@ int main(int argc, char **argv)
     ui_show_boot(NULL);
     save(out, "01_boot");
 
-    ui_show_setup("WeatherBesties-3F2A", "192.168.4.1");
+    ui_show_setup("WeatherBesties-3F2A", "kite7mango", "192.168.4.1");
     save(out, "02_setup");
 
     /* The brief's two mockups: cold morning warming up; rainy tomorrow laid out
@@ -509,6 +548,59 @@ int main(int argc, char **argv)
     pump(10);
     save(out, "45_myday_late");
     dump(out, "45_myday_late");
+    ui_test_set_page(0);
+    /* the family's Brittany (pet choice 3; tools/dog/): every outfit, all-done, the
+     * forecast minis, Settings and the badge. */
+    ui_set_cat_choice(3);
+    ui_set_names("Kid");
+    v2_set_name_in_title(true);   /* the family's board shows the name in the title */
+    static const char *dog_days[][2] = {{"dress_morning", "50_dog_dress"}, {"brief_morning", "51_dog_morning"},
+                                        {"brief_evening", "52_dog_rain_tomorrow"}, {"snow_day", "53_dog_snow"},
+                                        {"hot_summer", "54_dog_hot"}, {"warm_day", "55_dog_warm"}};
+    for (size_t i = 0; i < sizeof(dog_days) / sizeof(dog_days[0]); i++) {
+        load(sc, dog_days[i][0]);
+        show();
+        save(out, dog_days[i][1]);
+        dump(out, dog_days[i][1]);
+    }
+    load(sc, "dress_morning");
+    show();
+    ui_test_set_checks(0x3F);
+    pump(10);
+    save(out, "56_dog_all_done");
+    ui_test_set_checks(0);
+    load(sc, "brief_morning");
+    show();
+    ui_test_set_page(3);   /* 0 today, 1 tomorrow, 2 My Day, 3 next days */
+    save(out, "57_dog_next_days");
+    fixture_cal(true);
+    fixture_fetched();
+    ui_test_set_page(2);
+    pump(10);
+    save(out, "60_dog_myday");
+    ui_test_set_page(0);
+    ui_open_settings();
+    save(out, "58_dog_settings");
+    ui_close_settings();
+    ui_show_setup("WeatherBesties-3F2A", "kite7mango", "192.168.4.1");
+    save(out, "59_dog_setup");
+    ui_set_names("Cleo & Lila");
+    v2_set_name_in_title(false);
+    ui_set_cat_choice(0);
+
+    /* Settings opens from a 1.5 s hold on an empty spot (the page title) on every page:
+     * Today, My Day and Next days. */
+    load(sc, "brief_morning");
+    show();
+    static const struct { int page, x, y; const char *name; } holds[] = {
+        {0, 120, 40, "61_hold_today"}, {2, 100, 30, "62_hold_myday"}, {3, 100, 30, "63_hold_next_days"}};
+    for (size_t i = 0; i < sizeof(holds) / sizeof(holds[0]); i++) {
+        ui_test_set_page(holds[i].page);
+        pump(5);
+        hold(holds[i].x, holds[i].y, 1800);
+        save(out, holds[i].name);
+        ui_close_settings();
+    }
     ui_test_set_page(0);
 
     ui_show_wifi_error("HomeWiFi", NULL);

@@ -1,5 +1,5 @@
 /*
- * Weather Besties: a weather station for Cleo and Lila.
+ * Weather Besties: a kids' weather station.
  * Board: Waveshare ESP32-S3-Touch-LCD-4.3. Weather: Open-Meteo (no API key).
  */
 #include <stdio.h>
@@ -9,6 +9,7 @@
 #include "lvgl.h"
 #include "net.h"
 #include "nvs_flash.h"
+#include "ota.h"
 #include "settings.h"
 #include "ui.h"
 
@@ -43,7 +44,7 @@ static void power_timer(lv_timer_t *t)
     }
 }
 
-/* Cat choice from Settings: remember it and show it right away. */
+/* Cat choice from Settings (2.0 screens): remember it and show it right away. */
 static void cat_cb(int choice)
 {
     S.cat = (uint8_t)choice;
@@ -69,18 +70,21 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(err);
     settings_load(&S);
+    ota_boot_check();
 
     ESP_ERROR_CHECK(board_init());
 
     board_lvgl_lock(-1);
     ui_init(S.names);
+    ui_set_pet_name(S.pet_name);
     ui_set_cat_cb(cat_cb);
     ui_set_cat_choice(S.cat);
-    ui_set_bike_bus_day(S.bike_bus <= 6 ? S.bike_bus : -1);
+    ui_set_bike_bus_day(-1);   /* no bike bus here; special events cover it */
+    ui_set_events(S.events, S.nevents);
+    ui_set_speed_cb(speed_cb);
     ui_set_action_cb(net_ui_action, NULL);
     ui_set_time_cb(net_local_time);
-    ui_set_speed_cb(speed_cb);
-    ui_set_calendar_configured(S.cal_url[0] != 0);
+    ui_set_calendar_configured(S.ical_url[0] != 0);
     lv_timer_create(power_timer, 1000, NULL);
     lv_refr_now(NULL);
     board_lvgl_unlock();

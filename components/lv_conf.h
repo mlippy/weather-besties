@@ -40,7 +40,14 @@
  * - LV_STDLIB_RTTHREAD:    RT-Thread implementation
  * - LV_STDLIB_CUSTOM:      Implement the functions externally
  */
+#ifdef ESP_PLATFORM
+/* On the board, LVGL's objects live in PSRAM (main/lv_mem_psram.c). With plain malloc
+ * every small one lands in internal RAM, and the 2.0 screens' hundreds of objects left
+ * WiFi too little to receive with (1.7.0: "Can't reach the weather service"). */
+#define LV_USE_STDLIB_MALLOC LV_STDLIB_CUSTOM
+#else
 #define LV_USE_STDLIB_MALLOC LV_STDLIB_CLIB
+#endif
 
 /** Possible values
  * - LV_STDLIB_BUILTIN:     LVGL's built in implementation

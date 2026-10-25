@@ -1,5 +1,5 @@
 /*
- * Builds the Open-Meteo request addresses and works out how big the request
+ * Builds the Open-Meteo and weather.gov request addresses and works out how big the request
  * will be on the wire. Plain C, so sim/test_request.c checks the exact same
  * code the board runs.
  */
@@ -23,11 +23,20 @@ extern "C" {
 
 #define WB_FORECAST_HOST "api.open-meteo.com"
 #define WB_GEOCODE_HOST "geocoding-api.open-meteo.com"
+#define WB_ALERTS_HOST "api.weather.gov"
+
+/* weather.gov asks apps to say who they are. */
+#define WB_USER_AGENT_PREFIX "WeatherBesties/"
+#define WB_USER_AGENT_SUFFIX " (github.com/mlippy/weather-besties)"
+
+/* Longest Google Calendar address the setup page keeps (settings.h ical_url). */
+#define WB_ICAL_URL_MAX 319
 
 /* Both return the full length the url needs (like snprintf). A result >= n
  * means it was cut off. */
 int wb_forecast_url(char *buf, size_t n, double lat, double lon, bool celsius);
 int wb_geocode_url(char *buf, size_t n, const char *place_query);
+int wb_alerts_url(char *buf, size_t n, double lat, double lon);
 
 /* Percent-encodes everything except A-Z a-z 0-9 - _ . ~ */
 void wb_url_encode(const char *in, char *out, size_t cap);

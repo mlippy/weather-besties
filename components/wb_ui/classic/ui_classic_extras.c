@@ -1,0 +1,32 @@
+/* Parts of the shared screen interface (ui.h) that only the 2.0 screens use. */
+#include "ui.h"
+
+void ui_set_speed_cb(ui_speed_cb_t cb)
+{
+    (void)cb;   /* no speed meter on the classic screens */
+}
+
+void ui_set_bike_bus_day(int wday)
+{
+    (void)wday;   /* special events (events.h) cover it */
+}
+
+void ui_set_cat_cb(ui_cat_cb_t cb)
+{
+    (void)cb;   /* the pet is chosen on the setup page */
+}
+
+/* The 2.0 My Day page's calendar hooks: the classic screens show calendar events in the
+ * speech bubble and the day cards instead (net.c hands them over with ui_set_events). */
+void ui_show_calendar(void)
+{
+}
+
+void ui_calendar_fetch_failed(void)
+{
+}
+
+void ui_set_calendar_configured(bool on)
+{
+    (void)on;
+}

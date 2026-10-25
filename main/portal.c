@@ -1,5 +1,5 @@
 /*
- * First-time setup: the board becomes a WiFi hotspot ("WeatherBesties-XXXX"),
+ * First-time setup: the board becomes a WPA2 WiFi hotspot ("WeatherBesties-XXXX", password on screen),
  * phones get pushed to a small settings page, and saving it restarts the board.
  */
 #include <ctype.h>
@@ -15,6 +15,7 @@
 #include "esp_http_server.h"
 #include "esp_log.h"
 #include "esp_mac.h"
+#include "esp_random.h"
 #include "esp_netif.h"
 #include "esp_system.h"
 #include "esp_timer.h"
@@ -22,6 +23,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "net.h"
+#include "ui_select.h"
 
 static const char *TAG = "portal";
 
@@ -29,6 +31,7 @@ static const char *TAG = "portal";
 
 static wb_settings_t *S;
 static char s_ap[32];
+static char s_ap_pass[12];
 static char s_nets[MAX_NETS][33];
 static int s_nnets;
 static esp_timer_handle_t s_restart;
@@ -171,6 +174,12 @@ static const char *CSS =
     ".units input,.check input{width:auto;margin:0 8px 0 0;transform:scale(1.3)}"
     ".hint{font-size:14px;color:#5B6683;margin:6px 0 0}.hint a{color:var(--pink)}"
     ".check{display:flex;align-items:center;font-weight:600}"
+    ".ev{border-top:2px solid #F1F3F9;padding-top:12px;margin-top:12px}.ev:first-of-type{border:0;margin:0;padding:0}"
+    ".days{display:flex;gap:4px;margin:8px 0}.days label{flex:1;font-weight:600;font-size:14px;text-align:center;"
+    "border:2px solid #E6E9F2;border-radius:10px;padding:7px 0;margin:0}.days input{display:none}"
+    ".days label:has(input:checked){background:var(--pink);border-color:var(--pink);color:#fff}"
+    "button.add{border:0;background:#F1F3F9;color:var(--ink);border-radius:999px;padding:9px 16px;font-size:15px;"
+    "margin-top:12px}"
     "button.save{width:100%;border:0;border-radius:999px;background:var(--pink);color:#fff;font-size:19px;"
     "font-weight:700;padding:16px;margin-top:4px}";
 
@@ -180,6 +189,34 @@ static void hour_options(sbuf_t *b, int sel)
         int h12 = h % 12 ? h % 12 : 12;
         sb_add(b, "<option value=\"%d\"%s>%d %s</option>", h, h == sel ? " selected" : "", h12, h < 12 ? "AM" : "PM");
     }
+}
+
+/* One row of the special-events list. Field names: en<i> name, eh<i> hour, e<i>d<0-6> weekdays,
+ * et<i> date, e<i>o outside. */
+static void event_row(sbuf_t *b, int i, const wb_event_t *e, bool shown)
+{
+    static const char *wd = "SMTWTFS";
+    char name[3 * EVENT_NAME_LEN];
+    html_esc(e ? e->name : "", name, sizeof(name));
+    sb_add(b, "<div class=\"ev\" id=\"ev%d\"%s><div class=\"row\"><input name=\"en%d\" value=\"%s\" "
+              "maxlength=\"%d\" placeholder=\"Like Soccer or Field trip\"><select name=\"eh%d\" style=\"flex:0 0 108px\">",
+           i, shown ? "" : " style=\"display:none\"", i, name, EVENT_NAME_LEN - 1, i);
+    hour_options(b, e ? e->hour : 8);
+    sb_add(b, "</select></div><div class=\"days\">");
+    for (int d = 0; d < 7; d++) {
+        bool on = e && ((e->wdays >> d) & 1);
+        sb_add(b, "<label><input type=\"checkbox\" name=\"e%dd%d\" value=\"1\"%s>%c</label>", i, d,
+               on ? " checked" : "", wd[d]);
+    }
+    char date[16] = "";
+    if (e && !e->wdays && e->year) {
+        snprintf(date, sizeof(date), "%04d-%02d-%02d", e->year, e->month, e->day);
+    }
+    sb_add(b, "</div><div class=\"row\" style=\"align-items:center\"><input type=\"date\" name=\"et%d\" value=\"%s\">"
+              "<label class=\"check\" style=\"margin:0;font-weight:500\"><input type=\"checkbox\" name=\"e%do\" "
+              "value=\"1\"%s>Outside</label><label class=\"check\" style=\"margin:0;font-weight:500\">"
+              "<input type=\"checkbox\" name=\"e%dc\" value=\"1\"%s>Countdown</label></div></div>",
+           i, date, i, (!e || e->outside) ? " checked" : "", i, e && e->countdown ? " checked" : "");
 }
 
 static esp_err_t page_root(httpd_req_t *req)
@@ -193,7 +230,7 @@ static esp_err_t page_root(httpd_req_t *req)
     if (!b.p) {
         return httpd_resp_send_500(req);
     }
-    char e1[200], e2[200], e3[120], e4[1700];
+    char e1[200], e2[200], e3[120];
     sb_add(&b, "<!doctype html><html><head><meta charset=\"utf-8\">"
                "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
                "<title>Weather Besties setup</title><style>%s</style></head><body><main>"
@@ -219,17 +256,23 @@ static esp_err_t page_root(httpd_req_t *req)
 
     html_esc(S->place_query, e2, sizeof(e2));
     html_esc(S->names, e3, sizeof(e3));
-    html_esc(S->cal_url, e4, sizeof(e4));
     sb_add(&b, "<div class=\"card\"><label for=\"place\">Town or ZIP code</label>"
                "<input id=\"place\" name=\"place\" value=\"%s\" required>"
                "<p class=\"hint\">Like \"Montclair, NJ\" or \"07043\".</p>"
                "<label for=\"names\" style=\"margin-top:14px\">Names on the screen</label>"
-               "<input id=\"names\" name=\"names\" value=\"%s\" maxlength=\"40\">"
-               "<label for=\"cal\" style=\"margin-top:14px\">Kids calendar link (iCal)</label>"
-               "<input id=\"cal\" name=\"cal\" value=\"%s\" autocomplete=\"off\" autocapitalize=\"none\">"
-               "<p class=\"hint\">Optional. Paste the secret iCal link of the kids calendar and the "
-               "My Day page will show what the girls have today and tomorrow. Leave blank for none.</p></div>",
-           e2, e3, e4);
+               "<input id=\"names\" name=\"names\" value=\"%s\" maxlength=\"40\">",
+           e2, e3);
+    /* The pet on the screen: the two cats, or the family's Brittany (tools/dog/). */
+    static const char *pets[] = {"Black cat", "Pink cat", "Both cats, taking turns", "The dog"};
+    sb_add(&b, "<label for=\"pet\" style=\"margin-top:14px\">Pet on the screen</label><select id=\"pet\" name=\"pet\">");
+    for (int i = 0; i < 4; i++) {
+        sb_add(&b, "<option value=\"%d\"%s>%s</option>", i, S->cat == i ? " selected" : "", pets[i]);
+    }
+    sb_add(&b, "</select>");
+    html_esc(S->pet_name, e3, sizeof(e3));
+    sb_add(&b, "<label for=\"petn\" style=\"margin-top:14px\">The dog's name</label>"
+               "<input id=\"petn\" name=\"petn\" value=\"%s\" maxlength=\"20\" placeholder=\"Dog\"></div>",
+           e3);
 
     sb_add(&b, "<div class=\"card\"><label>Temperature</label><div class=\"units\">"
                "<label><input type=\"radio\" name=\"units\" value=\"f\"%s>&deg;F</label>"
@@ -241,16 +284,49 @@ static esp_err_t page_root(httpd_req_t *req)
     sb_add(&b, "</select><select name=\"to\">");
     hour_options(&b, S->off_to);
     sb_add(&b, "</select></div><p class=\"hint\">Off at, back on at. A tap wakes it for a minute.</p>"
-               "<label for=\"bbus\" style=\"margin-top:16px\">Bike bus day</label><select id=\"bbus\" name=\"bbus\">");
-    static const char *days[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "No bike bus"};
-    for (int d = 0; d < 8; d++) {
-        sb_add(&b, "<option value=\"%d\"%s>%s</option>", d, d == S->bike_bus ? " selected" : "", days[d]);
+               "<label class=\"check\" style=\"margin-top:16px\"><input type=\"checkbox\" name=\"alrt\" value=\"1\"%s>"
+               "Show weather alerts</label><p class=\"hint\">From weather.gov (US only), in calm kid words. "
+               "The official alert name is under Settings on the screen.</p>"
+               "<label class=\"check\" style=\"margin-top:16px\"><input type=\"checkbox\" name=\"autoup\" value=\"1\"%s>"
+               "Install updates automatically</label><p class=\"hint\">Checks around 3 AM. Settings on the screen "
+               "has an Update button too.</p></div>",
+           S->alerts ? " checked" : "", S->auto_update ? " checked" : "");
+
+    sb_add(&b, "<div class=\"card\"><label>Special events</label>"
+               "<p class=\"hint\" style=\"margin:0 0 12px\">Things like soccer or a field trip. Pick the days it repeats, "
+               "or one date. Outside events get reminders for gloves, rain gear or water. "
+               "Clear a name to remove it.</p>");
+    for (int i = 0; i < EVENT_MAX; i++) {
+        bool have = i < S->nevents;
+        event_row(&b, i, have ? &S->events[i] : NULL, have || i == S->nevents);
     }
-    sb_add(&b, "</select><p class=\"hint\">Cold mornings that day get a gloves reminder.</p></div>"
-               "<button class=\"save\" type=\"submit\">Save</button></form></main>"
+    sb_add(&b, "<button class=\"add\" id=\"add\">+ Add another event</button></div>");
+
+    /* The calendar link is a secret, like the WiFi password: never sent back to the page. */
+    char e4[200], st[160];
+    html_esc(S->cal_words, e4, sizeof(e4));
+    html_esc(net_calendar_status(), st, sizeof(st));
+    sb_add(&b, "<div class=\"card\"><label for=\"ical\">Google Calendar</label>"
+               "<input id=\"ical\" name=\"ical\" autocomplete=\"off\" autocapitalize=\"none\" placeholder=\"%s\">"
+               "<p class=\"hint\">In Google Calendar on a computer: Settings, pick the calendar, "
+               "<b>Integrate calendar</b>, copy <b>Secret address in iCal format</b>.</p>%s"
+               "<label for=\"calw\" style=\"margin-top:14px\">Only events with these words</label>"
+               "<input id=\"calw\" name=\"calw\" value=\"%s\" maxlength=\"60\" placeholder=\"Name, Family\">"
+               "<p class=\"hint\">Commas between words. Add <b>(outside)</b> or &#9728;&#65039; to a title for weather "
+               "reminders, <b>(countdown)</b> or &#127874; to count the sleeps. Those always show.</p>"
+               "<p class=\"hint\">%s</p></div>",
+           S->ical_url[0] ? "Saved. Paste a new one to change it." : "https://calendar.google.com/calendar/ical/...",
+           S->ical_url[0] ? "<label class=\"check\" style=\"margin-top:6px;font-weight:500\"><input type=\"checkbox\" "
+                            "name=\"icaloff\" value=\"1\">Stop using the calendar</label>" : "",
+           e4, st);
+    sb_add(&b, "<button class=\"save\" type=\"submit\">Save</button></form></main>"
                "<script>document.querySelectorAll('.nets button').forEach(function(b){b.onclick=function(e){"
                "e.preventDefault();document.getElementById('ssid').value=b.dataset.s;"
-               "document.getElementById('pass').focus()}})</script></body></html>");
+               "document.getElementById('pass').focus()}});"
+               "document.getElementById('add').onclick=function(e){e.preventDefault();"
+               "var r=[].find.call(document.querySelectorAll('.ev'),function(x){return x.style.display=='none'});"
+               "if(r){r.style.display='';r.querySelector('input').focus()}if(!r||!r.nextElementSibling||"
+               "r.nextElementSibling.className!='ev')this.style.display='none'}</script></body></html>");
 
     httpd_resp_set_type(req, "text/html; charset=utf-8");
     httpd_resp_set_hdr(req, "Cache-Control", "no-store");
@@ -268,7 +344,7 @@ static void restart_cb(void *arg)
 static esp_err_t page_save(httpd_req_t *req)
 {
     int total = req->content_len;
-    if (total <= 0 || total > 4096) {   /* the calendar link alone can run long */
+    if (total <= 0 || total > 8192) {
         return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Bad form");
     }
     char *body = calloc(1, total + 1);
@@ -298,24 +374,73 @@ static esp_err_t page_save(httpd_req_t *req)
         n.has_coords = false; /* look it up after restart */
         snprintf(n.place_name, sizeof(n.place_name), "%s", v);
     }
+    char url[sizeof(n.ical_url)];
+    if (form_get(body, "ical", url, sizeof(url)) && url[0]) {
+        snprintf(n.ical_url, sizeof(n.ical_url), "%s", url);
+    }
+    if (form_get(body, "icaloff", v, sizeof(v)) && v[0] == '1') {
+        n.ical_url[0] = 0;
+    }
+    if (form_get(body, "calw", v, sizeof(v))) {
+        snprintf(n.cal_words, sizeof(n.cal_words), "%s", v);
+    }
     if (form_get(body, "names", v, sizeof(v))) {
         snprintf(n.names, sizeof(n.names), "%s", v);
     }
-    char cv[300];
-    if (form_get(body, "cal", cv, sizeof(cv))) {
-        snprintf(n.cal_url, sizeof(n.cal_url), "%s", cv);   /* blank clears it */
+    if (form_get(body, "petn", v, sizeof(v))) {
+        snprintf(n.pet_name, sizeof(n.pet_name), "%s", v);
     }
     n.celsius = form_get(body, "units", v, sizeof(v)) && v[0] == 'c';
     n.night_off = form_get(body, "noff", v, sizeof(v)) && v[0] == '1';
+    n.alerts = form_get(body, "alrt", v, sizeof(v)) && v[0] == '1';
+    if (form_get(body, "pet", v, sizeof(v)) && v[0] >= '0' && v[0] <= '3') {
+        n.cat = (uint8_t)(v[0] - '0');
+    }
+    n.auto_update = form_get(body, "autoup", v, sizeof(v)) && v[0] == '1';
     if (form_get(body, "from", v, sizeof(v))) {
         n.off_from = (uint8_t)(atoi(v) % 24);
     }
     if (form_get(body, "to", v, sizeof(v))) {
         n.off_to = (uint8_t)(atoi(v) % 24);
     }
-    if (form_get(body, "bbus", v, sizeof(v)) && v[0]) {
-        int d = atoi(v);
-        n.bike_bus = (uint8_t)(d >= 0 && d <= 7 ? d : 7);
+    n.nevents = 0;
+    memset(n.events, 0, sizeof(n.events));
+    for (int i = 0; i < EVENT_MAX; i++) {
+        char key[8];
+        wb_event_t e = {0};
+        snprintf(key, sizeof(key), "en%d", i);
+        if (!form_get(body, key, v, sizeof(v)) || !v[0]) {
+            continue;
+        }
+        snprintf(e.name, sizeof(e.name), "%s", v);
+        snprintf(key, sizeof(key), "eh%d", i);
+        if (form_get(body, key, v, sizeof(v))) {
+            e.hour = (uint8_t)(atoi(v) % 24);
+        }
+        for (int d = 0; d < 7; d++) {
+            snprintf(key, sizeof(key), "e%dd%d", i, d);
+            if (form_get(body, key, v, sizeof(v)) && v[0] == '1') {
+                e.wdays |= 1 << d;
+            }
+        }
+        int y, m, d;
+        snprintf(key, sizeof(key), "et%d", i);
+        if (!e.wdays && form_get(body, key, v, sizeof(v)) && sscanf(v, "%d-%d-%d", &y, &m, &d) == 3 &&
+            y >= 2024 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+            e.year = (uint16_t)y;
+            e.month = (uint8_t)m;
+            e.day = (uint8_t)d;
+        }
+        snprintf(key, sizeof(key), "e%do", i);
+        e.outside = form_get(body, key, v, sizeof(v)) && v[0] == '1';
+        snprintf(key, sizeof(key), "e%dc", i);
+        e.countdown = !e.wdays && form_get(body, key, v, sizeof(v)) && v[0] == '1';
+        if (!e.wdays && !e.year) {
+            free(body);
+            snprintf(v, sizeof(v), "Pick the days or a date for \"%.40s\"", e.name);
+            return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, v);
+        }
+        n.events[n.nevents++] = e;
     }
     free(body);
 
@@ -372,6 +497,15 @@ void portal_run(wb_settings_t *s)
     esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP);
     snprintf(s_ap, sizeof(s_ap), "WeatherBesties-%02X%02X", mac[4], mac[5]);
 
+    /* A fresh WPA2 password for each setup, shown on screen and in the QR code, so the home WiFi
+     * password and calendar link never cross the air unencrypted. No look-alikes (0/O, 1/l/I). */
+    static const char abc[] = "abcdefghjkmnpqrstuvwxyz23456789";
+    for (int i = 0; i < 10; i++) {
+        uint32_t r = esp_random() ^ (uint32_t)esp_timer_get_time();
+        s_ap_pass[i] = abc[r % (sizeof(abc) - 1)];
+    }
+    s_ap_pass[10] = 0;
+
     if (board_lvgl_lock(-1)) {
         ui_show_boot("Getting setup ready...");
         board_lvgl_unlock();
@@ -383,7 +517,9 @@ void portal_run(wb_settings_t *s)
     ap.ap.ssid_len = strlen(s_ap);
     ap.ap.channel = 6;
     ap.ap.max_connection = 4;
-    ap.ap.authmode = WIFI_AUTH_OPEN;
+    snprintf((char *)ap.ap.password, sizeof(ap.ap.password), "%s", s_ap_pass);
+    ap.ap.authmode = WIFI_AUTH_WPA2_PSK;
+    ap.ap.pmf_cfg.capable = true;
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap));
     ESP_ERROR_CHECK(esp_wifi_start());
@@ -416,7 +552,7 @@ void portal_run(wb_settings_t *s)
 
     ESP_LOGI(TAG, "setup hotspot '%s' is up at http://192.168.4.1", s_ap);
     if (board_lvgl_lock(-1)) {
-        ui_show_setup(s_ap, "192.168.4.1");
+        ui_show_setup(s_ap, s_ap_pass, "192.168.4.1");
         board_lvgl_unlock();
     }
     while (1) {

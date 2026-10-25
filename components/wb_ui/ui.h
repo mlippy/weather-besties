@@ -9,6 +9,8 @@
 #include <stddef.h>
 #include <time.h>
 
+#include "alerts.h"
+#include "events.h"
 #include "wx.h"
 
 #ifdef __cplusplus
@@ -21,6 +23,7 @@ extern "C" {
 typedef enum {
     UI_ACT_SETUP,     /* user asked to change WiFi / town */
     UI_ACT_REFRESH,   /* user asked for fresh weather now */
+    UI_ACT_UPDATE,    /* user asked to check for a firmware update now */
 } ui_action_t;
 
 typedef void (*ui_action_cb_t)(ui_action_t act, void *user);
@@ -43,12 +46,16 @@ void ui_set_speed_cb(ui_speed_cb_t cb);
 
 void ui_init(const char *names);
 void ui_set_names(const char *names);
+void ui_set_pet_name(const char *name);   /* the dog's name from setup; "" shows "Dog" */
 void ui_set_bike_bus_day(int wday);  /* 0 = Sunday ... 6 = Saturday, -1 = none. Default Friday. */
 void ui_set_action_cb(ui_action_cb_t cb, void *user);
+void ui_set_events(const wb_event_t *events, int n);  /* special events for the advice; copied */
+void ui_set_alerts(const wx_alerts_t *alerts);         /* NULL or n == 0 clears; shown on the next ui_show_weather */
 void ui_set_time_cb(ui_time_cb_t cb);
 
 void ui_show_boot(const char *msg);
-void ui_show_setup(const char *ap_name, const char *url);
+/* password: the setup hotspot's WPA2 password (letters and digits only, for the QR code) */
+void ui_show_setup(const char *ap_name, const char *password, const char *url);
 void ui_show_connecting(const char *ssid);
 void ui_show_wifi_error(const char *ssid, const char *detail);
 

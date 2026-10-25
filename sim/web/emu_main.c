@@ -142,7 +142,7 @@ static void on_action(ui_action_t a, void *user)
 {
     (void)user;
     if (a == UI_ACT_SETUP) {
-        ui_show_setup("WeatherBesties-3F2A", "192.168.4.1");
+        ui_show_setup("WeatherBesties-3F2A", "kite7mango", "192.168.4.1");
     } else if (!s_is_live) {
         emu_load(s_cur);
     } else {
@@ -200,7 +200,7 @@ EXPORT(emu_screen) void emu_screen(int which)
         show_current();
         ui_open_settings();
         break;
-    case 3: ui_close_settings(); ui_show_setup("WeatherBesties-3F2A", "192.168.4.1"); break;
+    case 3: ui_close_settings(); ui_show_setup("WeatherBesties-3F2A", "kite7mango", "192.168.4.1"); break;
     case 4: ui_close_settings(); ui_show_boot(NULL); break;
     case 5: ui_close_settings(); ui_show_wifi_error("HomeWiFi", NULL); break;
     default: break;
