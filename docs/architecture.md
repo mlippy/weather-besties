@@ -66,12 +66,12 @@ FreeRTOS gives the program tasks, timers and locks, and nothing else. Two tasks 
 3. HTTPS GET to `api.weather.gov/alerts/active?point=lat,lon` for US National Weather Service alerts (`alerts.c`). It keeps the alerts that matter to a kid, most serious first, and swaps each official name for a calm kid title and line ("Big snow on the way"). The official name only shows in Settings, for grown-ups. If this call fails, the last alerts stay up for about an hour, then clear.
 4. Once an hour (or on Refresh, or when the day changes), streams the family calendar's secret iCal address through `cal.c` in 4 KB chunks, so even a calendar with years of history never has to fit in memory. It keeps the kid's events for today and tomorrow, plus countdown events up to 60 days out, working out repeats (weekly soccer, yearly birthdays), skipped and moved instances, and all-day events. If a read fails, the last good list stays, since its events carry their own dates.
 5. Around 3 AM, checks for a firmware update (see below).
-6. Picks clothes (`advice.c`), including reminders for special events (from the setup page and the calendar) using the forecast for the hour they start, then takes the lock to hand everything to the UI.
+6. Takes the lock and hands everything to the UI: the forecast, alerts, special events and calendar items, today's and tomorrow's calendar events for My Day (`cal_publish`), and dress-up days (`cal_dress_days`). The classic screens pick clothes in `advice.c` (with reminders for special events, using the forecast for the hour they start); the 2.0 screens in Boris's `outfit.c`.
 
 **Graphics task (core 1)**
 
 1. Reads GT911 touch every 20 ms (swipe, hold).
-2. Runs the widgets (`ui.c` on LVGL).
+2. Runs the widgets (`ui.c` on LVGL). Every object LVGL creates lives in PSRAM (`main/lv_mem_psram.c`): with plain `malloc`, the 2.0 screens' hundreds of small objects landed in internal RAM and left WiFi too little to receive with (1.7.0).
 3. Draws only what changed, into a drawing area in fast internal RAM (40 lines to start; it grows to 60-100 lines once the first download shows how much RAM WiFi and HTTPS leave, and shrinks back if memory gets tight), then copies it into the 768 KB framebuffer in PSRAM. LVGL refreshes every 10 ms.
 
 Swipes are detected by comparing where the finger went down with where it came up (80+ px, mostly sideways), which catches the slow swipes LVGL's own gesture detection misses; the page flips without a drag animation.
@@ -84,7 +84,18 @@ Every request the board makes has to fit the HTTP client's send buffer (request 
 
 ## What's on the screen
 
-Two designs implement the same `ui.h`; `components/wb_ui/ui_select.h` picks one at build time, and the build compiles only that one's screens and artwork. Boris's 2.0 design is described in [REDESIGN_PLAN.md](REDESIGN_PLAN.md). The classic screens:
+Two designs implement the same `ui.h`; `components/wb_ui/ui_select.h` picks one at build time, and the build compiles only that one's screens and artwork. The family's board runs 2.0.
+
+**2.0** (Boris's design, described in [REDESIGN_PLAN.md](REDESIGN_PLAN.md), plus this fork's `ui_v2_extras.c`):
+
+| Where | What |
+|---|---|
+| Today / Tomorrow | The page title (with the name from setup when it fits), the day chip and its **Dress up?** pill (or the "2 of 4 ready" chip once something is checked), the thermometer and weather, Pippa or the dog in the day's outfit, garment tiles and extras to check off, one sentence about the day |
+| My Day | Today's and tomorrow's calendar events as cards (icons, NOW / NEXT / DONE), the countdown pill in the header |
+| Next days | Three day cards with the outfit and a mini pet |
+| Settings (hold an empty spot) | Pet picker, WiFi, town, version, speed test, Refresh, Change WiFi or town, Update |
+
+**Classic:**
 
 | Where | What |
 |---|---|
@@ -114,11 +125,11 @@ Running from PSRAM helps here too: writing the new image to flash doesn't stall 
 
 | | Total | Used | Left |
 |---|---|---|---|
-| Flash | 16 MB | 128 KB system + two 6 MB app slots | 3.9 MB unused; each slot has 2.4 MB spare for the app to grow |
-| PSRAM | 8 MB | code + constants copied in at boot (3.4 MB classic, 4.3 MB 2.0), framebuffer (768 KB) | about 3.8 MB (classic) or 2.9 MB (2.0) for WiFi/HTTPS buffers, JSON (alerts can be a few hundred KB) and downloads |
-| Internal RAM | 512 KB | 137 KB static; WiFi, the drawing area (grows only while 64 KB stays free) | Boris measured about 78 KB free after a download on v1.4.0 |
+| Flash | 16 MB | 128 KB system + two 6 MB app slots | 3.9 MB unused; each slot has 1.4 MB spare (2.0) or 2.4 MB (classic) for the app to grow |
+| PSRAM | 8 MB | code + constants copied in at boot (3.4 MB classic, 4.5 MB 2.0), framebuffer (768 KB), LVGL's objects | about 3.8 MB (classic) or 2.7 MB (2.0) for WiFi/HTTPS buffers, JSON (alerts can be a few hundred KB) and downloads |
+| Internal RAM | 512 KB | 137 KB static; WiFi, the drawing area (grows only while 64 KB stays free) | Boris measured about 78 KB free after a download on v1.4.0. Since 1.7.1 LVGL stays out of it; "Can't reach the weather service" shows how much is free |
 
-The app is the number to watch: every byte of it costs PSRAM as well as flash. Classic is 3.6 MB; 2.0 is 4.4 MB with Pippa's artwork and the dog's full wardrobe, even compressed (more than the 2.6 MB his plan estimated before Pippa, and past its 3.5 MB guideline, but it fits). The dog's 2.0 sprites are about 420 KB of that; dropping them from a 2.0 build is one line in `components/wb_ui/CMakeLists.txt`.
+The app is the number to watch: every byte of it costs PSRAM as well as flash. Classic is 3.6 MB; 2.0 is 4.6 MB with Pippa's artwork, My Day's icons and the dog's full wardrobe, even compressed (more than the 2.6 MB his plan estimated before Pippa, and past its 3.5 MB guideline, but it fits). The dog's 2.0 sprites are about 420 KB of that; dropping them from a 2.0 build is one line in `components/wb_ui/CMakeLists.txt`.
 
 ## The setup hotspot
 
@@ -138,18 +149,19 @@ The DNS and redirect answers are the whole trick. A DNS server that answers ever
 
 - **Scanning while hosting.** The radio runs as hotspot and client at once, so the client side can scan for nearby networks to list on the form.
 - **Special events** are edited on the same form: a name, the weekdays it repeats (or one date), the start hour, whether it's outside, and whether to count down to it. Up to 8, saved to flash with the other settings.
+- **Names** (the greeting, the calendar filter words, the dog's name) are typed here and stored only on the board; none are built into the firmware.
 - **The calendar link** is treated like the WiFi password: saved to flash, never sent back to the page. The form shows only whether one is saved and how the last read went.
 - **The QR code** is the standard WiFi QR format phone cameras already understand, so there's no network name or password to type.
 - **Security, plainly.** The hotspot uses WPA2 with a random 10-character password made fresh for each setup, so the home WiFi password and calendar link are encrypted on their way from the phone. Once saved, they sit in the board's flash without encryption: anyone holding the board with a USB cable could read them. That's normal for hobby boards; putting the board on a guest network limits what a leak would expose. Encrypting the stored settings is in the [queue](queue.md), deferred.
 
 ## Where it lives in flash
 
-The app is a 3.6 MB image with the classic screens (4.0 MB with 2.0). Most of it is artwork, fonts and other constant data, not code. Since 1.5.0 the flash has **two app slots**, so the board can download a new version into one while it runs from the other:
+The app is a 4.6 MB image with the 2.0 screens (3.6 MB with the classic ones). Most of it is artwork, fonts and other constant data, not code. Since 1.5.0 the flash has **two app slots**, so the board can download a new version into one while it runs from the other:
 
 ```
 16 MB flash
 |128K| App slot A (ota_0), 6 MB          | App slot B (ota_1), 6 MB          | Free, 3.9 MB |
-|    | app 3.6 MB | spare 2.4 MB         | (the next update lands here)      |              |
+|    | app 4.6 MB | spare 1.4 MB         | (the next update lands here)      |              |
 
 first 128 KB: bootloader, partition table (0x8000), settings (0x9000, 24 KB),
               which-slot-to-boot (otadata, 0xf000), radio calibration (0x11000)
@@ -163,7 +175,7 @@ Because the screens never touch hardware, the same files (`ui.c`, `advice.c`, `w
 
 | Target | Toolchain + glue | Output |
 |---|---|---|
-| Board firmware | Xtensa GCC + `board.c` | 3.6 MB image, flashed at `0x0` |
+| Board firmware | Xtensa GCC + `board.c` | 4.6 MB app (2.0) or 3.6 MB (classic); first install as one image at `0x0` |
 | Screenshot renderer | GCC + `sim_main.c` | PC program, writes PNGs |
 | Browser emulator | clang wasm32 + `emu_main.c` | WebAssembly + canvas, Boris's 2.0 screens (`make web`) |
 

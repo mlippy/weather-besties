@@ -56,21 +56,23 @@ If it won't connect: hold **BOOT**, tap **RESET**, let go of BOOT, and try again
 
 ## 5. Check that it works
 
-- [ ] The weather shows, and the town at the bottom left is right
+- [ ] The weather shows (2.0: with the thermometer beside the weather icon; classic: the town at the bottom left is right)
 - [ ] The clock shows the right time (it may take a minute after the first weather update)
-- [ ] Swipe left shows the next three days; swipe right comes back. **Touch in the wrong place?** See the README, "On the real board".
-- [ ] Hold a finger on the greeting for 1.5 s: Settings opens and shows the WiFi, town and version **1.7.5**
+- [ ] 2.0: the tabs at the bottom switch pages (Today, Tomorrow, My Day, Next days). Classic: swipe left for the next three days, right to come back. **Touch in the wrong place?** See the README, "On the real board".
+- [ ] Hold a finger still for 1.5 s on the greeting or page title: Settings opens and shows the WiFi, town and version **1.7.5**
 - [ ] In Settings, tap **Update**: it should say "Up to date! (version 1.7.5)", then go back to the weather
-- [ ] **Calendar:** put a test event in the family calendar for tomorrow, like "Kid test (outside)" (with your kid's name). On the board, open Settings and tap the refresh button. It should show in the bubble after 7 PM, or in the morning. To see what the board read, open Settings, tap **Setup**, and look under the calendar link: "Read at 7:15 PM: 240 events in the calendar, 3 coming up." Then tap Save (or just restart the board) to leave setup.
-- [ ] **Countdown:** with a (countdown) event in the next 60 days, the bottom left shows "N more sleeps until ...!"
-- [ ] Delete the test event
+- [ ] **Calendar:** put a test event in the family calendar for tomorrow, like "Kid test (outside)" (with your kid's name). On the board, open Settings and tap the refresh button. 2.0: it shows on the My Day tab. Classic: it shows in the bubble after 7 PM, or in the morning. To see what the board read, open Settings, tap **Setup**, and look under the calendar link: "Read at 7:15 PM: 240 events in the calendar, 3 coming up." Then tap Save (or just restart the board) to leave setup.
+- [ ] **Countdown:** add an all-day event a week or two out titled "Trip to Grandma's 🎉". 2.0: the My Day header shows "N more sleeps until Trip to Grandma's!"; classic: the bottom left does.
+- [ ] **Dress-up day (2.0):** add an all-day event for tomorrow titled "Picture day (dress)". If tomorrow is mild enough for a light jacket, the Tomorrow page shows the dress with the pill on **✓ Dress-up**; in cold, rain or heat the weather's outfit wins and there's no pill.
+- [ ] Delete the test events
 
 Google's iCal feed can take a little while to show changes, and the board reads it once an hour. **Refresh** in Settings reads it right away.
 
 ## 6. Day to day
 
 - **Screen off at night:** set night hours in setup. A tap wakes it for a minute.
-- **Changing things:** hold the greeting for 1.5 s, then **Setup**. The board makes its setup hotspot again; the calendar link stays saved unless you paste a new one or tick "Stop using the calendar".
+- **Dress-up days (2.0):** on a mild day, tap **Dress up?** next to the day to switch that day to the dress; tap again to switch back. Tag calendar events "(dress)" to plan ahead.
+- **Changing things:** hold the greeting or page title for 1.5 s, then **Change WiFi or town** (2.0) or **Setup** (classic). The board makes its setup hotspot again; the calendar link stays saved unless you paste a new one or tick "Stop using the calendar".
 - **Weather alerts** show as a calm heads-up for your kid; the official alert name is in Settings. They come every 15 minutes, so they're a heads-up, not a safety alarm.
 
 ## 7. Updating the firmware later
@@ -82,7 +84,7 @@ USB is only for a fresh start or a rescue:
 | Files | Flash at | Settings |
 |---|---|---|
 | `weather-besties-vX.Y.Z.bin` | `0x0` | **Erased** (WiFi, town, events, calendar link). First install or a fresh start. |
-| The four files in `firmware/usb/README.txt` | their addresses | **Kept.** Also the way to move a board from 1.4.x (one app slot) to 1.7.3 without setting it up again. |
+| The four files in `firmware/usb/README.txt` | their addresses | **Kept.** Also the way to move a board from 1.4.x (one app slot) to 1.7.5 without setting it up again. |
 
 ## If something's wrong
 

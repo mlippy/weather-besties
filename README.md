@@ -10,7 +10,7 @@ It builds with either of two screen designs, picked in one line of [`components/
 |---|---|
 | ![Classic today screen](docs/classic/today.png) | ![2.0 morning screen](docs/dog/morning.png) |
 
-Both share everything else: the weather, settings and setup page, special events and the Google Calendar, weather alerts, and over-the-air updates. This is a fork of [Boris Kozak's Weather Besties](https://github.com/boriskozak/weather-besties) for Cleo and Lila, with this fork's changes kept on top of his code ([below](#based-on-boriss-weather-besties)).
+Both share everything else: the weather, the settings and phone setup page, the Google Calendar reader, and over-the-air updates. (Special events, weather alerts, and sun and moon only show on the classic screens so far.) This is a fork of [Boris Kozak's Weather Besties](https://github.com/boriskozak/weather-besties) for Cleo and Lila, with this fork's changes kept on top of his code ([below](#based-on-boriss-weather-besties)).
 
 ## The idea
 
@@ -53,7 +53,18 @@ Boris's **My Day** page lists today's and tomorrow's calendar events as cards, w
 |---|---|
 | ![My Day page](docs/dog/myday.png) | ![2.0 thermometer](docs/dog/thermometer.png) |
 
-The page title carries the name from setup when it fits beside the weather ("Good morning, Kid!", "Ready for tomorrow, Kid?"); Boris's design keeps names off the screen, so it's one switch, `v2_set_name_in_title()` in `ui_v2_extras.c`. **Dress-up days:** Boris's outfit engine picks the dress on every light-jacket day (cool but mild). Here the dress is for dress-up days only: on other light-jacket days she wears long sleeves, jeans, sneakers and the same light jacket. When the weather fits the dress, a **Dress up?** pill next to "Today · Tuesday" turns that day into a dress-up day with a tap (tap again to undo; once something is checked off, the "2 of 4 ready" chip takes its spot until everything is unchecked), and a calendar event tagged **(dress)** or 👗 ("Picture day (dress)") starts the day dressed up. Cold, rain and heat still win: the dress only appears when a light jacket is the right layer. (`ui_set_dress_days()` switches this on; without it, as in Boris's render checks, his every-mild-day rule applies.) **Countdowns** on 2.0 sit in the My Day header, between the title and the date: "11 more sleeps until Trip to Grandma's!" (or "11 sleeps until ..." when space is short), from calendar titles tagged (countdown), 🎂 or 🎉 and special events with Countdown ticked, up to 60 days out. 2.0 also gets the classic screens' **thermometer** (same fixed 0-100°F scale and colors, freezing tick) beside the weather icon: the temperature now on Today, the high on Tomorrow. Plus the WPA2 setup hotspot, over-the-air updates, the real-clock fix and this fork's settings (no bike bus). Special events, weather alerts, and sun and moon only show on the classic screens so far ([queue](docs/queue.md)).
+This fork's additions to 2.0 live in `ui_v2_extras.c`, with one-line hooks in his `ui.c`:
+
+- **The thermometer** beside the weather icon, the same fixed 0-100°F scale, colors and freezing tick as the classic screens: the temperature now on Today, the high on Tomorrow.
+- **Dress-up days.** Boris's outfit engine puts her in the dress on every light-jacket day (cool but mild). Here the dress is for dress-up days: other light-jacket days get long sleeves, jeans, sneakers and the same light jacket. When the weather fits the dress, a **Dress up?** pill next to "Today · Tuesday" turns that day into a dress-up day with a tap (tap again to undo; once something is checked off, the "2 of 4 ready" chip takes its place until everything is unchecked). A calendar event tagged **(dress)** or 👗 ("Picture day (dress)") starts the day dressed up. Cold, rain and heat still win. (`ui_set_dress_days()` switches this on; without it, as in Boris's render checks, his every-mild-day rule applies.)
+- **Countdowns** in the My Day header, between the title and the date: "11 more sleeps until Trip to Grandma's!" (or "11 sleeps until ...!" when space is short). They come from calendar titles tagged (countdown), 🎂 or 🎉 and special events with Countdown ticked, up to 60 days out; the nearest one wins.
+- **The name from setup in the page title** when it fits beside the weather ("Good morning, Kid!", "Ready for tomorrow, Kid?"). Boris's design keeps names off the screen, so it's one switch, `v2_set_name_in_title()`.
+- **An Update pill in Settings**, and fixes found on the board: a long press now opens Settings (his pages ignored touches), and LVGL allocates from PSRAM so the screens leave WiFi its internal RAM.
+- Plus the WPA2 setup hotspot, over-the-air updates, the real-clock fix and this fork's settings (no bike bus).
+
+| Dress up, before and after a tap | A countdown on My Day |
+|---|---|
+| ![Dress up pill](docs/dog/dress-up.png) | ![Countdown](docs/dog/countdown.png) |
 
 ### Data
 
@@ -89,7 +100,7 @@ python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.7.5.bin
 
 1. The screen shows a QR code, a hotspot name like `WeatherBesties-3F2A`, and its password (new each time).
 2. Scan the QR with a phone (or join that WiFi network by hand with the password). A setup page pops up. If it doesn't, open `http://192.168.4.1`.
-3. Pick the home WiFi (a guest network is best, see [deploy.md](docs/deploy.md#why-a-guest-network)), type the password, then set: town or ZIP, names for the greeting, °F or °C, optional night hours, weather alerts on or off, special events, and the Google Calendar link with its filter words. Save.
+3. Pick the home WiFi (a guest network is best, see [deploy.md](docs/deploy.md#why-a-guest-network)), type the password, then set: town or ZIP, the name for the greeting, the pet (and the dog's name), °F or °C, optional night hours, weather alerts on or off, special events, and the Google Calendar link with its filter words. Save.
 4. The board restarts, joins WiFi, and shows the weather.
 
 ![Setup screen](docs/classic/setup.png)
@@ -98,8 +109,8 @@ Defaults if you skip things: Upper Montclair, NJ, no name, Fahrenheit, no specia
 
 ## Using it
 
-- Swipe left for the next three days, right to come back.
-- Long-press the greeting, the clock, or any empty spot for 1.5 seconds to open Settings. On the classic screens it shows the WiFi, town, last update, version, and the official name of any weather alert. **Refresh** fetches the weather, alerts and calendar now; **Setup** reopens the setup hotspot (WiFi, town, events, calendar, alerts, automatic updates); **Update** checks for new firmware now. (On the 2.0 screens, Settings has the pet picker, Boris's speed test, **Refresh**, **Change WiFi or town**, and this fork's **Update** pill.)
+- Classic: swipe left for the next three days, right to come back. 2.0: tap the tabs at the bottom (Today, Tomorrow, My Day, Next days), or swipe.
+- Hold a finger still for 1.5 seconds on an empty spot (the greeting or page title is easiest, not a tile or button) to open Settings. On the classic screens it shows the WiFi, town, last update, version, and the official name of any weather alert. **Refresh** fetches the weather, alerts and calendar now; **Setup** reopens the setup hotspot (WiFi, town, events, calendar, alerts, automatic updates); **Update** checks for new firmware now. (On the 2.0 screens, Settings has the pet picker, the WiFi, town and version, Boris's speed test, **Refresh**, **Change WiFi or town** (the setup hotspot), and this fork's **Update** pill.)
 - Settings are stored on the board and survive reboots and over-the-air updates. Flashing the full image at `0x0` erases them; see [docs/deploy.md](docs/deploy.md#7-updating-the-firmware-later).
 
 ## The pets
@@ -185,12 +196,13 @@ For how the pieces fit together (hardware, tasks, setup hotspot, flash layout), 
 | `main/net.c` | WiFi, clock (SNTP), Open-Meteo, weather.gov and calendar calls, refresh loop |
 | `main/portal.c` | Setup hotspot, captive portal, phone form |
 | `main/ota.c` | Over-the-air updates: check, download, verify, trial run and rollback |
+| `main/lv_mem_psram.c` | LVGL's memory functions: everything LVGL allocates goes to PSRAM |
 | `main/settings.c` | Saved settings (NVS), and the `DEFAULT_EVENTS` list |
 | `components/wb_ui/ui_select.h` | Which screens to build: classic or 2.0 |
 | `components/wb_ui/ui.h` | The screen interface both designs implement |
 | `components/wb_ui/classic/` | Classic screens: `ui.c`, `advice.c` (what-to-wear rules, special events), `assets/` |
 | `components/wb_ui/thermo.c` | The thermometer, shared by both designs |
-| `components/wb_ui/ui_v2_extras.c` | This fork's additions to 2.0 (the thermometer), hooked into `ui.c` with one-line calls |
+| `components/wb_ui/ui_v2_extras.c` | This fork's additions to 2.0 (thermometer, dress-up days, countdown, name in the title, Update pill), hooked into `ui.c` with one-line calls |
 | `components/wb_ui/ui.c`, `outfit.c`, `cat.c`, `assets/` | Boris's 2.0 screens, outfit engine, seasonal touches and Pippa artwork |
 | `components/wb_ui/ui_v2_extras.c`, `classic/ui_classic_extras.c` | The parts of `ui.h` one design doesn't use |
 | `components/wb_ui/events.c` | Special events (shared by the setup page, the calendar and the advice) |
@@ -221,7 +233,7 @@ For how the pieces fit together (hardware, tasks, setup hotspot, flash layout), 
 
 ## On the real board
 
-Boris ran his v1.4.0 on this board and fixed what broke there; this fork carries those fixes. The family's board (a 4.3B) ran the classic 1.6.2 build from setup through the calendar. The 2.0 screens compile cleanly and were rendered from the real UI code; on the board, watch that Pippa or the dog shows on My Day (his page draws her slightly enlarged). Things to watch on first boot:
+Boris ran his v1.4.0 on this board and fixed what broke there; this fork carries those fixes. The family's board (a 4.3B) ran the classic screens (1.6.2) from setup through the calendar, and has run the 2.0 screens since 1.7.3. Things to watch on first boot:
 
 - Touch lands in the wrong place: flip `swap_xy` / `mirror_x` / `mirror_y` in `touch_init()` in `main/board.c`.
 - Picture shifts sideways or flickers while WiFi is busy: lower `LCD_PCLK_HZ` in `main/board.c` from 16 MHz to 14 MHz.
@@ -243,7 +255,7 @@ git fetch upstream
 git rebase upstream/main     # replays this fork's commits on his latest
 ```
 
-This fork's commits keep to their own files where they can (`classic/`, `cal.c`, `alerts.c`, `events.c`, `update.c`, `ota.c`, `ui_v2_extras.c`), so his changes rarely conflict. Where they meet his files (`ui.h`, `ui.c`'s setup screen, `wx.c`, `wb_request.c`, settings, `net.c`, `main.c`, the README), conflicts are small and local.
+This fork's commits keep to their own files where they can (`classic/`, `cal.c`, `alerts.c`, `events.c`, `update.c`, `ota.c`, `thermo.c`, `ui_v2_extras.c`, `tools/dog/`), so his changes rarely conflict. Where they meet his files (`ui.h`, the hooks and the dog in `ui.c`, the dress hook in `outfit.c`, `wx.c`, `wb_request.c`, settings, `net.c`, `main.c`, the README), conflicts are small and local. His `cal.c` (for a calendar where nothing repeats) is replaced by this fork's reader, which serves his My Day page through the same `cal_count` / `cal_get` interface.
 
 What came from Boris after he ran his v1.4.0 on the real board: the HTTP send-buffer fix (the forecast request outgrew ESP-IDF's 512-byte default; `make test` checks every request now), weak-WiFi handling, the growable drawing area, swipe detection by press and release, and the speed test (2.0 screens). The real-clock fix for offline evenings comes from his 2.0 plan.
 
@@ -251,6 +263,7 @@ What came from Boris after he ran his v1.4.0 on the real board: the HTTP send-bu
 
 - The setup hotspot is WPA2 with a fresh password shown on the screen, so the WiFi password and calendar link are encrypted on their way from the phone.
 - On the board, settings (including the WiFi password and calendar link) are stored unencrypted in flash. Anyone holding the board with a USB cable could read them. Use a guest network, and **Reset** the calendar's secret address in Google Calendar if the board is ever lost. Encrypting stored settings is [deferred](docs/queue.md#deferred-indefinitely).
+- No names are built into the code or the repo: the kid's name, the calendar filter words and the dog's name are typed on the setup page and stored only on the board.
 - To wipe it (giving it away): flash the full image at `0x0`, or run `python -m esptool erase_flash`.
 
 ## Credits

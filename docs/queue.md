@@ -4,7 +4,7 @@ Things we'd like to add later, roughly in order. Each has a sketch of how it wou
 
 ## This fork's features on the 2.0 screens
 
-The history is now Boris's commits with this fork's on top, and both designs build (`components/wb_ui/ui_select.h`); the family's board runs 2.0. It already has the WPA2 setup, OTA updates with an **Update** pill in Settings, the real-clock fix, this fork's settings, the thermometer next to his "33° now",, his My Day page fed by this fork's calendar reader (`cal_publish` in `cal.c`) with countdowns in its header, and dress-up days. Still classic-only:
+The history is now Boris's commits with this fork's on top, and both designs build (`components/wb_ui/ui_select.h`); the family's board runs 2.0. It already has the WPA2 setup, OTA updates with an **Update** pill in Settings, the real-clock fix, this fork's settings, the thermometer next to his "33° now", his My Day page fed by this fork's calendar reader (`cal_publish` in `cal.c`) with countdowns in its header, and dress-up days. Still classic-only:
 
 - **Special events and calendar reminders:** feed `ui_set_events()` (today a no-op in `ui_v2_extras.c`) into his `outfit.c` sentence and chips ("Soccer today: bring rain gear!"); his bike-bus rule is the same idea for one event.
 - **Weather alerts:** a calm strip above his sentence, using `alerts.c`'s kid titles; the official name in his Settings page.
@@ -71,7 +71,7 @@ A small sensor on the board's unused sensor header shows the temperature in the 
 
 ## Known gaps
 
-- **Not run on the real board yet:** this fork's additions, and Boris's 2.0 screens (his v1.4.0 base has run). See "On the real board" in the README and the checklist in [deploy.md](deploy.md).
-- **Old weather while offline:** the advice follows the clock, but the big temperature and the four parts of the day still show the last download, with only the red "Offline" footer to say so. Boris's 2.0 handles this properly (a "Weather from" chip, and no outfit after 12 hours); it comes with the 2.0 port.
+- **On the real board:** the family's board ran the classic screens (1.6.2) and has run 2.0 since 1.7.3. The 2.0 additions since then (dress-up days, the countdown pill) were checked in the PC renderer first. See "On the real board" in the README and the checklist in [deploy.md](deploy.md).
+- **Old weather while offline:** the advice follows the clock, but the big temperature and the four parts of the day still show the last download, with only the red "Offline" footer to say so. Boris's 2.0 handles this properly (a "Weather from" chip, and no outfit after 12 hours); on 2.0 Boris's chip does this already (this gap is the classic screens').
 - **Browser emulator** (`sim/web/`) is Boris's, for the 2.0 screens only (rebuilding needs wasi-sdk, `make web`). The classic screens have the PC renderer.
 - **Calendar:** repeating events with BYSETPOS, BYWEEKNO, BYYEARDAY or hourly repeats aren't understood (Google rarely makes them). Times with a time zone are taken as local to the weather location; UTC times use today's UTC offset, so on the two daylight-saving switch days an event can be an hour off.
