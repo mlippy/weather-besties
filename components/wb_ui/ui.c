@@ -413,7 +413,7 @@ void ui_show_setup(const char *ap_name, const char *password, const char *url)
     snprintf(steps, sizeof(steps),
              "1. Join the WiFi called\n    %s\n    password  %s\n"
              "2. A setup page pops up.\n    (No page? Open %s)\n"
-             "3. Pick your WiFi and town. Done!",
+             "3. Pick your WiFi and town!",
              ap_name, password, url);
     lv_label_set_text(setup_steps, steps);
     if (lv_screen_active() != scr_setup) {

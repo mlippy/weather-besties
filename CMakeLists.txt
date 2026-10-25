@@ -8,6 +8,9 @@ idf_build_set_property(COMPILE_DEFINITIONS "LV_KCONFIG_IGNORE" APPEND)
 file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/main/net.h" _wb_ver REGEX "#define WB_VERSION ")
 string(REGEX MATCH "\"([^\"]+)\"" _wb_ver_q "${_wb_ver}")
 set(PROJECT_VER "${CMAKE_MATCH_1}")
+# Re-configure when the version or the screen choice (components/wb_ui/ui_select.h) changes.
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/main/net.h"
+             "${CMAKE_CURRENT_LIST_DIR}/components/wb_ui/ui_select.h")
 
 project(weather_besties)
 

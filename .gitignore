@@ -8,7 +8,10 @@ managed_components/
 # PC renderer / simulator build output
 sim/build/
 sim/build-web/
-sim/render
+sim/render-classic
+sim/render-v2
+sim/out-classic/
+sim/classic/scenarios/
 sim/test_request
 sim/web/site/
 sim/scenarios/
