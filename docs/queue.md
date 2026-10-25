@@ -24,6 +24,16 @@ git push --force-with-lease origin main
 
 Then build both designs (`ui_select.h`), run `make UI=classic shots`, `make UI=v2 shots` and `make test` in `sim/`, and check the conflicts were only in the shared files listed in the README.
 
+## Next: rework the 2.0 tabs (notes, nothing built)
+
+- **Drop the Next days tab:** the three-day forecast isn't useful day to day. Removing it frees the tab row (My Day's "Updated" line could go back next to the tabs) and the swipe order becomes Today, Tomorrow, My Day, Routine.
+- **Bring back from the classic screens, in rough order:**
+  - **Weather alerts** (the calm kid-worded bar from `alerts.c`): fetched on 2.0 today but never shown. The biggest gap.
+  - **Special events in the advice:** "Soccer tomorrow: bring rain gear!", gloves for a cold outdoor event at its start time (`advice.c`'s event rules; 2.0 only lists them on My Day).
+  - **Moon phase + sunrise/sunset** (`wx.c` already computes them; the classic draws the moon as two circles, no artwork). Liked.
+  - **Maybe:** the day in four parts (morning / afternoon / evening / tonight) in place of the three-day cards; a bigger current temperature with "Feels like"; weather-tinted backgrounds.
+- Where they could go: alerts as a strip above the advice sentence; sun and moon in the weather block's corner or on the Routine page (bedtime: tonight's moon); events in the sentence and as a chip.
+
 ## Make it obvious what a kid can tap
 
 Done in 1.7.8: one raised look for everything tappable (soft edge, sinks when pressed, bigger tap area), flat status pills, and a pink glow on the next unchecked tile or Routine step after 20 idle seconds (`v2_raise`, `v2_hint_target` in `ui_v2_extras.c`). Still to try if it's not enough:
