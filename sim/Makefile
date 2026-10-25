@@ -33,8 +33,14 @@ shots: render
 	python3 to_png.py out
 	python3 check_renders.py out
 
-# Checks every request the board makes fits the HTTP client's send buffer.
+# Calendar reader and update manifest tests, and a check that every request the
+# board makes fits the HTTP client's send buffer.
 test: test_request
+	@mkdir -p build
+	$(CC) -Wall -Wextra -I$(UI_DIR) -o build/test_cal test_cal.c $(UI_DIR)/cal.c
+	./build/test_cal
+	$(CC) -Wall -Wextra -I$(UI_DIR) -I$(CJSON) -o build/test_update test_update.c $(UI_DIR)/update.c $(CJSON)/cJSON.c
+	./build/test_update
 	./test_request
 
 test_request: test_request.c $(UI_DIR)/wb_request.c $(UI_DIR)/wb_request.h

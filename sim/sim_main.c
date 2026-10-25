@@ -172,7 +172,7 @@ int main(int argc, char **argv)
     ui_show_boot(NULL);
     save(out, "01_boot");
 
-    ui_show_setup("WeatherBesties-3F2A", "192.168.4.1");
+    ui_show_setup("WeatherBesties-3F2A", "kite7mango", "192.168.4.1");
     save(out, "02_setup");
 
     /* The brief's two mockups: cold morning warming up; rainy tomorrow laid out

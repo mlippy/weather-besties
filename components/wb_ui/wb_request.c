@@ -12,7 +12,7 @@ int wb_forecast_url(char *buf, size_t n, double lat, double lon, bool celsius)
                     "precipitation"
                     "&hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,is_day,wind_gusts_10m"
                     "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,"
-                    "uv_index_max,sunshine_duration"
+                    "uv_index_max,sunshine_duration,sunrise,sunset"
                     "&temperature_unit=%s&wind_speed_unit=%s&precipitation_unit=%s&timezone=auto&forecast_days=4"
                     "&past_days=1",
                     lat, lon, celsius ? "celsius" : "fahrenheit", celsius ? "kmh" : "mph", celsius ? "mm" : "inch");
@@ -45,6 +45,11 @@ int wb_geocode_url(char *buf, size_t n, const char *place_query)
     }
     return snprintf(buf, n, "https://" WB_GEOCODE_HOST "/v1/search?name=%s&count=1&language=en&format=json%s", q,
                     zip ? "&countryCode=US" : "");
+}
+
+int wb_alerts_url(char *buf, size_t n, double lat, double lon)
+{
+    return snprintf(buf, n, "https://" WB_ALERTS_HOST "/alerts/active?status=actual&point=%.4f,%.4f", lat, lon);
 }
 
 int wb_request_head_len(const char *url, const char *user_agent)

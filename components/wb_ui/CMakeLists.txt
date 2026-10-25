@@ -3,7 +3,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/assets/assets_list.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/assets/pippa_assets_list.cmake)
 
 idf_component_register(
-    SRCS "ui.c" "wx.c" "cat.c" "wb_request.c" "outfit.c" ${WB_ASSET_SRCS} ${WB_PIPPA_ASSET_SRCS}
+    SRCS "ui.c" "wx.c" "cat.c" "wb_request.c" "outfit.c" "ui_v2_extras.c" "events.c" "cal.c" "alerts.c" "update.c" ${WB_ASSET_SRCS} ${WB_PIPPA_ASSET_SRCS}
     INCLUDE_DIRS "."
     REQUIRES lvgl json)
 
