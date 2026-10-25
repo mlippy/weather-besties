@@ -4,11 +4,10 @@ Things we'd like to add later, roughly in order. Each has a sketch of how it wou
 
 ## This fork's features on the 2.0 screens
 
-The history is now Boris's commits with this fork's on top, and both designs build (`components/wb_ui/ui_select.h`); the family's board runs 2.0. It already has the WPA2 setup, OTA updates with an **Update** pill in Settings, the real-clock fix, this fork's settings, the thermometer next to his "33° now", and his My Day page fed by this fork's calendar reader (`cal_publish` in `cal.c`). Still classic-only:
+The history is now Boris's commits with this fork's on top, and both designs build (`components/wb_ui/ui_select.h`); the family's board runs 2.0. It already has the WPA2 setup, OTA updates with an **Update** pill in Settings, the real-clock fix, this fork's settings, the thermometer next to his "33° now",, his My Day page fed by this fork's calendar reader (`cal_publish` in `cal.c`) with countdowns in its header, and dress-up days. Still classic-only:
 
 - **Special events and calendar reminders:** feed `ui_set_events()` (today a no-op in `ui_v2_extras.c`) into his `outfit.c` sentence and chips ("Soccer today: bring rain gear!"); his bike-bus rule is the same idea for one event.
 - **Weather alerts:** a calm strip above his sentence, using `alerts.c`'s kid titles; the official name in his Settings page.
-- **Countdowns:** in his day chip or under the tabs.
 - **Mini thermometers on his forecast cards:** no free room on those cards today (mini Pippa, temperatures and the garment list fill them); maybe as a thin bar under the high.
 - **Sun and moon:** next to the weather in his top right.
 - **Size:** 2.0 is about 4.6 MB; offer Boris the numbers (his plan estimated 2.6 MB before the Pippa art).

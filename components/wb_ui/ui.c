@@ -2143,6 +2143,7 @@ static void build_myday_page(lv_obj_t *scr)
      * MD_TOP_Y's move to 46; the accent bar keeps its measured
      * 4 px of air below the ink (checked). */
     lv_obj_set_pos(t, 28, 4);
+    v2_countdown_create(page_myday);   /* this fork: the countdown pill */
 
     /* The date rides the title line, right-aligned, the way the
      * outfit pages keep their weather block at the top right: the
@@ -3824,6 +3825,8 @@ static void render_myday(const struct tm *now)
     snprintf(buf, sizeof(buf), "%s, %s %d", wx_wday_name(now->tm_wday, false),
              wx_month_name(now->tm_mon + 1, true), now->tm_mday);
     lv_label_set_text(md_date, buf);
+    v2_countdown_show(now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, 28 + text_w("My Day", &font_h1) + 18,
+                      772 - text_w(buf, &font_label) - 16, 12);   /* this fork: the countdown pill */
 
 #ifdef WB_SIM
     s_md_n[0] = s_md_n[1] = 0;
@@ -4794,6 +4797,7 @@ static void render(void)
              * block on the right and the tile grid below. */
             lv_obj_set_align(prog_chip, LV_ALIGN_TOP_LEFT);
             lv_obj_set_pos(prog_chip, 28 + lv_obj_get_width(chip) + 12, 74);
+            v2_dress_hide();   /* this fork: dressing has started, the progress chip takes the slot */
             lv_obj_set_width(lbl_prog, LV_SIZE_CONTENT);
             lv_obj_center(lbl_prog);
             show_obj(prog_chip);

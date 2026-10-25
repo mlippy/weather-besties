@@ -27,7 +27,7 @@ Then, in the calendar:
 - [ ] Make sure events meant for your kid have their name in the title ("Kid soccer", "Kid: dentist"). Other events are ignored once you set filter words during setup (like "Kid, Family").
 - [ ] Add **(outside)** or ☀️ to titles that happen outdoors, so the screen reminds her about gloves, rain gear or water.
 - [ ] Add **(dress)** or 👗 to dress-up days ("Picture day (dress)"): on the 2.0 screens that day starts in the dress, when it's mild enough for one. Without it, a **Dress up?** pill on the screen does the same with a tap.
-- [ ] Add **(countdown)**, 🎂 or 🎉 to the big ones ("Kid's birthday 🎂", "Trip to Grandma's 🎉"). These show even without the name in the title.
+- [ ] Add **(countdown)**, 🎂 or 🎉 to the big ones (on 2.0 they show in the My Day header) ("Kid's birthday 🎂", "Trip to Grandma's 🎉"). These show even without the name in the title.
 
 The secret address is a password for that calendar: anyone with it can read the events. If you ever need to, use **Reset** next to it in Google Calendar, then paste the new one on the board's setup page.
 
@@ -35,7 +35,7 @@ The secret address is a password for that calendar: anyone with it can read the 
 
 1. Plug the board into the computer: on the 4.3, the USB-C port labeled **UART**; on the 4.3B, its only USB-C port.
 2. Open the [esptool-js web flasher](https://espressif.github.io/esptool-js/), click **Connect**, pick the port.
-3. Set **Flash Address** to `0x0`, choose `firmware/weather-besties-v1.7.4.bin`, click **Program**. About a minute.
+3. Set **Flash Address** to `0x0`, choose `firmware/weather-besties-v1.7.5.bin`, click **Program**. About a minute.
 4. Press **RESET** on the board (or unplug and plug it back in).
 
 If it won't connect: hold **BOOT**, tap **RESET**, let go of BOOT, and try again. If no serial port shows up, try the other USB-C port.
@@ -59,8 +59,8 @@ If it won't connect: hold **BOOT**, tap **RESET**, let go of BOOT, and try again
 - [ ] The weather shows, and the town at the bottom left is right
 - [ ] The clock shows the right time (it may take a minute after the first weather update)
 - [ ] Swipe left shows the next three days; swipe right comes back. **Touch in the wrong place?** See the README, "On the real board".
-- [ ] Hold a finger on the greeting for 1.5 s: Settings opens and shows the WiFi, town and version **1.7.4**
-- [ ] In Settings, tap **Update**: it should say "Up to date! (version 1.7.4)", then go back to the weather
+- [ ] Hold a finger on the greeting for 1.5 s: Settings opens and shows the WiFi, town and version **1.7.5**
+- [ ] In Settings, tap **Update**: it should say "Up to date! (version 1.7.5)", then go back to the weather
 - [ ] **Calendar:** put a test event in the family calendar for tomorrow, like "Kid test (outside)" (with your kid's name). On the board, open Settings and tap the refresh button. It should show in the bubble after 7 PM, or in the morning. To see what the board read, open Settings, tap **Setup**, and look under the calendar link: "Read at 7:15 PM: 240 events in the calendar, 3 coming up." Then tap Save (or just restart the board) to leave setup.
 - [ ] **Countdown:** with a (countdown) event in the next 60 days, the bottom left shows "N more sleeps until ...!"
 - [ ] Delete the test event

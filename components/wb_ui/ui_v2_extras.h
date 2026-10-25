@@ -33,6 +33,15 @@ const char *v2_named_title(const char *his_title, const char *names, const char 
 bool v2_dress_wanted(int year, int month, int day);
 void v2_dress_create(lv_obj_t *page, void (*changed)(void));
 void v2_dress_show(bool fits, int year, int month, int day, int x, int y);
+/* Hides the pill: once something is checked off, Boris's "2 of 4 ready" chip takes its
+ * place (unchecking everything brings it back). */
+void v2_dress_hide(void);
+
+/* My Day's countdown pill, between the page title and the date: the nearest countdown
+ * (from ui_set_events) in the classic footer's words, "11 more sleeps until ...!". */
+void v2_countdown_create(lv_obj_t *page);
+void v2_countdown_show(int year, int month, int day, int x_left, int x_right, int y);
+bool v2_countdown_text(int year, int month, int day, char *buf, size_t n, bool short_form);
 
 /* An "Update" pill in Settings, right-aligned to x_right at y: closes Settings and asks
  * for a firmware check now (fire is ui.c's action sender). */

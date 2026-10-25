@@ -578,6 +578,19 @@ int main(int argc, char **argv)
     ui_test_set_page(2);
     pump(10);
     save(out, "60_dog_myday");
+    {   /* a countdown 11 days out in the My Day header */
+        wb_event_t cd = {.name = "Kid's birthday", .countdown = true, .all_day = true};
+        int y, m, d;
+        cal_date(cal_dayno(now_tm.tm_year + 1900, now_tm.tm_mon + 1, now_tm.tm_mday) + 11, &y, &m, &d);
+        cd.year = (uint16_t)y;
+        cd.month = (uint8_t)m;
+        cd.day = (uint8_t)d;
+        ui_set_events(&cd, 1);
+        fixture_fetched();
+        pump(10);
+        save(out, "71_dog_myday_countdown");
+        ui_set_events(NULL, 0);
+    }
     ui_test_set_page(0);
     static const char *dog_seasons[][2] = {{"halloween_cold", "67_dog_halloween"},
                                            {"christmas_snow", "68_dog_christmas"},
@@ -630,6 +643,10 @@ int main(int argc, char **argv)
     pump(5);
     save(out, "65_dress_tapped");
     dump(out, "65_dress_tapped");
+    ui_test_set_checks(0x3);   /* two ticked: "2 of 4 ready" goes after the pill */
+    pump(5);
+    save(out, "65b_dress_progress");
+    ui_test_set_checks(0);
     int dn = cal_dayno(now_tm.tm_year + 1900, now_tm.tm_mon + 1, now_tm.tm_mday);
     ui_set_dress_days(&dn, 1);
     load(sc, "dress_morning");

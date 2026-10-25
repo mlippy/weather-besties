@@ -1988,6 +1988,15 @@ def main():
         look = dump(name)["look_name"]
         check(look == want, f"{name}: the {want} look (look_name={look})")
 
+    # My Day's countdown pill between the title and the date (soft pink), only with a countdown.
+    def is_cd_pink(r, g, b):
+        return abs(r - 0xFD) <= 3 and abs(g - 0xE3) <= 3 and abs(b - 0xEE) <= 3
+
+    n = count_where(Image.open(os.path.join(OUT, "71_dog_myday_countdown.png")), (180, 8, 560, 46), is_cd_pink)
+    check(n > 3000, f"71_dog_myday_countdown: the countdown pill is in the header ({n} px, need > 3000)")
+    n = count_where(Image.open(os.path.join(OUT, "60_dog_myday.png")), (180, 8, 560, 46), is_cd_pink)
+    check(n < 50, f"60_dog_myday: no countdown pill without a countdown ({n} px)")
+
     # A held finger opens Settings on every page (Settings' Update pill, its pale grey).
     def is_pill_grey(r, g, b):
         return abs(r - 0xED) <= 3 and abs(g - 0xF1) <= 3 and abs(b - 0xF5) <= 3

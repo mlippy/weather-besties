@@ -11,10 +11,27 @@
 #include "cal.h"
 #include "assets/assets.h"
 
+/* Countdowns (special events with Countdown ticked, calendar titles tagged (countdown),
+ * a cake or a party popper): kept here for My Day's header pill. Other special events and
+ * calendar reminders aren't shown on 2.0 yet. */
+#define CD_MAX 24
+static struct {
+    int dayno;
+    char name[EVENT_NAME_LEN];
+} s_cd[CD_MAX];
+static int s_ncd;
+
 void ui_set_events(const wb_event_t *events, int n)
 {
-    (void)events;
-    (void)n;   /* 2.0 doesn't show special events or calendar reminders yet */
+    s_ncd = 0;
+    for (int i = 0; i < n && s_ncd < CD_MAX; i++) {
+        const wb_event_t *e = &events[i];
+        if (e->countdown && !e->wdays && e->year) {
+            s_cd[s_ncd].dayno = cal_dayno(e->year, e->month, e->day);
+            snprintf(s_cd[s_ncd].name, sizeof(s_cd[s_ncd].name), "%s", e->name);
+            s_ncd++;
+        }
+    }
 }
 
 void ui_set_alerts(const wx_alerts_t *alerts)
@@ -217,10 +234,84 @@ void v2_dress_show(bool fits, int year, int month, int day, int x, int y)
     s_dress_shown = cal_dayno(year, month, day);
     bool on = dress_on(s_dress_shown);
     /* Off: an outlined question. On: filled in the dress's own pink, with a check. */
-    lv_label_set_text(s_dress_lbl, on ? LV_SYMBOL_OK "  Dress-up day" : "Dress up?");
+    lv_label_set_text(s_dress_lbl, on ? LV_SYMBOL_OK "  Dress-up" : "Dress up?");
     lv_obj_set_style_bg_color(s_dress_pill, lv_color_hex(on ? 0xF7A1C4 : 0xFFFFFF), 0);
     lv_obj_set_style_border_color(s_dress_pill, lv_color_hex(on ? 0xE8467C : 0xC9C3D6), 0);
     lv_obj_set_style_text_color(s_dress_lbl, lv_color_hex(0x1E2340), 0);
     lv_obj_set_pos(s_dress_pill, x, y);
     lv_obj_remove_flag(s_dress_pill, LV_OBJ_FLAG_HIDDEN);
+}
+
+/* ------------------------------------------------------------------ My Day countdown */
+
+static lv_obj_t *s_cd_pill, *s_cd_lbl;
+
+void v2_countdown_create(lv_obj_t *page)
+{
+    s_cd_pill = lv_obj_create(page);
+    lv_obj_remove_style_all(s_cd_pill);
+    lv_obj_remove_flag(s_cd_pill, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_radius(s_cd_pill, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(s_cd_pill, lv_color_hex(0xFDE3EE), 0);   /* the dress pill's pink, softer */
+    lv_obj_set_style_bg_opa(s_cd_pill, LV_OPA_COVER, 0);
+    lv_obj_set_style_pad_hor(s_cd_pill, 14, 0);
+    s_cd_lbl = lv_label_create(s_cd_pill);
+    lv_obj_set_style_text_font(s_cd_lbl, &font_small, 0);
+    lv_obj_set_style_text_color(s_cd_lbl, lv_color_hex(0xB8205A), 0);
+    lv_label_set_long_mode(s_cd_lbl, LV_LABEL_LONG_MODE_DOTS);
+    lv_obj_add_flag(s_cd_pill, LV_OBJ_FLAG_HIDDEN);
+}
+
+bool v2_countdown_text(int year, int month, int day, char *buf, size_t n, bool short_form)
+{
+    int today = cal_dayno(year, month, day);
+    int best = -1, best_d = CAL_COUNTDOWN_DAYS + 1;
+    for (int i = 0; i < s_ncd; i++) {
+        int d = s_cd[i].dayno - today;
+        if (d >= 0 && d < best_d) {
+            best = i;
+            best_d = d;
+        }
+    }
+    if (best < 0) {
+        return false;
+    }
+    if (best_d == 0) {
+        snprintf(buf, n, "%s is today!", s_cd[best].name);
+    } else {
+        snprintf(buf, n, "%d %ssleep%s until %s!", best_d, short_form ? "" : "more ", best_d == 1 ? "" : "s",
+                 s_cd[best].name);
+    }
+    return true;
+}
+
+void v2_countdown_show(int year, int month, int day, int x_left, int x_right, int y)
+{
+    char buf[96];
+    if (!s_cd_pill || x_right - x_left < 120 || !v2_countdown_text(year, month, day, buf, sizeof(buf), false)) {
+        if (s_cd_pill) {
+            lv_obj_add_flag(s_cd_pill, LV_OBJ_FLAG_HIDDEN);
+        }
+        return;
+    }
+    lv_point_t sz;
+    lv_text_get_size(&sz, buf, &font_small, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+    int max_w = x_right - x_left - 28;   /* the pill's padding */
+    if (sz.x > max_w) {   /* "11 sleeps until ...!" before cutting the name short */
+        v2_countdown_text(year, month, day, buf, sizeof(buf), true);
+        lv_text_get_size(&sz, buf, &font_small, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+    }
+    lv_label_set_text(s_cd_lbl, buf);
+    lv_obj_set_size(s_cd_lbl, sz.x + 2 < max_w ? sz.x + 2 : max_w, font_small.line_height);   /* one line */
+    lv_obj_set_size(s_cd_pill, LV_SIZE_CONTENT, 30);
+    lv_obj_center(s_cd_lbl);
+    lv_obj_set_pos(s_cd_pill, x_left, y);
+    lv_obj_remove_flag(s_cd_pill, LV_OBJ_FLAG_HIDDEN);
+}
+
+void v2_dress_hide(void)
+{
+    if (s_dress_pill) {
+        lv_obj_add_flag(s_dress_pill, LV_OBJ_FLAG_HIDDEN);
+    }
 }

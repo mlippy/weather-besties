@@ -53,7 +53,7 @@ Boris's **My Day** page lists today's and tomorrow's calendar events as cards, w
 |---|---|
 | ![My Day page](docs/dog/myday.png) | ![2.0 thermometer](docs/dog/thermometer.png) |
 
-The page title carries the name from setup when it fits beside the weather ("Good morning, Kid!", "Ready for tomorrow, Kid?"); Boris's design keeps names off the screen, so it's one switch, `v2_set_name_in_title()` in `ui_v2_extras.c`. **Dress-up days:** Boris's outfit engine picks the dress on every light-jacket day (cool but mild). Here the dress is for dress-up days only: on other light-jacket days she wears long sleeves, jeans, sneakers and the same light jacket. When the weather fits the dress, a **Dress up?** pill next to "Today · Tuesday" turns that day into a dress-up day with a tap (tap again to undo), and a calendar event tagged **(dress)** or 👗 ("Picture day (dress)") starts the day dressed up. Cold, rain and heat still win: the dress only appears when a light jacket is the right layer. (`ui_set_dress_days()` switches this on; without it, as in Boris's render checks, his every-mild-day rule applies.) 2.0 also gets the classic screens' **thermometer** (same fixed 0-100°F scale and colors, freezing tick) beside the weather icon: the temperature now on Today, the high on Tomorrow. Plus the WPA2 setup hotspot, over-the-air updates, the real-clock fix and this fork's settings (no bike bus). Special events, countdowns, weather alerts, and sun and moon only show on the classic screens so far ([queue](docs/queue.md)).
+The page title carries the name from setup when it fits beside the weather ("Good morning, Kid!", "Ready for tomorrow, Kid?"); Boris's design keeps names off the screen, so it's one switch, `v2_set_name_in_title()` in `ui_v2_extras.c`. **Dress-up days:** Boris's outfit engine picks the dress on every light-jacket day (cool but mild). Here the dress is for dress-up days only: on other light-jacket days she wears long sleeves, jeans, sneakers and the same light jacket. When the weather fits the dress, a **Dress up?** pill next to "Today · Tuesday" turns that day into a dress-up day with a tap (tap again to undo; once something is checked off, the "2 of 4 ready" chip takes its spot until everything is unchecked), and a calendar event tagged **(dress)** or 👗 ("Picture day (dress)") starts the day dressed up. Cold, rain and heat still win: the dress only appears when a light jacket is the right layer. (`ui_set_dress_days()` switches this on; without it, as in Boris's render checks, his every-mild-day rule applies.) **Countdowns** on 2.0 sit in the My Day header, between the title and the date: "11 more sleeps until Trip to Grandma's!" (or "11 sleeps until ..." when space is short), from calendar titles tagged (countdown), 🎂 or 🎉 and special events with Countdown ticked, up to 60 days out. 2.0 also gets the classic screens' **thermometer** (same fixed 0-100°F scale and colors, freezing tick) beside the weather icon: the temperature now on Today, the high on Tomorrow. Plus the WPA2 setup hotspot, over-the-air updates, the real-clock fix and this fork's settings (no bike bus). Special events, weather alerts, and sun and moon only show on the classic screens so far ([queue](docs/queue.md)).
 
 ### Data
 
@@ -70,7 +70,7 @@ Weather data comes from [Open-Meteo](https://open-meteo.com): free for non-comme
 
 Setting it up for the first time? [docs/deploy.md](docs/deploy.md) is the step-by-step checklist.
 
-For a first install you only need `firmware/weather-besties-v1.7.4.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`, and it erases any saved settings. **After that, updates arrive over WiFi** ([below](#over-the-air-updates)); USB is only needed again to start fresh or rescue a board.
+For a first install you only need `firmware/weather-besties-v1.7.5.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`, and it erases any saved settings. **After that, updates arrive over WiFi** ([below](#over-the-air-updates)); USB is only needed again to start fresh or rescue a board.
 
 **Chrome or Edge, no installs:** open the [esptool-js web flasher](https://espressif.github.io/esptool-js/), plug the board in (4.3: the **UART** port; 4.3B: its only USB-C port), click Connect, pick the port, set Flash Address to `0x0`, choose the .bin, click Program. Takes about a minute.
 
@@ -78,10 +78,10 @@ For a first install you only need `firmware/weather-besties-v1.7.4.bin`. It is a
 
 ```
 pip install esptool
-python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.7.4.bin
+python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.7.5.bin
 ```
 
-**USB install that keeps settings** (e.g. moving a board that ran 1.4.x, which had a single app slot, to 1.7.4): flash the four files listed in `firmware/usb/README.txt` at their addresses instead of the full image.
+**USB install that keeps settings** (e.g. moving a board that ran 1.4.x, which had a single app slot, to 1.7.5): flash the four files listed in `firmware/usb/README.txt` at their addresses instead of the full image.
 
 **If it won't connect:** hold **BOOT**, tap **RESET**, let go of BOOT, then try again. On the 4.3, if your computer doesn't see a serial port on the UART connector, try the other USB-C port.
 
