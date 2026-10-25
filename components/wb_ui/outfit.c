@@ -417,7 +417,9 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
         /* iter-09: the light-jacket tier is the dress look's band, and
          * the only band it may be chosen in: its sprite's jacket IS
          * this layer. */
-        look = LOOK_DRESS;
+        out->dress_band = true;
+        look = (!o || !o->dress_wanted || o->dress_wanted(out->year, out->month, out->day)) ? LOOK_DRESS
+                                                                                           : LOOK_PANTS;
     } else if (out->layer == LAYER_HOODIE) {
         look = LOOK_FALL;
     } else {

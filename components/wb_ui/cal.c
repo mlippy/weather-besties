@@ -191,7 +191,7 @@ static void tidy(char *s)
 
 /* Cleans up a title for the screen and reads its tags. False if the filter words say skip it. */
 static bool title_for_screen(const cal_t *c, const char *summary, char *out, size_t cap, bool *outside,
-                             bool *countdown)
+                             bool *countdown, bool *dress)
 {
     char s[128];
     snprintf(s, sizeof(s), "%s", summary);
@@ -199,6 +199,7 @@ static bool title_for_screen(const cal_t *c, const char *summary, char *out, siz
     *outside = take_tag(s, "(outside)") | take_tag(s, "\xE2\x98\x80");        /* sun */
     *countdown = take_tag(s, "(countdown)") | take_tag(s, "\xF0\x9F\x8E\x89")  /* party popper */
                  | take_tag(s, "\xF0\x9F\x8E\x82");                            /* cake */
+    *dress = take_tag(s, "(dress)") | take_tag(s, "\xF0\x9F\x91\x97");          /* dress */
 
     /* The fonts are ASCII: keep curly apostrophes, drop the rest (emoji, accents). */
     char *o = s;
@@ -224,7 +225,7 @@ static bool title_for_screen(const cal_t *c, const char *summary, char *out, siz
     tidy(s);
     char kept[128];
     snprintf(kept, sizeof(kept), "%s", s);
-    bool any = false, match = *outside || *countdown;
+    bool any = false, match = *outside || *countdown || *dress;
     char w[32];
     for (const char *l = c->words; (l = next_word(l, w, sizeof(w))) != NULL;) {
         any = true;
@@ -401,10 +402,10 @@ static void finish_event(cal_t *c)
     cal_item_t it = {.minute = e->start_allday ? -1 : e->start_min, .uid = e->uid, .is_override = e->has_recur};
     char s[128];
     unescape(s, sizeof(s), e->summary);
-    if (!title_for_screen(c, s, it.name, sizeof(it.name), &it.outside, &it.countdown)) {
+    if (!title_for_screen(c, s, it.name, sizeof(it.name), &it.outside, &it.countdown, &it.dress)) {
         return;
     }
-    title_for_screen(c, s, it.title, sizeof(it.title), &it.outside, &it.countdown);
+    title_for_screen(c, s, it.title, sizeof(it.title), &it.outside, &it.countdown, &it.dress);
     unescape(it.location, sizeof(it.location), e->location);
     if (e->has_end && !e->start_allday && e->end_min >= 0) {
         int d = (e->end_day - e->start_day) * 1440 + e->end_min - e->start_min;
@@ -670,6 +671,18 @@ bool cal_end(cal_t *c)
     }
     c->n = o;
     return c->seen;
+}
+
+int cal_dress_days(const cal_t *c, int *out, int max)
+{
+    int n = 0;
+    for (int i = 0; i < c->n && n < max; i++) {
+        const cal_item_t *it = &c->items[i];
+        if (it->dress && it->dayno <= c->today + 1 && (n == 0 || out[n - 1] != it->dayno)) {
+            out[n++] = it->dayno;
+        }
+    }
+    return n;
 }
 
 int cal_to_events(const cal_t *c, wb_event_t *out, int n, int max)

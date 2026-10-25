@@ -72,9 +72,15 @@ typedef struct {
     char advice[192];        /* A + B + the chip-naming clause (iter-08) */
     char advice_short[128];  /* sentence B only (fallback), same clause */
     float t_now, hi, lo; int pop_day; int wx_code; bool is_day;  /* for the weather block */
+    bool dress_band;         /* the weather fits the dress look (this fork's Dress up pill) */
 } outfit_t;
 
-typedef struct { int bike_bus_wday; } outfit_opts_t;
+typedef struct {
+    int bike_bus_wday;
+    /* This fork: whether a light-jacket day is a dress day. NULL = always (Boris's
+     * design); otherwise the jeans look wears the same light jacket on other days. */
+    bool (*dress_wanted)(int year, int month, int day);
+} outfit_opts_t;
 
 /* now: real local clock. day_offset: 0 = the clock's today, 1 = tomorrow, 2, 3 (forecast page). */
 bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const outfit_opts_t *o, outfit_t *out);

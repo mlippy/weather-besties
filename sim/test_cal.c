@@ -53,6 +53,9 @@ static const char *ICS =
     /* last Friday of the month... not this weekend */
     "BEGIN:VEVENT\r\nDTSTART;VALUE=DATE:20260130\r\nRRULE:FREQ=MONTHLY;BYDAY=-1FR\r\nUID:pj@x\r\n"
     "SUMMARY:Kid PJ day\r\nEND:VEVENT\r\n"
+    /* dress-up days: a tag needs no filter word; a plain event isn't one */
+    "BEGIN:VEVENT\r\nDTSTART;VALUE=DATE:20261025\r\nUID:pic@x\r\nSUMMARY:Picture day (dress)\r\nEND:VEVENT\r\n"
+    "BEGIN:VEVENT\r\nDTSTART;VALUE=DATE:20261031\r\nUID:party@x\r\nSUMMARY:Party \xF0\x9F\x91\x97\r\nEND:VEVENT\r\n"
     /* a countdown later this year */
     "BEGIN:VEVENT\r\nDTSTART;VALUE=DATE:20261126\r\nUID:tg@x\r\nSUMMARY:Thanksgiving at Grandma's \xF0\x9F\x8E\x89\r\nEND:VEVENT\r\n"
     "END:VCALENDAR\r\n";
@@ -108,6 +111,11 @@ static void run(size_t chunk)
     CHECK(it && it->countdown && it->minute == -1, "thanksgiving countdown, tagged so no filter word needed");
     it = find(&c, "Kid's birthday", cal_dayno(2026, 11, 20));
     CHECK(it && it->countdown, "Kid's birthday, yearly, curly apostrophe, cake tag");
+    it = find(&c, "Picture day", today + 1);
+    CHECK(it && it->dress, "picture day tagged (dress), kept without a filter word, tag removed");
+    int dd[8];
+    int nd = cal_dress_days(&c, dd, 8);
+    CHECK(nd == 1 && dd[0] == today + 1, "one dress-up day, tomorrow (the party is a week out): %d", nd);
 }
 
 int main(void)

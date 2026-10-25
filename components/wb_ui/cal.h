@@ -15,6 +15,7 @@
  * Title tags (removed from the shown name):
  *   "(outside)" or a sun emoji      weather reminders apply
  *   "(countdown)", party or cake    counts the sleeps until it
+ *   "(dress)" or a dress emoji      a dress-up day (the 2.0 screens' dress look)
  */
 #pragma once
 
@@ -43,6 +44,7 @@ typedef struct {
     char location[64];
     bool outside;
     bool countdown;
+    bool dress;              /* "(dress)" or a dress emoji: a dress-up day */
     uint32_t uid;            /* internal */
     bool is_override;        /* internal */
 } cal_item_t;
@@ -93,6 +95,10 @@ void cal_begin(cal_t *c, int today, int utc_offset_s, const char *words);
 void cal_feed(cal_t *c, const char *data, size_t len);
 /* Returns false if no calendar was seen in the data. */
 bool cal_end(cal_t *c);
+
+/* Today's and tomorrow's dress-up days (titles tagged "(dress)"): day numbers into out.
+ * Returns how many. */
+int cal_dress_days(const cal_t *c, int *out, int max);
 
 /* Appends the calendar's events to an event list for the advice. Returns the new count. */
 int cal_to_events(const cal_t *c, wb_event_t *out, int n, int max);

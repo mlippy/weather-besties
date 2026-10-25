@@ -445,9 +445,12 @@ static void fetch_calendar(bool forced)
         s_ncal = cal_to_events(&cal, s_cal_events, 0, CAL_MAX);
         s_cal_at = now;
         s_cal_day = today;
+        int dress[8];
+        int ndress = cal_dress_days(&cal, dress, 8);
         UI_LOCKED({
             cal_publish(&cal);
-            ui_show_calendar();   /* the 2.0 My Day page */
+            ui_show_calendar();               /* the 2.0 My Day page */
+            ui_set_dress_days(dress, ndress); /* "(dress)" events */
         });
         snprintf(s_cal_status, sizeof(s_cal_status), "Read at %s: %d events in the calendar, %d coming up.", when,
                  cal.nevents_seen, s_ncal);

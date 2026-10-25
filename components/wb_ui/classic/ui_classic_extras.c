@@ -30,3 +30,9 @@ void ui_set_calendar_configured(bool on)
 {
     (void)on;
 }
+
+void ui_set_dress_days(const int *daynos, int n)
+{
+    (void)daynos;   /* the classic screens have no dress look */
+    (void)n;
+}

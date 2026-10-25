@@ -27,6 +27,13 @@ void v2_set_name_in_title(bool on);
 const char *v2_named_title(const char *his_title, const char *names, const char *const *formats, int n,
                            int max_w);
 
+/* Dress-up days (ui_set_dress_days, the Dress up pill). v2_dress_wanted is the outfit
+ * engine's dress_wanted hook. The pill sits right of the day chip on Today / Tomorrow when
+ * the weather fits the dress; tapping it flips that day and calls changed(). */
+bool v2_dress_wanted(int year, int month, int day);
+void v2_dress_create(lv_obj_t *page, void (*changed)(void));
+void v2_dress_show(bool fits, int year, int month, int day, int x, int y);
+
 /* An "Update" pill in Settings, right-aligned to x_right at y: closes Settings and asks
  * for a firmware check now (fire is ui.c's action sender). */
 void v2_update_pill_create(lv_obj_t *settings, int x_right, int y, void (*fire)(ui_action_t));

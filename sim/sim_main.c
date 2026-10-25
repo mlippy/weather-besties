@@ -579,6 +579,16 @@ int main(int argc, char **argv)
     pump(10);
     save(out, "60_dog_myday");
     ui_test_set_page(0);
+    static const char *dog_seasons[][2] = {{"halloween_cold", "67_dog_halloween"},
+                                           {"christmas_snow", "68_dog_christmas"},
+                                           {"hanukkah_night3", "69_dog_hanukkah"},
+                                           {"mild_may", "70_dog_may"}};
+    for (size_t i = 0; i < sizeof(dog_seasons) / sizeof(dog_seasons[0]); i++) {
+        load(sc, dog_seasons[i][0]);
+        show();
+        save(out, dog_seasons[i][1]);
+    }
+    ui_test_set_page(0);
     ui_open_settings();
     save(out, "58_dog_settings");
     ui_close_settings();
@@ -602,6 +612,31 @@ int main(int argc, char **argv)
         ui_close_settings();
     }
     ui_test_set_page(0);
+
+    /* This fork's dress-up days: once ui_set_dress_days is called, a light-jacket day is
+     * jeans unless it's a dress-up day. A tap on the Dress up pill flips it; a "(dress)"
+     * calendar event starts the day dressed. (Last, so Boris's shots keep his rule.) */
+    ui_set_cat_choice(3);
+    ui_set_dress_days(NULL, 0);
+    load(sc, "dress_morning");
+    show();
+    save(out, "64_dress_off");
+    dump(out, "64_dress_off");
+    s_touch_pt.x = 340;   /* the pill, right of "Today · <day>" */
+    s_touch_pt.y = 88;
+    s_touch = true;
+    pump(3);
+    s_touch = false;
+    pump(5);
+    save(out, "65_dress_tapped");
+    dump(out, "65_dress_tapped");
+    int dn = cal_dayno(now_tm.tm_year + 1900, now_tm.tm_mon + 1, now_tm.tm_mday);
+    ui_set_dress_days(&dn, 1);
+    load(sc, "dress_morning");
+    show();
+    save(out, "66_dress_calendar");
+    dump(out, "66_dress_calendar");
+    ui_set_cat_choice(0);
 
     ui_show_wifi_error("HomeWiFi", NULL);
     save(out, "10_wifi_error");

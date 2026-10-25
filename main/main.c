@@ -77,6 +77,7 @@ void app_main(void)
     board_lvgl_lock(-1);
     ui_init(S.names);
     ui_set_pet_name(S.pet_name);
+    ui_set_dress_days(NULL, 0);   /* the dress only on dress-up days (calendar or the Dress up pill) */
     ui_set_cat_cb(cat_cb);
     ui_set_cat_choice(S.cat);
     ui_set_bike_bus_day(-1);   /* no bike bus here; special events cover it */

@@ -1982,6 +1982,12 @@ def main():
         title = dump(name)["title"]
         check(want in title, f"{name}: her name is in the title (title={title})")
 
+    # Dress-up days: jeans by default on a light-jacket day, the dress after a tap on the
+    # pill, and from the start on a calendar dress day.
+    for name, want in (("64_dress_off", "pants"), ("65_dress_tapped", "dress"), ("66_dress_calendar", "dress")):
+        look = dump(name)["look_name"]
+        check(look == want, f"{name}: the {want} look (look_name={look})")
+
     # A held finger opens Settings on every page (Settings' Update pill, its pale grey).
     def is_pill_grey(r, g, b):
         return abs(r - 0xED) <= 3 and abs(g - 0xF1) <= 3 and abs(b - 0xF5) <= 3

@@ -131,7 +131,7 @@ static ui_cat_cb_t s_cat_cb;
 static int s_cat_choice;   /* 0 black, 1 pink, 2 take turns, 3 the dog */
 #define PET_DOG 3
 
-static outfit_opts_t s_opts = {.bike_bus_wday = 5}; /* Friday */
+static outfit_opts_t s_opts = {.bike_bus_wday = 5, .dress_wanted = v2_dress_wanted}; /* Friday; dress: ui_v2_extras.c */
 
 /* Weather: our own copy, so the firmware's fetch buffer can be reused. */
 static wx_t s_wx;
@@ -1916,6 +1916,14 @@ static void build_tabs(lv_obj_t *scr)
 
 /* ------------------------------------------------------------------ outfit page build */
 
+/* This fork's Dress up pill flipped the shown day: its tiles change, so they start unchecked. */
+static void dress_changed(void)
+{
+    s_checks = 0;
+    s_force = true;
+    render();
+}
+
 static void build_outfit_page(lv_obj_t *scr)
 {
     page_outfit = box(scr);
@@ -1936,6 +1944,7 @@ static void build_outfit_page(lv_obj_t *scr)
     lv_obj_set_height(chip, 36);
     lv_obj_set_pos(chip, 28, 70);
     lbl_chip = label(chip, &font_chip, "");
+    v2_dress_create(page_outfit, dress_changed);   /* this fork: the Dress up pill */
     lv_obj_center(lbl_chip);
 
     /* Weather block: icon left of two lines, the block right-aligned to
@@ -4433,6 +4442,8 @@ static void render(void)
     lv_obj_set_style_bg_color(chip, evening ? C(COL_CHIP_E_BG) : C(COL_CHIP_M_BG), 0);
     lv_obj_set_style_text_color(lbl_chip, evening ? C(COL_CHIP_E_TX) : C(COL_CHIP_M_TX), 0);
     lv_obj_update_layout(chip);
+    v2_dress_show(avail && !all_done && o.dress_band, avail ? o.year : 0, avail ? o.month : 0, avail ? o.day : 0,
+                  28 + lv_obj_get_width(chip) + 10, 70);   /* this fork: the Dress up pill */
 
     /* Weather block */
     int hdr_wxi = -1;
