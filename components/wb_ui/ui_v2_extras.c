@@ -10,6 +10,7 @@
 #include "thermo.h"
 #include "cal.h"
 #include "assets/assets.h"
+#include "routine/routine_icons.h"
 
 /* Countdowns (special events with Countdown ticked, calendar titles tagged (countdown),
  * a cake or a party popper): kept here for My Day's header pill. Other special events and
@@ -325,17 +326,27 @@ void v2_dress_hide(void)
 
 #define RT_ROWS 6
 #define RT_WINDOW_MIN 60      /* the bar is full an hour out and empty at the time */
-#define RT_ROW_H 42
-#define RT_ROW_GAP 4
-#define RT_LIST_Y 138
+#define RT_TILE_W 150     /* square-ish buttons, three across with room between */
+#define RT_TILE_H 128
+#define RT_GAP 14
+#define RT_GRID_X 28
+#define RT_GRID_Y 140
 
-static const char *const RT_MORNING[] = {"Go potty", "Eat breakfast", "Brush teeth", "Brush hair", "Get dressed"};
-static const char *const RT_BEDTIME[] = {"Go potty", "Pajamas on", "Have a snack", "Brush teeth", "Read books",
-                                         "Snuggle"};
+typedef struct {
+    const char *word;
+    const lv_image_dsc_t *pic;
+} rt_step_t;
+
+static const rt_step_t RT_MORNING[] = {{"Potty", &img_rt_potty},       {"Breakfast", &img_rt_breakfast},
+                                       {"Brush teeth", &img_rt_teeth}, {"Brush hair", &img_rt_hair},
+                                       {"Get dressed", &img_rt_dress}};
+static const rt_step_t RT_BEDTIME[] = {{"Potty", &img_rt_potty},  {"Pajamas", &img_rt_pajamas},
+                                       {"Snack", &img_rt_snack},  {"Brush teeth", &img_rt_teeth},
+                                       {"Books", &img_rt_books},  {"Snuggle", &img_rt_snuggle}};
 
 static int s_rt_leave = 8 * 60 + 30, s_rt_bed = 20 * 60;   /* minutes after midnight */
 static lv_obj_t *s_rt_page, *s_rt_title, *s_rt_when, *s_rt_left, *s_rt_track, *s_rt_fill, *s_rt_pet;
-static lv_obj_t *s_rt_row[RT_ROWS], *s_rt_box[RT_ROWS], *s_rt_tick[RT_ROWS], *s_rt_lbl[RT_ROWS];
+static lv_obj_t *s_rt_row[RT_ROWS], *s_rt_box[RT_ROWS], *s_rt_tick[RT_ROWS], *s_rt_lbl[RT_ROWS], *s_rt_pic[RT_ROWS];
 static uint8_t s_rt_checks[2];                 /* bit i = row i done; [0] morning, [1] bedtime */
 static int s_rt_day[2] = {-1, -1};             /* the day those checks belong to */
 static struct tm s_rt_now;
@@ -413,17 +424,19 @@ lv_obj_t *v2_routine_create(lv_obj_t *scr)
     for (int i = 0; i < RT_ROWS; i++) {
         lv_obj_t *r = lv_button_create(s_rt_page);
         lv_obj_remove_style_all(r);
-        lv_obj_set_pos(r, 28, RT_LIST_Y + i * (RT_ROW_H + RT_ROW_GAP));
-        lv_obj_set_size(r, 480, RT_ROW_H);
-        lv_obj_set_style_radius(r, 14, 0);
+        lv_obj_set_pos(r, RT_GRID_X + (i % 3) * (RT_TILE_W + RT_GAP), RT_GRID_Y + (i / 3) * (RT_TILE_H + RT_GAP));
+        lv_obj_set_size(r, RT_TILE_W, RT_TILE_H);
+        lv_obj_set_style_radius(r, 20, 0);
         lv_obj_set_style_bg_opa(r, LV_OPA_COVER, 0);
-        lv_obj_set_style_border_width(r, 2, 0);
+        lv_obj_set_style_border_width(r, 3, 0);
         lv_obj_add_event_cb(r, on_rt_row, LV_EVENT_CLICKED, (void *)(intptr_t)i);
         v2_raise(r);
         s_rt_row[i] = r;
-        s_rt_box[i] = rt_box(r);   /* the check circle */
+        s_rt_pic[i] = lv_image_create(r);   /* the step's picture, the big target */
+        lv_obj_align(s_rt_pic[i], LV_ALIGN_TOP_MID, 0, 10);
+        s_rt_box[i] = rt_box(r);   /* the check circle, top right */
         lv_obj_set_size(s_rt_box[i], 30, 30);
-        lv_obj_align(s_rt_box[i], LV_ALIGN_LEFT_MID, 8, 0);
+        lv_obj_align(s_rt_box[i], LV_ALIGN_TOP_RIGHT, -6, 6);
         lv_obj_set_style_radius(s_rt_box[i], LV_RADIUS_CIRCLE, 0);
         lv_obj_set_style_border_width(s_rt_box[i], 2, 0);
         lv_obj_set_style_bg_opa(s_rt_box[i], LV_OPA_COVER, 0);
@@ -432,10 +445,10 @@ lv_obj_t *v2_routine_create(lv_obj_t *scr)
         lv_obj_set_style_text_color(s_rt_tick[i], lv_color_white(), 0);
         lv_label_set_text(s_rt_tick[i], LV_SYMBOL_OK);
         lv_obj_center(s_rt_tick[i]);
-        s_rt_lbl[i] = lv_label_create(r);
-        lv_obj_set_style_text_font(s_rt_lbl[i], &font_label, 0);
+        s_rt_lbl[i] = lv_label_create(r);   /* a short word under it, for grown-ups and readers */
+        lv_obj_set_style_text_font(s_rt_lbl[i], &font_chip, 0);
         lv_obj_set_style_text_color(s_rt_lbl[i], lv_color_hex(0x1E2340), 0);
-        lv_obj_align(s_rt_lbl[i], LV_ALIGN_LEFT_MID, 50, 0);
+        lv_obj_align(s_rt_lbl[i], LV_ALIGN_BOTTOM_MID, 0, -8);
     }
 
     s_rt_pet = lv_image_create(s_rt_page);
@@ -447,7 +460,7 @@ static void rt_draw(void)
 {
     const struct tm *now = &s_rt_now;
     int m = now->tm_hour < 12 ? 0 : 1;
-    const char *const *items = m == 0 ? RT_MORNING : RT_BEDTIME;
+    const rt_step_t *items = m == 0 ? RT_MORNING : RT_BEDTIME;
     int n = m == 0 ? (int)(sizeof(RT_MORNING) / sizeof(RT_MORNING[0]))
                    : (int)(sizeof(RT_BEDTIME) / sizeof(RT_BEDTIME[0]));
     int today = cal_dayno(now->tm_year + 1900, now->tm_mon + 1, now->tm_mday);
@@ -469,7 +482,8 @@ static void rt_draw(void)
         bool on = (s_rt_checks[m] >> i) & 1;
         done += on;
         lv_obj_remove_flag(s_rt_row[i], LV_OBJ_FLAG_HIDDEN);
-        lv_label_set_text(s_rt_lbl[i], items[i]);
+        lv_label_set_text(s_rt_lbl[i], items[i].word);
+        lv_image_set_src(s_rt_pic[i], items[i].pic);
         lv_obj_set_style_bg_color(s_rt_row[i], lv_color_hex(on ? 0xE8F6EE : 0xFFFFFF), 0);
         lv_obj_set_style_border_color(s_rt_row[i], lv_color_hex(on ? 0x8FD3A8 : 0xE7D9BE), 0);
         lv_obj_set_style_bg_color(s_rt_box[i], lv_color_hex(on ? 0x2FA866 : 0xFFFFFF), 0);

@@ -4,4 +4,4 @@ USB install that keeps saved settings: flash these four files at these addresses
 0x00000  usb/bootloader.bin
 0x08000  usb/partition-table.bin
 0x0f000  usb/ota_data_initial.bin
-0x20000  weather-besties-v1.7.8-app.bin
+0x20000  weather-besties-v1.7.9-app.bin

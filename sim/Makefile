@@ -18,7 +18,7 @@ MAKE_SCENARIOS := classic/make_scenarios.py
 OUT := out-classic
 else
 UI_SRC := $(UI_DIR)/ui.c $(UI_DIR)/outfit.c $(UI_DIR)/cat.c $(UI_DIR)/ui_v2_extras.c \
-          $(wildcard $(UI_DIR)/assets/*.c) $(wildcard $(UI_DIR)/dog/*.c) sim_main.c
+          $(wildcard $(UI_DIR)/assets/*.c) $(wildcard $(UI_DIR)/dog/*.c) $(wildcard $(UI_DIR)/routine/*.c) sim_main.c
 SCENARIOS := scenarios
 MAKE_SCENARIOS := make_scenarios.py
 OUT := out
@@ -76,7 +76,7 @@ WASI_SDK ?= /home/claude/wasm/wasi-sdk-33.0-x86_64-linux
 WCC      := $(WASI_SDK)/bin/clang --target=wasm32-wasip1 --sysroot=$(WASI_SDK)/share/wasi-sysroot
 WEB_SRC  := $(shell find $(LVGL_DIR)/src -name '*.c') \
             $(UI_DIR)/ui.c $(UI_DIR)/wx.c $(UI_DIR)/outfit.c $(UI_DIR)/cat.c $(UI_DIR)/cal.c $(UI_DIR)/wb_request.c \
-            $(wildcard $(UI_DIR)/assets/*.c) $(wildcard $(UI_DIR)/dog/*.c) $(CJSON)/cJSON.c web/emu_main.c
+            $(wildcard $(UI_DIR)/assets/*.c) $(wildcard $(UI_DIR)/dog/*.c) $(wildcard $(UI_DIR)/routine/*.c) $(CJSON)/cJSON.c web/emu_main.c
 WEB_OBJ  := $(patsubst %.c,build-web/%.o,$(subst $(ROOT)/,root/,$(WEB_SRC)))
 WEB_CFLAGS := -O2 -MMD -MP -I$(ROOT)/components -I$(LVGL_DIR) -I$(UI_DIR) -I$(CJSON) -Iweb \
               -DLV_LVGL_H_INCLUDE_SIMPLE -DLV_CONF_INCLUDE_SIMPLE -DLV_KCONFIG_IGNORE \

@@ -55,7 +55,7 @@ Boris's **My Day** page lists today's and tomorrow's calendar events as cards, w
 
 This fork's additions to 2.0 live in `ui_v2_extras.c`, with one-line hooks in his `ui.c`:
 
-- **A Routine tab** (the fifth): before noon, the morning checklist (go potty, eat breakfast, brush teeth, brush hair, get dressed) with a bar that runs out at leaving time (8:30 AM by default) and turns from green to yellow, orange and red over the last hour; after noon, the bedtime checklist (go potty, pajamas on, have a snack, brush teeth, read books, snuggle) with a bar that runs out at bedtime (8:00 PM). Tap a step to tick it; the title turns to "Ready for school!" or "Ready for bed!". Ticks reset each day, weekends say "No school today!", and both times are on the setup page. It stays up for 20 idle minutes (the other pages go back to Today after 3). My Day's "Updated" line moved under the date to make room for the tab.
+- **A Routine tab** (the fifth): before noon, the morning checklist (go potty, eat breakfast, brush teeth, brush hair, get dressed) with a bar that runs out at leaving time (8:30 AM by default) and turns from green to yellow, orange and red over the last hour; after noon, the bedtime checklist (go potty, pajamas on, have a snack, brush teeth, read books, snuggle) with a bar that runs out at bedtime (8:00 PM). Each step is a big square button with a picture (toilet, cereal bowl, toothbrush, hairbrush, shirt; pajamas, apple, books, teddy bear) and a short word, three across with room between. Tap a step to tick it; the title turns to "Ready for school!" or "Ready for bed!". Ticks reset each day, weekends say "No school today!", and both times are on the setup page. It stays up for 20 idle minutes (the other pages go back to Today after 3). My Day's "Updated" line moved under the date to make room for the tab.
 - **Buttons that look like buttons:** everything a kid can tap (tiles, chips, tabs, the Dress up pill, Routine steps, Settings buttons) sits on a soft edge and sinks when pressed, with a bigger tap area; status pills ("Same as yesterday", "2 of 4 ready") stay flat. When the screen is left alone for 20 seconds, the next thing to tap (the first unchecked tile or Routine step) glows pink until it's touched.
 - **Jackets and coats:** the 2.0 outfit goes by the feels-like temperature when it's time to go (8 AM, or now). The cut-offs are on the setup page (winter coat at or below 45°F, light jacket to 57, hoodie to 64 to start), and a cold-but-not-freezing morning that warms to 60°F or more gets just a light jacket with "take it off later" instead of the winter kit (40° at 8 AM and 68° by afternoon). Boris's own rule gives the winter kit there.
 - **The thermometer** beside the weather icon, the same fixed 0-100°F scale, colors and freezing tick as the classic screens: the temperature now on Today, the high on Tomorrow.
@@ -86,7 +86,7 @@ Weather data comes from [Open-Meteo](https://open-meteo.com): free for non-comme
 
 Setting it up for the first time? [docs/deploy.md](docs/deploy.md) is the step-by-step checklist.
 
-For a first install you only need `firmware/weather-besties-v1.7.8.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`, and it erases any saved settings. **After that, updates arrive over WiFi** ([below](#over-the-air-updates)); USB is only needed again to start fresh or rescue a board.
+For a first install you only need `firmware/weather-besties-v1.7.9.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`, and it erases any saved settings. **After that, updates arrive over WiFi** ([below](#over-the-air-updates)); USB is only needed again to start fresh or rescue a board.
 
 **Chrome or Edge, no installs:** open the [esptool-js web flasher](https://espressif.github.io/esptool-js/), plug the board in (4.3: the **UART** port; 4.3B: its only USB-C port), click Connect, pick the port, set Flash Address to `0x0`, choose the .bin, click Program. Takes about a minute.
 
@@ -94,10 +94,10 @@ For a first install you only need `firmware/weather-besties-v1.7.8.bin`. It is a
 
 ```
 pip install esptool
-python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.7.8.bin
+python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.7.9.bin
 ```
 
-**USB install that keeps settings** (e.g. moving a board that ran 1.4.x, which had a single app slot, to 1.7.8): flash the four files listed in `firmware/usb/README.txt` at their addresses instead of the full image.
+**USB install that keeps settings** (e.g. moving a board that ran 1.4.x, which had a single app slot, to 1.7.9): flash the four files listed in `firmware/usb/README.txt` at their addresses instead of the full image.
 
 **If it won't connect:** hold **BOOT**, tap **RESET**, let go of BOOT, then try again. On the 4.3, if your computer doesn't see a serial port on the UART connector, try the other USB-C port.
 
@@ -219,6 +219,7 @@ For how the pieces fit together (hardware, tasks, setup hotspot, flash layout), 
 | `tools/icons.py`, `make_assets.py`, `make_pippa_assets.py` | Boris's 2.0 artwork and the scripts that turn it into C files |
 | `tools/classic/` | The classic artwork (SVG) and its converter |
 | `tools/dog/`, `components/wb_ui/dog/` | The family's Brittany: the drawing (SVG), its converter, and the generated images |
+| `tools/routine/`, `components/wb_ui/routine/` | The Routine page's step pictures (SVG), their converter (`make_routine_icons.py`), and the generated images |
 | `sim/` | PC renderer (`sim_main.c` for 2.0, `classic/` for classic) and Boris's browser emulator |
 | `cad/` | Boris's 3D-printable case |
 | `firmware/` | Full image (`0x0`, first install), the app (what updates download), `usb/` pieces for a USB install that keeps settings, and `latest.json` (what boards update to) |

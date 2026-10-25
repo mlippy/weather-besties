@@ -2005,7 +2005,7 @@ def main():
     check(n > 12000, f"74_routine_morning: a long green bar 55 minutes out ({n} px, need > 12000)")
     n = count_where(Image.open(os.path.join(OUT, "76_routine_bedtime.png")), (28, 98, 772, 124), near(0xF2C230))
     check(3000 < n < 12000, f"76_routine_bedtime: a half yellow bar 30 minutes out ({n} px)")
-    n = count_where(Image.open(os.path.join(OUT, "75_routine_done.png")), (28, 138, 80, 410), near(0x2FA866))
+    n = count_where(Image.open(os.path.join(OUT, "75_routine_done.png")), (28, 140, 506, 410), near(0x2FA866))
     check(n > 2000, f"75_routine_done: five green ticks ({n} px, need > 2000)")
     # The jacket cut-offs from setup: Boris's numbers give the winter kit on the cold
     # morning; a coat cut-off of 30 makes the same morning a light-jacket day.
@@ -2017,9 +2017,10 @@ def main():
     # Tappable things wear one raised look; the next step glows when left alone.
     def near_c(c, tol=24):
         return lambda r, g, b: abs(r - (c >> 16)) <= tol and abs(g - ((c >> 8) & 255)) <= tol and abs(b - (c & 255)) <= tol
-    n = count_where(Image.open(os.path.join(OUT, "74b_routine_hint.png")), (18, 222, 516, 280), near_c(0xE8467C, 40))
+    # Brush teeth is the third tile (x 356-506, y 140-268); its glow is around the edge
+    n = count_where(Image.open(os.path.join(OUT, "74b_routine_hint.png")), (346, 130, 516, 278), near_c(0xE8467C, 40))
     check(n > 150, f"74b_routine_hint: the next step (Brush teeth) glows pink ({n} px, need > 150)")
-    n = count_where(Image.open(os.path.join(OUT, "74_routine_morning.png")), (18, 222, 516, 280), near_c(0xE8467C, 40))
+    n = count_where(Image.open(os.path.join(OUT, "74_routine_morning.png")), (346, 130, 516, 278), near_c(0xE8467C, 40))
     check(n < 20, f"74_routine_morning: no glow before the screen is left alone ({n} px)")
 
     # A held finger opens Settings on every page (Settings' Update pill, its pale grey).

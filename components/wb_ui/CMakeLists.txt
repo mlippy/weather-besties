@@ -6,6 +6,8 @@ string(REGEX MATCH "[01]" WB_UI_CLASSIC "${_wb_sel}")
 set(WB_SHARED_SRCS "wx.c" "wb_request.c" "events.c" "cal.c" "alerts.c" "update.c" "thermo.c")
 # The family's Brittany (tools/dog/): heads for both designs, full-body sprites for 2.0.
 include(${CMAKE_CURRENT_LIST_DIR}/dog/dog_assets.cmake)
+# The Routine page's step pictures (tools/routine/), 2.0 only.
+include(${CMAKE_CURRENT_LIST_DIR}/routine/routine_icons.cmake)
 
 if(WB_UI_CLASSIC)
     include(${CMAKE_CURRENT_LIST_DIR}/classic/assets/assets_list.cmake)
@@ -16,7 +18,7 @@ else()
     include(${CMAKE_CURRENT_LIST_DIR}/assets/assets_list.cmake)
     include(${CMAKE_CURRENT_LIST_DIR}/assets/pippa_assets_list.cmake)
     set(WB_UI_SRCS "ui.c" "cat.c" "outfit.c" "ui_v2_extras.c" ${WB_ASSET_SRCS} ${WB_PIPPA_ASSET_SRCS}
-        ${WB_DOG_HEAD_SRCS} ${WB_DOG_STAGE_SRCS})
+        ${WB_DOG_HEAD_SRCS} ${WB_DOG_STAGE_SRCS} ${WB_ROUTINE_SRCS})
 endif()
 message(STATUS "Weather Besties screens: ${WB_UI_CLASSIC} (1 = classic, 0 = 2.0)")
 

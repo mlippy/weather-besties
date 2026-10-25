@@ -35,7 +35,7 @@ The secret address is a password for that calendar: anyone with it can read the 
 
 1. Plug the board into the computer: on the 4.3, the USB-C port labeled **UART**; on the 4.3B, its only USB-C port.
 2. Open the [esptool-js web flasher](https://espressif.github.io/esptool-js/), click **Connect**, pick the port.
-3. Set **Flash Address** to `0x0`, choose `firmware/weather-besties-v1.7.8.bin`, click **Program**. About a minute.
+3. Set **Flash Address** to `0x0`, choose `firmware/weather-besties-v1.7.9.bin`, click **Program**. About a minute.
 4. Press **RESET** on the board (or unplug and plug it back in).
 
 If it won't connect: hold **BOOT**, tap **RESET**, let go of BOOT, and try again. If no serial port shows up, try the other USB-C port.
@@ -61,8 +61,8 @@ If it won't connect: hold **BOOT**, tap **RESET**, let go of BOOT, and try again
 - [ ] The weather shows (2.0: with the thermometer beside the weather icon; classic: the town at the bottom left is right)
 - [ ] The clock shows the right time (it may take a minute after the first weather update)
 - [ ] 2.0: the tabs at the bottom switch pages (Today, Tomorrow, My Day, Next days). Classic: swipe left for the next three days, right to come back. **Touch in the wrong place?** See the README, "On the real board".
-- [ ] Hold a finger still for 1.5 s on the greeting or page title: Settings opens and shows the WiFi, town and version **1.7.8**
-- [ ] In Settings, tap **Update**: it should say "Up to date! (version 1.7.8)", then go back to the weather
+- [ ] Hold a finger still for 1.5 s on the greeting or page title: Settings opens and shows the WiFi, town and version **1.7.9**
+- [ ] In Settings, tap **Update**: it should say "Up to date! (version 1.7.9)", then go back to the weather
 - [ ] **Calendar:** put a test event in the family calendar for tomorrow, like "Kid test (outside)" (with your kid's name). On the board, open Settings and tap the refresh button. 2.0: it shows on the My Day tab. Classic: it shows in the bubble after 7 PM, or in the morning. To see what the board read, open Settings, tap **Setup**, and look under the calendar link: "Read at 7:15 PM: 240 events in the calendar, 3 coming up." Then tap Save (or just restart the board) to leave setup.
 - [ ] **Countdown:** add an all-day event a week or two out titled "Trip to Grandma's 🎉". 2.0: the My Day header shows "N more sleeps until Trip to Grandma's!"; classic: the bottom left does.
 - [ ] **Routine (2.0):** the Routine tab shows the morning list before noon and the bedtime list after, with a bar counting down to the times from setup. Tap a step: it ticks green.
@@ -87,7 +87,7 @@ USB is only for a fresh start or a rescue:
 | Files | Flash at | Settings |
 |---|---|---|
 | `weather-besties-vX.Y.Z.bin` | `0x0` | **Erased** (WiFi, town, events, calendar link). First install or a fresh start. |
-| The four files in `firmware/usb/README.txt` | their addresses | **Kept.** Also the way to move a board from 1.4.x (one app slot) to 1.7.8 without setting it up again. |
+| The four files in `firmware/usb/README.txt` | their addresses | **Kept.** Also the way to move a board from 1.4.x (one app slot) to 1.7.9 without setting it up again. |
 
 ## If something's wrong
 
