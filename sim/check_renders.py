@@ -2014,6 +2014,14 @@ def main():
         look = dump(name)["look_name"]
         check(look == want, f"{name}: the {want} look (look_name={look})")
 
+    # Tappable things wear one raised look; the next step glows when left alone.
+    def near_c(c, tol=24):
+        return lambda r, g, b: abs(r - (c >> 16)) <= tol and abs(g - ((c >> 8) & 255)) <= tol and abs(b - (c & 255)) <= tol
+    n = count_where(Image.open(os.path.join(OUT, "74b_routine_hint.png")), (18, 222, 516, 280), near_c(0xE8467C, 40))
+    check(n > 150, f"74b_routine_hint: the next step (Brush teeth) glows pink ({n} px, need > 150)")
+    n = count_where(Image.open(os.path.join(OUT, "74_routine_morning.png")), (18, 222, 516, 280), near_c(0xE8467C, 40))
+    check(n < 20, f"74_routine_morning: no glow before the screen is left alone ({n} px)")
+
     # A held finger opens Settings on every page (Settings' Update pill, its pale grey).
     def is_pill_grey(r, g, b):
         return abs(r - 0xED) <= 3 and abs(g - 0xF1) <= 3 and abs(b - 0xF5) <= 3

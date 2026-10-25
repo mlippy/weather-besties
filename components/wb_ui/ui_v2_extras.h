@@ -53,6 +53,16 @@ void v2_routine_render(const struct tm *now, const lv_image_dsc_t *pet);
 void v2_routine_test_tap(int row);
 #endif
 
+/* Making it obvious what a kid can tap. v2_raise gives a tappable thing the one
+ * "button" look: a soft edge underneath, a push-down while pressed, a bigger tap area.
+ * Status pills never get it. v2_hint_target names the next thing to tap (NULL = none):
+ * after 20 idle seconds it glows gently until the screen is touched. */
+void v2_raise(lv_obj_t *o);
+void v2_hint_target(lv_obj_t *o);
+#ifdef WB_SIM
+void v2_hint_test_show(bool on);
+#endif
+
 /* An "Update" pill in Settings, right-aligned to x_right at y: closes Settings and asks
  * for a firmware check now (fire is ui.c's action sender). */
 void v2_update_pill_create(lv_obj_t *settings, int x_right, int y, void (*fire)(ui_action_t));

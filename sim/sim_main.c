@@ -662,6 +662,9 @@ int main(int argc, char **argv)
     v2_routine_test_tap(0);
     v2_routine_test_tap(1);
     save(out, "74_routine_morning");
+    v2_hint_test_show(true);   /* the next step glows after 20 idle seconds */
+    save(out, "74b_routine_hint");
+    v2_hint_test_show(false);
     for (int i = 2; i < 5; i++) {
         v2_routine_test_tap(i);
     }

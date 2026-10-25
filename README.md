@@ -56,6 +56,8 @@ Boris's **My Day** page lists today's and tomorrow's calendar events as cards, w
 This fork's additions to 2.0 live in `ui_v2_extras.c`, with one-line hooks in his `ui.c`:
 
 - **A Routine tab** (the fifth): before noon, the morning checklist (go potty, eat breakfast, brush teeth, brush hair, get dressed) with a bar that runs out at leaving time (8:30 AM by default) and turns from green to yellow, orange and red over the last hour; after noon, the bedtime checklist (go potty, pajamas on, have a snack, brush teeth, read books, snuggle) with a bar that runs out at bedtime (8:00 PM). Tap a step to tick it; the title turns to "Ready for school!" or "Ready for bed!". Ticks reset each day, weekends say "No school today!", and both times are on the setup page. It stays up for 20 idle minutes (the other pages go back to Today after 3). My Day's "Updated" line moved under the date to make room for the tab.
+- **Buttons that look like buttons:** everything a kid can tap (tiles, chips, tabs, the Dress up pill, Routine steps, Settings buttons) sits on a soft edge and sinks when pressed, with a bigger tap area; status pills ("Same as yesterday", "2 of 4 ready") stay flat. When the screen is left alone for 20 seconds, the next thing to tap (the first unchecked tile or Routine step) glows pink until it's touched.
+- **Jackets and coats:** the 2.0 outfit goes by the feels-like temperature when it's time to go (8 AM, or now). The cut-offs are on the setup page (winter coat at or below 45°F, light jacket to 57, hoodie to 64 to start), and a cold-but-not-freezing morning that warms to 60°F or more gets just a light jacket with "take it off later" instead of the winter kit (40° at 8 AM and 68° by afternoon). Boris's own rule gives the winter kit there.
 - **The thermometer** beside the weather icon, the same fixed 0-100°F scale, colors and freezing tick as the classic screens: the temperature now on Today, the high on Tomorrow.
 - **Dress-up days.** Boris's outfit engine puts her in the dress on every light-jacket day (cool but mild). Here the dress is for dress-up days: other light-jacket days get long sleeves, jeans, sneakers and the same light jacket. When the weather fits the dress, a **Dress up?** pill next to "Today · Tuesday" turns that day into a dress-up day with a tap (tap again to undo; once something is checked off, the "2 of 4 ready" chip takes its place until everything is unchecked). A calendar event tagged **(dress)** or 👗 ("Picture day (dress)") starts the day dressed up. Cold, rain and heat still win. (`ui_set_dress_days()` switches this on; without it, as in Boris's render checks, his every-mild-day rule applies.)
 - **Countdowns** in the My Day header, between the title and the date: "11 more sleeps until Trip to Grandma's!" (or "11 sleeps until ...!" when space is short). They come from calendar titles tagged (countdown), 🎂 or 🎉 and special events with Countdown ticked, up to 60 days out; the nearest one wins.
@@ -84,7 +86,7 @@ Weather data comes from [Open-Meteo](https://open-meteo.com): free for non-comme
 
 Setting it up for the first time? [docs/deploy.md](docs/deploy.md) is the step-by-step checklist.
 
-For a first install you only need `firmware/weather-besties-v1.7.7.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`, and it erases any saved settings. **After that, updates arrive over WiFi** ([below](#over-the-air-updates)); USB is only needed again to start fresh or rescue a board.
+For a first install you only need `firmware/weather-besties-v1.7.8.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`, and it erases any saved settings. **After that, updates arrive over WiFi** ([below](#over-the-air-updates)); USB is only needed again to start fresh or rescue a board.
 
 **Chrome or Edge, no installs:** open the [esptool-js web flasher](https://espressif.github.io/esptool-js/), plug the board in (4.3: the **UART** port; 4.3B: its only USB-C port), click Connect, pick the port, set Flash Address to `0x0`, choose the .bin, click Program. Takes about a minute.
 
@@ -92,10 +94,10 @@ For a first install you only need `firmware/weather-besties-v1.7.7.bin`. It is a
 
 ```
 pip install esptool
-python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.7.7.bin
+python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.7.8.bin
 ```
 
-**USB install that keeps settings** (e.g. moving a board that ran 1.4.x, which had a single app slot, to 1.7.7): flash the four files listed in `firmware/usb/README.txt` at their addresses instead of the full image.
+**USB install that keeps settings** (e.g. moving a board that ran 1.4.x, which had a single app slot, to 1.7.8): flash the four files listed in `firmware/usb/README.txt` at their addresses instead of the full image.
 
 **If it won't connect:** hold **BOOT**, tap **RESET**, let go of BOOT, then try again. On the 4.3, if your computer doesn't see a serial port on the UART connector, try the other USB-C port.
 
@@ -103,7 +105,7 @@ python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.7.7.bin
 
 1. The screen shows a QR code, a hotspot name like `WeatherBesties-3F2A`, and its password (new each time).
 2. Scan the QR with a phone (or join that WiFi network by hand with the password). A setup page pops up. If it doesn't, open `http://192.168.4.1`.
-3. Pick the home WiFi (a guest network is best, see [deploy.md](docs/deploy.md#why-a-guest-network)), type the password, then set: town or ZIP, the name for the greeting, the pet (and the dog's name), the leave-for-school and bedtime times, °F or °C, optional night hours, weather alerts on or off, special events, and the Google Calendar link with its filter words. Save.
+3. Pick the home WiFi (a guest network is best, see [deploy.md](docs/deploy.md#why-a-guest-network)), type the password, then set: town or ZIP, the name for the greeting, the pet (and the dog's name), the leave-for-school and bedtime times, the jacket temperatures, °F or °C, optional night hours, weather alerts on or off, special events, and the Google Calendar link with its filter words. Save.
 4. The board restarts, joins WiFi, and shows the weather.
 
 ![Setup screen](docs/classic/setup.png)
@@ -225,7 +227,7 @@ For how the pieces fit together (hardware, tasks, setup hotspot, flash layout), 
 
 ## Tweaking
 
-- Clothing rules: classic, the `BANDS` table at the top of `components/wb_ui/classic/advice.c` (temperatures are feels-like in °F); 2.0, `components/wb_ui/outfit.c`.
+- Clothing rules: classic, the `BANDS` table at the top of `components/wb_ui/classic/advice.c` (temperatures are feels-like in °F); 2.0, `components/wb_ui/outfit.c`, with the jacket cut-offs and the warm-afternoon rule on the setup page ("Jackets and coats").
 - Special events the board starts with: the `DEFAULT_EVENTS` list at the top of `main/settings.c` (examples are in the comment). The phone setup page edits the same list, up to 8 events.
 - Event reminders and the "a lot colder" threshold: `EVENT_COLD_F`, `EVENT_HOT_F`, `EVENT_RAIN_POP` and `BIG_CHANGE_F` in `components/wb_ui/classic/advice.h`.
 - Which weather alerts show, and the kid title and line for each: the `SKIP` and `KID` tables at the top of `components/wb_ui/alerts.c`.

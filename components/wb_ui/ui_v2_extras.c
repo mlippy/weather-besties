@@ -103,6 +103,7 @@ void v2_update_pill_create(lv_obj_t *settings, int x_right, int y, void (*fire)(
     lv_obj_set_style_text_color(l, lv_color_hex(0x1E2340), 0);   /* COL_INK */
     lv_obj_center(l);
     lv_obj_add_event_cb(b, on_update_pill, LV_EVENT_CLICKED, NULL);
+    v2_raise(b);
     lv_obj_update_layout(b);
     lv_obj_set_pos(b, x_right - lv_obj_get_width(b), y);
 }
@@ -218,6 +219,7 @@ void v2_dress_create(lv_obj_t *page, void (*changed)(void))
     lv_obj_set_style_text_font(s_dress_lbl, &font_chip, 0);
     lv_obj_center(s_dress_lbl);
     lv_obj_add_event_cb(s_dress_pill, on_dress_pill, LV_EVENT_CLICKED, NULL);
+    v2_raise(s_dress_pill);
     lv_obj_add_flag(s_dress_pill, LV_OBJ_FLAG_HIDDEN);
 }
 
@@ -417,6 +419,7 @@ lv_obj_t *v2_routine_create(lv_obj_t *scr)
         lv_obj_set_style_bg_opa(r, LV_OPA_COVER, 0);
         lv_obj_set_style_border_width(r, 2, 0);
         lv_obj_add_event_cb(r, on_rt_row, LV_EVENT_CLICKED, (void *)(intptr_t)i);
+        v2_raise(r);
         s_rt_row[i] = r;
         s_rt_box[i] = rt_box(r);   /* the check circle */
         lv_obj_set_size(s_rt_box[i], 30, 30);
@@ -479,6 +482,13 @@ static void rt_draw(void)
     }
 
     bool all = done == n;
+    lv_obj_t *next = NULL;
+    for (int i = 0; i < n && !next; i++) {
+        if (!((s_rt_checks[m] >> i) & 1)) {
+            next = s_rt_row[i];
+        }
+    }
+    v2_hint_target(next);
     lv_label_set_text(s_rt_title, all ? (m == 0 ? (school ? "Ready for school!" : "All done!") : "Ready for bed!")
                                       : (m == 0 ? "Morning routine" : "Bedtime routine"));
     char t[24], buf[64];
@@ -529,5 +539,92 @@ void v2_routine_render(const struct tm *now, const lv_image_dsc_t *pet)
 void v2_routine_test_tap(int row)
 {
     lv_obj_send_event(s_rt_row[row], LV_EVENT_CLICKED, NULL);
+}
+#endif
+
+/* ------------------------------------------------------------------ what can be tapped */
+
+#define RAISE_EDGE 0x1E2340     /* the ink colour, soft: reads on cream, lavender and white */
+#define HINT_IDLE_MS 20000
+#define HINT_COLOR 0xE8467C     /* the dress pill's pink */
+
+void v2_raise(lv_obj_t *o)
+{
+    lv_obj_set_style_shadow_width(o, 2, 0);
+    lv_obj_set_style_shadow_spread(o, 0, 0);
+    lv_obj_set_style_shadow_offset_y(o, 4, 0);
+    lv_obj_set_style_shadow_color(o, lv_color_hex(RAISE_EDGE), 0);
+    lv_obj_set_style_shadow_opa(o, 70, 0);
+    /* pressed: it sinks onto its edge */
+    lv_obj_set_style_shadow_offset_y(o, 1, LV_STATE_PRESSED);
+    lv_obj_set_style_translate_y(o, 3, LV_STATE_PRESSED);
+    lv_obj_set_ext_click_area(o, 6);
+}
+
+static lv_obj_t *s_hint;
+static bool s_hint_on;
+static bool s_hint_force;   /* the renderer has no real idle time */
+static lv_timer_t *s_hint_timer;
+
+static void hint_outline(void *obj, int32_t w)
+{
+    lv_obj_set_style_outline_width(obj, w, 0);
+}
+
+static void hint_stop(void)
+{
+    if (s_hint && s_hint_on) {
+        lv_anim_delete(s_hint, hint_outline);
+        lv_obj_set_style_outline_width(s_hint, 0, 0);
+    }
+    s_hint_on = false;
+}
+
+static void hint_tick(lv_timer_t *t)
+{
+    (void)t;
+    bool idle = s_hint_force || lv_display_get_inactive_time(NULL) > HINT_IDLE_MS;
+    bool shown = s_hint && lv_obj_is_visible(s_hint);
+    if (!idle || !shown) {
+        hint_stop();
+        return;
+    }
+    if (s_hint_on) {
+        return;
+    }
+    s_hint_on = true;
+    lv_obj_set_style_outline_color(s_hint, lv_color_hex(HINT_COLOR), 0);
+    lv_obj_set_style_outline_opa(s_hint, LV_OPA_COVER, 0);
+    lv_obj_set_style_outline_pad(s_hint, 4, 0);
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, s_hint);
+    lv_anim_set_exec_cb(&a, hint_outline);
+    lv_anim_set_values(&a, 2, 7);
+    lv_anim_set_duration(&a, 700);
+    lv_anim_set_playback_duration(&a, 700);
+    lv_anim_set_repeat_delay(&a, 1600);
+    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_start(&a);
+}
+
+void v2_hint_target(lv_obj_t *o)
+{
+    if (o == s_hint) {
+        return;
+    }
+    hint_stop();
+    s_hint = o;
+    if (!s_hint_timer) {
+        s_hint_timer = lv_timer_create(hint_tick, 500, NULL);
+    }
+}
+
+#ifdef WB_SIM
+/* Shows the hint now, as if the screen had been left alone (the renderer has no idle). */
+void v2_hint_test_show(bool on)
+{
+    s_hint_force = on;   /* as if the screen had been left alone for 20 s */
+    hint_tick(NULL);
 }
 #endif

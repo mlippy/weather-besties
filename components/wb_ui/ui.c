@@ -905,6 +905,7 @@ static lv_obj_t *pill_button(lv_obj_t *parent, const char *txt, bool primary, lv
     lv_obj_set_style_text_color(l, primary ? lv_color_white() : C(COL_INK), 0);
     lv_obj_center(l);
     lv_obj_add_event_cb(b, cb, LV_EVENT_CLICKED, ud);
+    v2_raise(b);   /* this fork: the one button look (ui_v2_extras.c) */
     return b;
 }
 
@@ -1055,6 +1056,7 @@ static void build_settings(void)
         lv_obj_set_flex_align(b, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
         lv_obj_set_style_pad_column(b, 8, 0);
         cat_pill[i] = b;
+        v2_raise(b);   /* this fork: the one button look */
         /* Iter-11 (panel round 9, premium judge): the Cat chooser was
          * three text pills on the one screen about the cat that showed
          * no cat. Each pill now carries a small circular head
@@ -1125,6 +1127,7 @@ static void build_settings(void)
     lv_obj_set_style_text_color(set_speed_lbl, C(COL_INK), 0);
     lv_obj_center(set_speed_lbl);
     lv_obj_add_event_cb(set_speed_pill, on_speed_pill, LV_EVENT_CLICKED, NULL);
+    v2_raise(set_speed_pill);   /* this fork: the one button look */
     v2_update_pill_create(settings, 744, 364, fire);   /* this fork: update now (ui_v2_extras.c) */
 
     /* The tools row (iter-11): one deliberate geometry for the three
@@ -1698,6 +1701,7 @@ static void build_tiles(lv_obj_t *page)
         lv_obj_set_style_border_color(t, C(COL_TILE_LINE_M), 0);
         lv_obj_add_flag(t, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_event_cb(t, on_tile, LV_EVENT_CLICKED, (void *)(intptr_t)i);
+        v2_raise(t);   /* this fork: the one button look */
 
         tile_icon[i] = lv_image_create(t);
         lv_obj_set_pos(tile_icon[i], 10, 4);
@@ -1805,6 +1809,7 @@ static void build_xchips(lv_obj_t *page)
         lv_obj_set_style_border_color(c, C(COL_TILE_LINE_M), 0);
         lv_obj_add_flag(c, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_event_cb(c, on_xchip, LV_EVENT_CLICKED, (void *)(intptr_t)j);
+        v2_raise(c);   /* this fork: the one button look */
 
         xchip_icon[j] = lv_image_create(c);
         lv_image_set_pivot(xchip_icon[j], 0, 0);   /* scale from the corner, not the center:
@@ -1876,6 +1881,7 @@ static void build_tabs(lv_obj_t *scr)
         tab_lbl[i] = label(b, &font_chip, names[i]);
         lv_obj_center(tab_lbl[i]);
         lv_obj_add_event_cb(b, on_tab, LV_EVENT_CLICKED, (void *)(intptr_t)i);
+        v2_raise(b);   /* this fork: the one button look */
     }
 
     /* Status pills (iter-10, panel round 8): these two used to sit
@@ -4259,6 +4265,7 @@ static void render(void)
     solid_bg(scr_main, page >= 2 ? (now.tm_hour >= 17 ? COL_BG_EVENING : COL_BG_MORNING)
                                  : evening ? COL_BG_EVENING : COL_BG_MORNING);
     hide(page_routine);   /* this fork's fifth page, shown below when it's the one */
+    v2_hint_target(NULL);   /* the outfit and Routine pages name their own */
     if (page == 4) {
         hide(page_outfit);
         hide(page_forecast);
@@ -4396,6 +4403,15 @@ static void render(void)
     bool stale_on = avail && bucket == 1;
     s_stale = stale_on;
     bool all_done = check_mask != 0 && !stale_on && (s_checks & check_mask) == check_mask;
+    {   /* this fork: the next tile or chip to tap glows after a while untouched */
+        lv_obj_t *next = NULL;
+        for (int b = 0; b < 4 + s_xn && !all_done && !stale_on && !next; b++) {
+            if (((check_mask >> b) & 1) && !((s_checks >> b) & 1)) {
+                next = b < 4 ? tile[b] : xchip[b - 4];
+            }
+        }
+        v2_hint_target(next);
+    }
     if (all_done && !s_celebrating) {
         celebrate();
     } else if (!all_done) {
