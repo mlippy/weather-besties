@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "update.h"
 #include "wb_request.h"
 
 /* Longest user agent the firmware could send ("WeatherBesties/" WB_VERSION). */
@@ -79,6 +80,11 @@ int main(void)
     }
     cal[n] = 0;
     check("calendar, longest saved address", cal, n);
+
+    /* Over-the-air updates: the manifest and an app file with a long name. */
+    check("update manifest", WB_UPDATE_MANIFEST, (int)strlen(WB_UPDATE_MANIFEST));
+    n = snprintf(url, sizeof(url), "%s%s", WB_UPDATE_BASE, "weather-besties-v99.99.99-app-with-a-long-name-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.bin");
+    check("update app file (95-char name)", url, n);
 
     printf("\nESP-IDF's default send buffer is 512. The Montclair forecast needs %d, so it %s.\n", montclair,
            montclair > 512 ? "has to stay raised" : "would fit the default");

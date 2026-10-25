@@ -29,8 +29,10 @@ It's a Waveshare ESP32-S3-Touch-LCD-4.3: an Espressif ESP32-S3 module soldered b
  +------------------+   | USB / CAN switch |  +-------------+
                         +------------------+   (reset line)
 
- USB-C "UART": CH343P serial chip (flashing, logs)
- USB-C "USB":  native USB, through a USB switch
+ 4.3:  USB-C "UART": CH343P serial chip (flashing, logs)
+       USB-C "USB":  native USB, through a USB switch
+ 4.3B: one USB-C, the chip's native USB (flashing, logs); also 7-36 V DC in,
+       battery charger, RTC, isolated I/O (unused). Same pins for everything above.
 ```
 
 Everything hangs off one ESP32-S3. The panel has no memory of its own, so the chip streams raw pixels at it nonstop. Touch and the IO expander share one I2C bus, and the expander is how the firmware turns on the backlight and resets the touch chip at boot.
@@ -58,11 +60,12 @@ FreeRTOS gives the program tasks, timers and locks, and nothing else. Two tasks 
 
 **Net task (core 0)**
 
-1. Wakes every 15 minutes, or on a Refresh tap. After a failed download it retries in 10 seconds (twice), then every minute, then every 5 minutes. WiFi power saving is off: the board is wall powered, and modem sleep made weak-signal downloads time out.
+1. Wakes every 15 minutes, or on a Refresh or Update tap. After a failed download it retries in 10 seconds (twice), then every minute, then every 5 minutes. WiFi power saving is off: the board is wall powered, and modem sleep made weak-signal downloads time out.
 2. HTTPS GET to `api.open-meteo.com`, and parses about 6 KB of JSON (`wx.c`): today, yesterday, and the next 3 days.
 3. HTTPS GET to `api.weather.gov/alerts/active?point=lat,lon` for US National Weather Service alerts (`alerts.c`). It keeps the alerts that matter to a kid, most serious first, and swaps each official name for a calm kid title and line ("Big snow on the way"). The official name only shows in Settings, for grown-ups. If this call fails, the last alerts stay up for about an hour, then clear.
 4. Once an hour (or on Refresh, or when the day changes), streams the family calendar's secret iCal address through `cal.c` in 4 KB chunks, so even a calendar with years of history never has to fit in memory. It keeps Piper's events for today and tomorrow, plus countdown events up to 60 days out, working out repeats (weekly soccer, yearly birthdays), skipped and moved instances, and all-day events. If a read fails, the last good list stays, since its events carry their own dates.
-5. Picks clothes (`advice.c`), including reminders for special events (from the setup page and the calendar) using the forecast for the hour they start, then takes the lock to hand everything to the UI.
+5. Around 3 AM, checks for a firmware update (see below).
+6. Picks clothes (`advice.c`), including reminders for special events (from the setup page and the calendar) using the forecast for the hour they start, then takes the lock to hand everything to the UI.
 
 **Graphics task (core 1)**
 
@@ -88,9 +91,31 @@ Every request the board makes has to fit the HTTP client's send buffer (request 
 | Today page, bottom | The next four parts of the day |
 | Next-days page (swipe left) | Three day cards, each with a mini thermometer for the high (same scale), a short tip and the change from the day before |
 | Footer | A countdown ("11 more sleeps until Piper's birthday!") or else the town; page dots; last update |
-| Settings (long-press) | WiFi, town, update time, address, version, data sources, official alert name; Change settings, Refresh, Close |
+| Settings (long-press) | WiFi, town, update time, address, version, data sources, official alert name; Setup, Refresh, Update, Close |
 
 Long text never pushes the layout around: the bubble steps its fonts down until the advice fits.
+
+## Over-the-air updates
+
+`main/ota.c`, with the manifest parsing in `components/wb_ui/update.c` (tested by `sim/test_update.c`):
+
+1. Around 3 AM (once a day, if automatic updates are on) or on the **Update** button, the net task reads `firmware/latest.json` from the repo's `main` branch on `raw.githubusercontent.com`.
+2. If its version is newer than `WB_VERSION`, it streams the app file into the other app slot with `esp_ota_write` (4 KB at a time, erasing as it goes), hashing it with SHA-256 on the way. The screen shows the progress.
+3. It checks the size and SHA-256 against `latest.json`, lets `esp_ota_end` check the image itself, and checks the new image's own version matches. Any failure: the slot is abandoned and the old version keeps running.
+4. It sets the new slot to boot and restarts. The bootloader (built with rollback enabled) starts it **on trial**.
+5. The first good weather download calls `esp_ota_mark_app_valid_cancel_rollback()`. If that hasn't happened in 10 minutes, the app restarts, and the bootloader, seeing a version that never proved itself, goes back to the previous one.
+
+Running from PSRAM helps here too: writing the new image to flash doesn't stall the screen. The build stamps `WB_VERSION` into the image (top-level `CMakeLists.txt`), and `tools/release.py` refuses to package a build whose version doesn't match.
+
+## Memory budget
+
+| | Total | Used | Left |
+|---|---|---|---|
+| Flash | 16 MB | 128 KB system + two 6 MB app slots | 3.9 MB unused; each slot has 2.4 MB spare for the app to grow |
+| PSRAM | 8 MB | code + constants copied in at boot (3.4 MB), framebuffer (768 KB) | about 3.8 MB for WiFi/HTTPS buffers, JSON (alerts can be a few hundred KB) and downloads |
+| Internal RAM | 512 KB | 137 KB static; WiFi, the drawing area (grows only while 64 KB stays free) | Boris measured about 78 KB free after a download on v1.4.0 |
+
+The app is the number to watch: every byte of it costs PSRAM as well as flash. Boris's 2.0 is smaller (about 2.6 MB, with compressed artwork).
 
 ## The setup hotspot
 
@@ -116,17 +141,18 @@ The DNS and redirect answers are the whole trick. A DNS server that answers ever
 
 ## Where it lives in flash
 
-The whole program is a single 3.6 MB image, flashed at `0x0` (or just the app, 3.6 MB at `0x10000`, for updates that keep settings). Two thirds of it is artwork, fonts and other constant data, not code.
+The app is a 3.6 MB image. Two thirds of it is artwork, fonts and other constant data, not code. Since 1.5.0 the flash has **two app slots**, so the board can download a new version into one while it runs from the other:
 
 ```
 16 MB flash
-|64K| App slot, 7 MB                                  | Free, 8.9 MB          |
-|   | code 1.1 MB | artwork + data 2.4 MB | spare 3.5 MB|                       |
+|128K| App slot A (ota_0), 6 MB          | App slot B (ota_1), 6 MB          | Free, 3.9 MB |
+|    | app 3.6 MB | spare 2.4 MB         | (the next update lands here)      |              |
 
-first 64 KB: bootloader (21 KB), partition table, settings (24 KB), radio calibration
+first 128 KB: bootloader, partition table (0x8000), settings (0x9000, 24 KB),
+              which-slot-to-boot (otadata, 0xf000), radio calibration (0x11000)
 ```
 
-See `partitions.csv` for the exact offsets. The full image covers the settings area with blank bytes, which is why flashing it at `0x0` erases saved settings and the app-only image doesn't. At boot the code and constants get copied into the 8 MB PSRAM and run from there, so saving settings to flash never makes the screen glitch.
+See `partitions.csv` for the exact offsets. The settings stay at `0x9000`, where 1.4.x had them, so a USB install of the four pieces in `firmware/usb/` keeps them. The full image at `0x0` covers that area with blank bytes, which is why it erases them. At boot the code and constants get copied into the 8 MB PSRAM and run from there, so saving settings to flash never makes the screen glitch.
 
 ## One screen codebase, three places it runs
 

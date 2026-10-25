@@ -9,6 +9,7 @@
 #include "lvgl.h"
 #include "net.h"
 #include "nvs_flash.h"
+#include "ota.h"
 #include "settings.h"
 #include "ui.h"
 
@@ -52,6 +53,7 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(err);
     settings_load(&S);
+    ota_boot_check();
 
     ESP_ERROR_CHECK(board_init());
 

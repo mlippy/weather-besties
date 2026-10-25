@@ -39,26 +39,29 @@ Weather data comes from [Open-Meteo](https://open-meteo.com): free for non-comme
 
 ## Hardware
 
-- Waveshare ESP32-S3-Touch-LCD-4.3 (ESP32-S3-WROOM-1-N16R8: 16 MB flash, 8 MB octal PSRAM)
-- 800 x 480 RGB panel with GT911 capacitive touch
-- Any USB-C 5V supply. The board has two USB-C ports: **UART** (serial, used for flashing) and **USB** (native USB)
+- Waveshare ESP32-S3-Touch-LCD-4.3 **or 4.3B** ("Type B"). Both use the ESP32-S3-WROOM-1-N16R8 (16 MB flash, 8 MB octal PSRAM), the same 800 x 480 RGB panel wiring, GT911 touch on GPIO 8/9 (interrupt GPIO 4) and a CH422G expander for touch reset (EXIO1) and backlight (EXIO2), so one firmware runs on both.
+- **4.3:** two USB-C ports, **UART** (serial chip; use this one for flashing) and **USB**.
+- **4.3B:** one USB-C port (the chip's own USB, for flashing and logs), plus a 7-36 V DC input, battery connector, RTC and isolated I/O, which this firmware doesn't use. Don't wire the isolated inputs (DI0/DI1): the firmware drives the expander pins they share as outputs, like Waveshare's own demo.
+- Power: any USB-C 5 V supply (about 450 mA).
 
 ## Flash it
 
 Setting it up for the first time? [docs/deploy.md](docs/deploy.md) is the step-by-step checklist.
 
-For a first install you only need `firmware/weather-besties-v1.4.3.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`. It also erases saved settings, so for later updates use `firmware/weather-besties-v1.4.3-app.bin` at `0x10000` instead (see [updating](docs/deploy.md#7-updating-the-firmware-later)).
+For a first install you only need `firmware/weather-besties-v1.5.0.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`, and it erases any saved settings. **After that, updates arrive over WiFi** ([below](#over-the-air-updates)); USB is only needed again to start fresh or rescue a board.
 
-**Chrome or Edge, no installs:** open the [esptool-js web flasher](https://espressif.github.io/esptool-js/), plug the board into the **UART** USB-C port, click Connect, pick the port, set Flash Address to `0x0`, choose the .bin, click Program. Takes about a minute.
+**Chrome or Edge, no installs:** open the [esptool-js web flasher](https://espressif.github.io/esptool-js/), plug the board in (4.3: the **UART** port; 4.3B: its only USB-C port), click Connect, pick the port, set Flash Address to `0x0`, choose the .bin, click Program. Takes about a minute.
 
 **Command line:**
 
 ```
 pip install esptool
-python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.4.3.bin
+python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.5.0.bin
 ```
 
-**If it won't connect:** hold **BOOT**, tap **RESET**, let go of BOOT, then try again. If your computer doesn't see a serial port on the UART connector, try the other USB-C port (native USB).
+**USB install that keeps settings** (e.g. moving a board that ran 1.4.x, which had a single app slot, to 1.5.0): flash the four files listed in `firmware/usb/README.txt` at their addresses instead of the full image.
+
+**If it won't connect:** hold **BOOT**, tap **RESET**, let go of BOOT, then try again. On the 4.3, if your computer doesn't see a serial port on the UART connector, try the other USB-C port.
 
 ## First start
 
@@ -74,8 +77,29 @@ Defaults if you skip things: Upper Montclair, NJ, "Piper", Fahrenheit, no specia
 ## Using it
 
 - Swipe left for the next three days, right to come back.
-- Long-press the greeting, the clock, or any empty spot for 1.5 seconds to open Settings. It shows the WiFi, town, last update, version, and the official name of any weather alert. **Refresh** fetches the weather, alerts and calendar now; **Change settings** reopens the setup hotspot (WiFi, town, events, calendar, alerts).
-- Settings are stored on the board and survive reboots and app-only updates (`firmware/*-app.bin` at `0x10000`). Flashing the full image at `0x0` erases them; see [docs/deploy.md](docs/deploy.md#7-updating-the-firmware-later).
+- Long-press the greeting, the clock, or any empty spot for 1.5 seconds to open Settings. It shows the WiFi, town, last update, version, and the official name of any weather alert. **Refresh** fetches the weather, alerts and calendar now; **Setup** reopens the setup hotspot (WiFi, town, events, calendar, alerts, automatic updates); **Update** checks for new firmware now.
+- Settings are stored on the board and survive reboots and over-the-air updates. Flashing the full image at `0x0` erases them; see [docs/deploy.md](docs/deploy.md#7-updating-the-firmware-later).
+
+## Over-the-air updates
+
+The board updates itself from this repo:
+
+- Around **3 AM** (if "Install updates automatically" is on in setup, the default), or when someone taps **Update** in Settings, it reads [`firmware/latest.json`](firmware/latest.json) from the `main` branch on GitHub.
+- If that names a newer version than it runs, it downloads the app into its spare app slot, checks the SHA-256 from `latest.json` and the image's own checksum, and restarts into it. The screen says "Learning new tricks... 40%" meanwhile. A power cut or failed download just leaves the old version running.
+- The new version runs **on trial**: it has to download the weather within 10 minutes, or the board restarts and goes back to the previous version by itself.
+- It never installs an older version, so `latest.json` can't downgrade a board.
+
+**Shipping a version** (from a build machine with ESP-IDF):
+
+```
+# bump WB_VERSION in main/net.h, then
+idf.py build
+python3 tools/release.py             # images into firmware/, latest.json untouched
+python3 tools/release.py --publish   # ...and point latest.json at this version
+git add firmware && git commit && git push
+```
+
+Boards only see a version once `latest.json` names it on `main`, so `main` can hold work in progress; publish when you've decided to ship. Anyone who can push to this repo can ship firmware to the board.
 
 ## Build from source
 
@@ -87,17 +111,9 @@ idf.py build
 idf.py -p PORT flash monitor
 ```
 
-To make the two images in `firmware/` after a build:
+`tools/release.py` turns a build into the images in `firmware/` (see [Over-the-air updates](#over-the-air-updates)). Bump `WB_VERSION` in `main/net.h` first: Settings shows it, the build stamps it into the image, and updates compare it.
 
-```
-cd build
-python -m esptool --chip esp32s3 merge_bin -o ../firmware/weather-besties-vX.Y.Z.bin @flash_args
-cp weather_besties.bin ../firmware/weather-besties-vX.Y.Z-app.bin
-```
-
-Bump `WB_VERSION` in `main/net.h` first; Settings shows it.
-
-Everything else is already in `components/`: LVGL 9.5.0, Espressif's GT911 touch driver, and the captive-portal DNS server from the ESP-IDF examples. Serial logs run at 115200 baud on the UART port.
+Everything else is already in `components/`: LVGL 9.5.0, Espressif's GT911 touch driver, and the captive-portal DNS server from the ESP-IDF examples. Serial logs run at 115200 baud on the UART port (4.3), and also come out of the chip's own USB port (4.3B's only port).
 
 ## Try it without the board
 
@@ -106,7 +122,7 @@ The UI, weather parsing, and advice logic are plain C with no ESP-IDF dependenci
 ```
 cd sim
 make shots     # renders every screen to sim/out/*.png
-make test      # calendar reader tests + every request fits the HTTP send buffer
+make test      # calendar reader + update manifest tests, and every request fits the HTTP send buffer
 make web       # builds the browser emulator in sim/web/ (needs wasi-sdk)
 ```
 
@@ -125,18 +141,21 @@ For how the pieces fit together (hardware, tasks, setup hotspot, flash layout), 
 | `main/board.c` | Screen, touch, IO expander (backlight, touch reset), LVGL glue. Pins and timing from Waveshare's own demo |
 | `main/net.c` | WiFi, clock (SNTP), Open-Meteo, weather.gov and calendar calls, refresh loop |
 | `main/portal.c` | Setup hotspot, captive portal, phone form |
+| `main/ota.c` | Over-the-air updates: check, download, verify, trial run and rollback |
 | `main/settings.c` | Saved settings (NVS), and the `DEFAULT_EVENTS` list |
 | `components/wb_ui/ui.c` | All screens |
 | `components/wb_ui/advice.c` | What-to-wear rules (temperature bands, rain, snow, storms, sun) and special events |
 | `components/wb_ui/alerts.c` | NWS alerts: which to show, kid words for each |
 | `components/wb_ui/cal.c` | Google Calendar (iCal) reader: repeating events, tags, filter words |
 | `components/wb_ui/thermo.c` | The thermometer: fixed scale, color zones and fill |
+| `components/wb_ui/update.c` | Reads `latest.json`, compares versions |
 | `components/wb_ui/wx.c` | Forecast parsing, parts of the day, moon phase |
 | `components/lv_conf.h` | LVGL settings, shared with the PC renderer |
 | `tools/icons.py` | The artwork (weather faces, clothes, cats), drawn as SVG |
 | `tools/make_assets.py` | Turns artwork and the Fredoka font into C files |
 | `sim/` | PC renderer and browser emulator (same UI code) |
-| `firmware/` | Ready-to-flash images: full (`0x0`, first install) and app-only (`0x10000`, updates that keep settings) |
+| `firmware/` | Full image (`0x0`, first install), the app (what updates download), `usb/` pieces for a USB install that keeps settings, and `latest.json` (what boards update to) |
+| `tools/release.py` | Puts a build into `firmware/`; `--publish` updates `latest.json` |
 | `docs/` | Screenshots, [how it's built](docs/architecture.md), [deployment checklist](docs/deploy.md), [ideas queue](docs/queue.md) |
 
 ## Tweaking
@@ -152,7 +171,7 @@ For how the pieces fit together (hardware, tasks, setup hotspot, flash layout), 
 
 ## On the real board
 
-Boris ran his v1.4.0 on this board and fixed what broke there; 1.4.3 carries those fixes (see below). Piper's additions (events, alerts, calendar, countdowns, sun and moon, the WPA2 hotspot) compile cleanly and were rendered from the real UI code, but haven't run on the hardware yet. Things to watch on first boot:
+Boris ran his v1.4.0 on this board and fixed what broke there; 1.4.1 and later carry those fixes (see below). Piper's additions (events, alerts, calendar, countdowns, sun and moon, the WPA2 hotspot) compile cleanly and were rendered from the real UI code, but haven't run on the hardware yet. Things to watch on first boot:
 
 - Touch lands in the wrong place: flip `swap_xy` / `mirror_x` / `mirror_y` in `touch_init()` in `main/board.c`.
 - Picture shifts sideways or flickers while WiFi is busy: lower `LCD_PCLK_HZ` in `main/board.c` from 16 MHz to 14 MHz.
@@ -160,10 +179,11 @@ Boris ran his v1.4.0 on this board and fixed what broke there; 1.4.3 carries tho
 - Alerts never show: the log prints an `alert:` line for each one it finds. If `api.weather.gov` calls fail instead, look for TLS or HTTP status errors from `net`.
 - Calendar: the log prints a `calendar:` line after each read, and the phone setup page shows the same status under the calendar link.
 - Setup hotspot: if a phone won't join from the QR code, join by hand with the password on the screen.
+- Updates: the log prints `ota:` lines (the running slot at boot, "up to date", progress, "on trial", "keeping it"). Tap **Update** in Settings to try one by hand.
 
 ## Fixes from Boris's v1.4.0
 
-This is a fork of [boriskozak/weather-besties](https://github.com/boriskozak/weather-besties). Version 1.4.3 brings over the functional fixes from his v1.4.0, which he found running on the real board:
+This is a fork of [boriskozak/weather-besties](https://github.com/boriskozak/weather-besties). Version 1.4.1 brought over the functional fixes from his v1.4.0, which he found running on the real board:
 
 - **The weather download:** the forecast request had outgrown ESP-IDF's 512-byte HTTP send buffer, so the board never sent it. The buffers are now 2 KB, and `make test` checks that every request (forecast, geocoding, alerts, the longest calendar link) fits with room to spare (`components/wb_ui/wb_request.c`, `sim/test_request.c`).
 - **Weak WiFi:** no modem power saving (it's wall powered), 30-second timeouts, quick retries after a blip, and the "can't reach" message only after a retry also fails.

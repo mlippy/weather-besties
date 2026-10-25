@@ -335,6 +335,8 @@ static void on_settings_btn(lv_event_t *e)
         fire(UI_ACT_SETUP);
     } else if (which == 2) {
         fire(UI_ACT_REFRESH);
+    } else if (which == 3) {
+        fire(UI_ACT_UPDATE);
     }
 }
 
@@ -381,8 +383,9 @@ static void build_settings(void)
     lv_obj_align(row, LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    pill_button(row, "Change settings", true, on_settings_btn, (void *)1);
+    pill_button(row, "Setup", true, on_settings_btn, (void *)1);
     pill_button(row, LV_SYMBOL_REFRESH, false, on_settings_btn, (void *)2);
+    pill_button(row, "Update", false, on_settings_btn, (void *)3);
     pill_button(row, "Close", false, on_settings_btn, (void *)0);
 
     lv_obj_add_flag(settings, LV_OBJ_FLAG_HIDDEN);

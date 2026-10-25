@@ -40,6 +40,7 @@ void settings_defaults(wb_settings_t *s)
     s->celsius = false;
     s->night_off = false;
     s->alerts = true;
+    s->auto_update = true;
     s->off_from = 21;
     s->off_to = 6;
     for (size_t i = 0; i < sizeof(DEFAULT_EVENTS) / sizeof(DEFAULT_EVENTS[0]) && s->nevents < EVENT_MAX; i++) {
@@ -103,6 +104,9 @@ void settings_load(wb_settings_t *s)
     b = s->alerts;
     get_u8(h, "alrt", &b);
     s->alerts = b;
+    b = s->auto_update;
+    get_u8(h, "autoup", &b);
+    s->auto_update = b;
     get_u8(h, "nfrom", &s->off_from);
     get_u8(h, "nto", &s->off_to);
     events_blob_t eb;
@@ -139,6 +143,7 @@ void settings_save(const wb_settings_t *s)
     nvs_set_u8(h, "cel", s->celsius);
     nvs_set_u8(h, "noff", s->night_off);
     nvs_set_u8(h, "alrt", s->alerts);
+    nvs_set_u8(h, "autoup", s->auto_update);
     nvs_set_u8(h, "nfrom", s->off_from);
     nvs_set_u8(h, "nto", s->off_to);
     events_blob_t eb = {.ver = EVENTS_VER, .n = s->nevents};

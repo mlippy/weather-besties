@@ -274,8 +274,11 @@ static esp_err_t page_root(httpd_req_t *req)
     sb_add(&b, "</select></div><p class=\"hint\">Off at, back on at. A tap wakes it for a minute.</p>"
                "<label class=\"check\" style=\"margin-top:16px\"><input type=\"checkbox\" name=\"alrt\" value=\"1\"%s>"
                "Show weather alerts</label><p class=\"hint\">From weather.gov (US only), in calm kid words. "
-               "The official alert name is under Settings on the screen.</p></div>",
-           S->alerts ? " checked" : "");
+               "The official alert name is under Settings on the screen.</p>"
+               "<label class=\"check\" style=\"margin-top:16px\"><input type=\"checkbox\" name=\"autoup\" value=\"1\"%s>"
+               "Install updates automatically</label><p class=\"hint\">Checks around 3 AM. Settings on the screen "
+               "has an Update button too.</p></div>",
+           S->alerts ? " checked" : "", S->auto_update ? " checked" : "");
 
     sb_add(&b, "<div class=\"card\"><label>Special events</label>"
                "<p class=\"hint\" style=\"margin:0 0 12px\">Things like soccer or a field trip. Pick the days it repeats, "
@@ -375,6 +378,7 @@ static esp_err_t page_save(httpd_req_t *req)
     n.celsius = form_get(body, "units", v, sizeof(v)) && v[0] == 'c';
     n.night_off = form_get(body, "noff", v, sizeof(v)) && v[0] == '1';
     n.alerts = form_get(body, "alrt", v, sizeof(v)) && v[0] == '1';
+    n.auto_update = form_get(body, "autoup", v, sizeof(v)) && v[0] == '1';
     if (form_get(body, "from", v, sizeof(v))) {
         n.off_from = (uint8_t)(atoi(v) % 24);
     }

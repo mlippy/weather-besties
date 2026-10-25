@@ -10,7 +10,7 @@ Boris is redesigning the main screen in [boriskozak/weather-besties](https://git
 
 **Plan: rebuild on top of his 2.0, keeping history linear.** Not a merge (adds a merge commit, 25 conflicting files at once) and not a plain `git rebase` of our commits (almost every one touches the `ui.c` he rewrote, and our 1.4.1 port just duplicates his fixes).
 
-1. **Keep what we have:** tag the current `main` with its version (e.g. `piper-1.4.3`).
+1. **Keep what we have:** tag the current `main` with its version (e.g. `piper-1.5.0`).
 2. **Branch from his 2.0:** `git remote add upstream https://github.com/boriskozak/weather-besties.git`, `git fetch upstream`, new branch from `upstream/main`.
 3. **Re-apply our features, one focused commit each:**
    - Piper defaults: one name, no bike bus
@@ -68,6 +68,10 @@ A small sensor on the board's unused sensor header shows the temperature in Pipe
 - **How:** ESP-IDF NVS encryption with the HMAC-based key scheme (`CONFIG_NVS_ENCRYPTION`, `CONFIG_NVS_SEC_KEY_PROTECT_USING_HMAC`). The key lives in an eFuse key block the CPU can use but not read out. App-only updates keep working; full flash encryption isn't required.
 - **Why it's deferred:** burning the eFuse key is permanent and can't be undone. A mistake (wrong key block, wrong purpose) can leave the board unable to read its settings. The cost of getting it wrong is higher than the risk it removes for a board in a kid's room on a guest network.
 - **If we do it:** test on a spare board first, write the exact `espefuse` steps into deploy.md, and keep a "wipe settings" path working.
+
+### Signed firmware updates
+
+**Status: deferred.** Today the board installs whatever `firmware/latest.json` on `main` names (if it's newer and its SHA-256 matches), so anyone who can push to the repo can ship firmware to it. That's only the owner today. If collaborators or automation get push access, add ESP-IDF's "signed app images without secure boot" (`CONFIG_SECURE_SIGNED_APPS_NO_SECURE_BOOT`): updates must be signed with a key kept off GitHub. Unlike secure boot or the settings encryption above, this burns nothing permanent on the chip.
 
 ## Known gaps
 

@@ -4,7 +4,7 @@ A checklist for getting the board running in Piper's room. About 20 minutes.
 
 ## 1. Before you start
 
-- [ ] The board (Waveshare ESP32-S3-Touch-LCD-4.3) and a USB-C cable that carries **data**, not just power
+- [ ] The board (Waveshare ESP32-S3-Touch-LCD-4.3 or 4.3B) and a USB-C cable that carries **data**, not just power
 - [ ] A computer with **Chrome or Edge** (for flashing), and a phone (for setup)
 - [ ] The home **2.4 GHz** WiFi name and password (the board can't use 5 GHz-only networks). **Use your guest or IoT network if your router has one**, see below.
 - [ ] Your town or ZIP code
@@ -32,9 +32,9 @@ The secret address is a password for that calendar: anyone with it can read the 
 
 ## 3. Flash the firmware
 
-1. Plug the board into the computer using the USB-C port labeled **UART**.
+1. Plug the board into the computer: on the 4.3, the USB-C port labeled **UART**; on the 4.3B, its only USB-C port.
 2. Open the [esptool-js web flasher](https://espressif.github.io/esptool-js/), click **Connect**, pick the port.
-3. Set **Flash Address** to `0x0`, choose `firmware/weather-besties-v1.4.3.bin`, click **Program**. About a minute.
+3. Set **Flash Address** to `0x0`, choose `firmware/weather-besties-v1.5.0.bin`, click **Program**. About a minute.
 4. Press **RESET** on the board (or unplug and plug it back in).
 
 If it won't connect: hold **BOOT**, tap **RESET**, let go of BOOT, and try again. If no serial port shows up, try the other USB-C port.
@@ -57,8 +57,9 @@ If it won't connect: hold **BOOT**, tap **RESET**, let go of BOOT, and try again
 - [ ] The weather shows, and the town at the bottom left is right
 - [ ] The clock shows the right time (it may take a minute after the first weather update)
 - [ ] Swipe left shows the next three days; swipe right comes back. **Touch in the wrong place?** See the README, "On the real board".
-- [ ] Hold a finger on the greeting for 1.5 s: Settings opens and shows the WiFi, town and version **1.4.3**
-- [ ] **Calendar:** put a test event in the family calendar for tomorrow, like "Piper test (outside)". On the board, open Settings and tap the refresh button. It should show in the bubble after 7 PM, or in the morning. To see what the board read, open Settings, tap **Change settings**, and look under the calendar link: "Read at 7:15 PM: 240 events in the calendar, 3 coming up." Then tap Save (or just restart the board) to leave setup.
+- [ ] Hold a finger on the greeting for 1.5 s: Settings opens and shows the WiFi, town and version **1.5.0**
+- [ ] In Settings, tap **Update**: it should say "Up to date! (version 1.5.0)"
+- [ ] **Calendar:** put a test event in the family calendar for tomorrow, like "Piper test (outside)". On the board, open Settings and tap the refresh button. It should show in the bubble after 7 PM, or in the morning. To see what the board read, open Settings, tap **Setup**, and look under the calendar link: "Read at 7:15 PM: 240 events in the calendar, 3 coming up." Then tap Save (or just restart the board) to leave setup.
 - [ ] **Countdown:** with a (countdown) event in the next 60 days, the bottom left shows "N more sleeps until ...!"
 - [ ] Delete the test event
 
@@ -67,19 +68,19 @@ Google's iCal feed can take a little while to show changes, and the board reads 
 ## 6. Day to day
 
 - **Screen off at night:** set night hours in setup. A tap wakes it for a minute.
-- **Changing things:** hold the greeting for 1.5 s, then **Change settings**. The board makes its setup hotspot again; the calendar link stays saved unless you paste a new one or tick "Stop using the calendar".
+- **Changing things:** hold the greeting for 1.5 s, then **Setup**. The board makes its setup hotspot again; the calendar link stays saved unless you paste a new one or tick "Stop using the calendar".
 - **Weather alerts** show as a calm heads-up for Piper; the official alert name is in Settings. They come every 15 minutes, so they're a heads-up, not a safety alarm.
 
 ## 7. Updating the firmware later
 
-There are two images in `firmware/`:
+**Nothing to do: it updates itself over WiFi.** Around 3 AM (or when you tap **Update** in Settings) it checks `firmware/latest.json` in the repo and installs anything newer, keeping all settings. A new version that can't get the weather within 10 minutes is rolled back automatically. Turn "Install updates automatically" off on the setup page if you'd rather only update by tapping **Update**.
 
-| File | Flash at | What happens to settings |
+USB is only for a fresh start or a rescue:
+
+| Files | Flash at | Settings |
 |---|---|---|
-| `weather-besties-vX.Y.Z.bin` | `0x0` | **Erased** (WiFi, town, events, calendar link). Use for a first install or a fresh start. |
-| `weather-besties-vX.Y.Z-app.bin` | `0x10000` | **Kept.** Use this for updates. |
-
-Command line: `python -m esptool --chip esp32s3 write_flash 0x10000 weather-besties-v1.4.3-app.bin`
+| `weather-besties-vX.Y.Z.bin` | `0x0` | **Erased** (WiFi, town, events, calendar link). First install or a fresh start. |
+| The four files in `firmware/usb/README.txt` | their addresses | **Kept.** Also the way to move a board from 1.4.x (one app slot) to 1.5.0 without setting it up again. |
 
 ## If something's wrong
 
@@ -90,4 +91,5 @@ Command line: `python -m esptool --chip esp32s3 write_flash 0x10000 weather-best
 | "Couldn't find your town" | Use "Town, ST" instead of a ZIP. |
 | Calendar status says the link doesn't work | Copy the secret address again (it changes if someone reset it). |
 | Calendar events don't show | The title needs a filter word (like Piper) or a tag; it only shows today's and tomorrow's events (countdowns up to 60 days). |
-| Touch lands in the wrong place, flickering, dark screen | See "On the real board" in the README. Serial logs: 115200 baud on the UART port. |
+| Touch lands in the wrong place, flickering, dark screen | See "On the real board" in the README. Serial logs: 115200 baud on the UART port (4.3) or the only USB-C port (4.3B). |
+| Update says it didn't finish | It tries again the next night. If a new version keeps rolling back, the log says why (`ota:` lines). |

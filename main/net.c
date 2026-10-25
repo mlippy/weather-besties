@@ -9,6 +9,7 @@
 #include "board.h"
 #include "cJSON.h"
 #include "cal.h"
+#include "ota.h"
 #include "esp_crt_bundle.h"
 #include "esp_event.h"
 #include "esp_heap_caps.h"
@@ -29,6 +30,7 @@ static const char *TAG = "net";
 #define EV_CONNECTED BIT0
 #define EV_REFRESH BIT1
 #define EV_PORTAL BIT2
+#define EV_UPDATE BIT3
 
 #define REFRESH_MS (15 * 60 * 1000)
 #define RETRY_QUICK_MS (10 * 1000)
@@ -85,6 +87,8 @@ void net_ui_action(ui_action_t a, void *user)
         xEventGroupSetBits(s_ev, EV_PORTAL);
     } else if (a == UI_ACT_REFRESH) {
         xEventGroupSetBits(s_ev, EV_REFRESH);
+    } else if (a == UI_ACT_UPDATE) {
+        xEventGroupSetBits(s_ev, EV_UPDATE);
     }
 }
 
@@ -225,9 +229,10 @@ out:
     return ok;
 }
 
-/* Streams a (possibly big) download to cb a chunk at a time, following redirects. */
-static bool http_stream(const char *url, void (*cb)(const char *, size_t, void *), void *ctx, int *status_out,
-                        size_t *total)
+/* Streams a (possibly big) download to cb a chunk at a time, following redirects. cb returns
+ * false to stop early (then this returns false). */
+bool net_http_stream(const char *url, bool (*cb)(const char *, size_t, void *), void *ctx, int *status_out,
+                     size_t *total)
 {
     *total = 0;
     *status_out = 0;
@@ -267,8 +272,10 @@ static bool http_stream(const char *url, void (*cb)(const char *, size_t, void *
             if (r <= 0) {
                 break;
             }
-            cb(buf, (size_t)r, ctx);
             *total += (size_t)r;
+            if (!cb(buf, (size_t)r, ctx)) {
+                goto out;
+            }
         }
         ok = esp_http_client_is_complete_data_received(c);
         break;
@@ -372,9 +379,10 @@ const char *net_calendar_status(void)
     return s_cal_status;
 }
 
-static void cal_chunk(const char *data, size_t len, void *ctx)
+static bool cal_chunk(const char *data, size_t len, void *ctx)
 {
     cal_feed((cal_t *)ctx, data, len);
+    return true;
 }
 
 /* The family calendar, read hourly (or on Refresh, or when the day changes). Keeps the last good
@@ -394,7 +402,7 @@ static void fetch_calendar(bool forced)
     cal_begin(&cal, today, s_wx.utc_offset_s, S->cal_words);
     int status;
     size_t total;
-    bool ok = http_stream(S->ical_url, cal_chunk, &cal, &status, &total);
+    bool ok = net_http_stream(S->ical_url, cal_chunk, &cal, &status, &total);
     bool seen = cal_end(&cal);
     char when[16];
     fmt_clock(when, sizeof(when), s_wx.hour, s_wx.minute);
@@ -516,6 +524,7 @@ static void net_task(void *arg)
                  * internal RAM they leave; give the spare to the drawing area. */
                 board_grow_draw_buffer();
             }
+            ota_mark_good();   /* a new version that gets the weather is a keeper */
             fetch_alerts();
             fetch_calendar(forced);
             fails = 0;
@@ -527,6 +536,15 @@ static void net_task(void *arg)
                 fmt_clock(last, sizeof(last), s_wx.hour, s_wx.minute);
             }
             show_weather(true, last);
+
+            /* Nightly update check, around 3 AM, once a day. */
+            static int s_update_day = -1;
+            struct tm lt;
+            if (S->auto_update && net_local_time(&lt) && lt.tm_hour == 3 && lt.tm_yday != s_update_day) {
+                s_update_day = lt.tm_yday;
+                ota_run(false);              /* restarts if it installs something */
+                show_weather(true, last);    /* else put the weather back */
+            }
         } else {
             fails++;
             if (have) {
@@ -551,9 +569,13 @@ static void net_task(void *arg)
                 board_shrink_draw_buffer();   /* maybe memory: hand it back to WiFi */
             }
         }
-        EventBits_t b = xEventGroupWaitBits(s_ev, EV_REFRESH | EV_PORTAL, pdTRUE, pdFALSE, pdMS_TO_TICKS(wait));
+        EventBits_t b = xEventGroupWaitBits(s_ev, EV_REFRESH | EV_PORTAL | EV_UPDATE, pdTRUE, pdFALSE,
+                                            pdMS_TO_TICKS(wait));
         if (b & EV_PORTAL) {
             go_portal();
+        }
+        if (b & EV_UPDATE) {
+            ota_run(true);   /* restarts if it installs something; else back to the weather */
         }
         forced = (b & EV_REFRESH) != 0;
     }
