@@ -46,13 +46,18 @@ void ui_set_speed_cb(ui_speed_cb_t cb);
 
 void ui_init(const char *names);
 void ui_set_names(const char *names);
-void ui_set_pet_name(const char *name);
+void ui_set_pet_name(const char *name);   /* the dog's name from setup; "" shows "Dog" */
 /* Dress-up days from the calendar (day numbers, cal_dayno). Calling this at all switches
  * the 2.0 screens to this fork's rule: the dress only on dress-up days (calendar or the
  * Dress up pill), jeans on other light-jacket days. Without it: Boris's every-mild-day. */
 void ui_set_dress_days(const int *daynos, int n);
 /* The Routine page's times, minutes after midnight: leaving for school, bedtime. */
-void ui_set_routine_times(int leave_min, int bed_min);   /* the dog's name from setup; "" shows "Dog" */
+void ui_set_routine_times(int leave_min, int bed_min);
+/* The 2.0 outfit's jacket cut-offs (feels-like °F at departure): winter kit at or below
+ * coat_f, light jacket to jacket_f, hoodie to hoodie_f. 0 keeps Boris's 45 / 57 / 64.
+ * warm_pm_f: an afternoon at least this warm makes a coat morning (above freezing) a
+ * light-jacket one; 0 = off. */
+void ui_set_outfit_temps(int coat_f, int jacket_f, int hoodie_f, int warm_pm_f);
 void ui_set_bike_bus_day(int wday);  /* 0 = Sunday ... 6 = Saturday, -1 = none. Default Friday. */
 void ui_set_action_cb(ui_action_cb_t cb, void *user);
 void ui_set_events(const wb_event_t *events, int n);  /* special events for the advice; copied */

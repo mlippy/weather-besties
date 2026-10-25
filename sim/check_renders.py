@@ -2007,6 +2007,12 @@ def main():
     check(3000 < n < 12000, f"76_routine_bedtime: a half yellow bar 30 minutes out ({n} px)")
     n = count_where(Image.open(os.path.join(OUT, "75_routine_done.png")), (28, 138, 80, 410), near(0x2FA866))
     check(n > 2000, f"75_routine_done: five green ticks ({n} px, need > 2000)")
+    # The jacket cut-offs from setup: Boris's numbers give the winter kit on the cold
+    # morning; a coat cut-off of 30 makes the same morning a light-jacket day.
+    for name, want in (("72_temps_default", "snow"), ("73_temps_lowered", "pants"),
+                       ("77_cold_then_warm_default", "snow"), ("78_cold_then_warm_jacket", "pants")):
+        look = dump(name)["look_name"]
+        check(look == want, f"{name}: the {want} look (look_name={look})")
 
     # A held finger opens Settings on every page (Settings' Update pill, its pale grey).
     def is_pill_grey(r, g, b):

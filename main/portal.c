@@ -299,6 +299,21 @@ static esp_err_t page_root(httpd_req_t *req)
                "<p class=\"hint\">The Routine page's bar runs out at these times: the morning list on "
                "school days, the bedtime list every evening.</p></div>",
            S->leave_min / 60, S->leave_min % 60, S->bed_min / 60, S->bed_min % 60);
+    sb_add(&b, "<div class=\"card\"><label>Jackets and coats</label>"
+               "<p class=\"hint\" style=\"margin:0 0 12px\">By how it feels outside when it's time to go (8 AM, or "
+               "now), in &deg;F.</p>"
+               "<div class=\"row\"><label style=\"flex:1\">Winter coat at or below"
+               "<input name=\"tcoat\" type=\"number\" min=\"10\" max=\"80\" value=\"%d\"></label>"
+               "<label style=\"flex:1\">Light jacket to"
+               "<input name=\"tjack\" type=\"number\" min=\"11\" max=\"85\" value=\"%d\"></label>"
+               "<label style=\"flex:1\">Hoodie to"
+               "<input name=\"thood\" type=\"number\" min=\"12\" max=\"90\" value=\"%d\"></label></div>"
+               "<p class=\"hint\">Warmer than that: no layer. Started at 45, 57 and 64.</p>"
+               "<label style=\"margin-top:12px\">Just a light jacket if the afternoon warms up to"
+               "<input name=\"twarm\" type=\"number\" min=\"0\" max=\"99\" value=\"%d\"></label>"
+               "<p class=\"hint\">For a coat-cold morning (not freezing) that turns warm: 40&deg; at 8 AM and 68&deg; "
+               "by afternoon is a light jacket, with &quot;take it off later&quot;. 0 turns this off.</p></div>",
+           S->coat_f, S->jacket_f, S->hoodie_f, S->warm_pm_f);
 
     sb_add(&b, "<div class=\"card\"><label>Special events</label>"
                "<p class=\"hint\" style=\"margin:0 0 12px\">Things like soccer or a field trip. Pick the days it repeats, "
@@ -408,6 +423,19 @@ static esp_err_t page_save(httpd_req_t *req)
     if (form_get(body, "bed", v, sizeof(v)) && sscanf(v, "%d:%d", &hh, &mm) == 2 && hh >= 0 && hh < 24 && mm >= 0 &&
         mm < 60) {
         n.bed_min = (uint16_t)(hh * 60 + mm);
+    }
+    {   /* the jacket cut-offs: kept only when they climb (coat < jacket < hoodie) */
+        int tc = form_get(body, "tcoat", v, sizeof(v)) ? atoi(v) : n.coat_f;
+        int tj = form_get(body, "tjack", v, sizeof(v)) ? atoi(v) : n.jacket_f;
+        int th = form_get(body, "thood", v, sizeof(v)) ? atoi(v) : n.hoodie_f;
+        if (tc >= 10 && tc < tj && tj < th && th <= 90) {
+            n.coat_f = (uint8_t)tc;
+            n.jacket_f = (uint8_t)tj;
+            n.hoodie_f = (uint8_t)th;
+        }
+        if (form_get(body, "twarm", v, sizeof(v)) && atoi(v) >= 0 && atoi(v) <= 99) {
+            n.warm_pm_f = (uint8_t)atoi(v);
+        }
     }
     n.night_off = form_get(body, "noff", v, sizeof(v)) && v[0] == '1';
     n.alerts = form_get(body, "alrt", v, sizeof(v)) && v[0] == '1';

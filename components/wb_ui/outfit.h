@@ -80,6 +80,12 @@ typedef struct {
     /* This fork: whether a light-jacket day is a dress day. NULL = always (Boris's
      * design); otherwise the jeans look wears the same light jacket on other days. */
     bool (*dress_wanted)(int year, int month, int day);
+    /* This fork: the jacket cut-offs, feels-like °F at departure; 0 = Boris's 45 / 57 / 64.
+     * At or below coat_f: the warm coat (the 2.0 screens dress it as the winter kit). */
+    int coat_f, jacket_f, hoodie_f;
+    /* This fork: a warm afternoon (feels-like at least warm_pm_f, °F) turns a cold but not
+     * freezing morning's coat into the light jacket, with "take it off later". 0 = off. */
+    int warm_pm_f;
 } outfit_opts_t;
 
 /* now: real local clock. day_offset: 0 = the clock's today, 1 = tomorrow, 2, 3 (forecast page). */

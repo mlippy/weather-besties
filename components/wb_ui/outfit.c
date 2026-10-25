@@ -233,16 +233,24 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
     out->bottom = ((f_dep >= 66 && f_max >= 74) || f_max >= 82) ? BOTTOM_SHORTS : BOTTOM_LONG_PANTS;
     if (snow_or_ice) out->bottom = BOTTOM_LONG_PANTS;
 
-    if (f_dep <= 32) {
+    /* This fork: the cut-offs can come from setup (outfit_opts_t); Boris's by default. */
+    float coat_f = o && o->coat_f ? o->coat_f : 45, jacket_f = o && o->jacket_f ? o->jacket_f : 57,
+          hoodie_f = o && o->hoodie_f ? o->hoodie_f : 64;
+    if (f_dep <= (coat_f < 32 ? coat_f : 32)) {
         out->layer = LAYER_WINTER_COAT;
-    } else if (f_dep <= 45) {
+    } else if (f_dep <= coat_f) {
         out->layer = LAYER_WARM_COAT;
-    } else if (f_dep <= 57) {
+    } else if (f_dep <= jacket_f) {
         out->layer = LAYER_LIGHT_JACKET;
-    } else if (f_dep <= 64) {
+    } else if (f_dep <= hoodie_f) {
         out->layer = LAYER_HOODIE;
     } else {
         out->layer = LAYER_NONE;
+    }
+    /* This fork: on a cold-but-not-freezing morning that warms up fast (40 at 8 AM, 68 by
+     * afternoon), the light jacket is enough; the warm-up words say to take it off later. */
+    if (out->layer == LAYER_WARM_COAT && o && o->warm_pm_f && f_max >= o->warm_pm_f && f_dep > 32) {
+        out->layer = LAYER_LIGHT_JACKET;
     }
     if (is_rain && (out->layer == LAYER_NONE || out->layer == LAYER_HOODIE || out->layer == LAYER_LIGHT_JACKET)) {
         out->layer = LAYER_RAIN_JACKET;   /* cold rain keeps the coat, and adds an umbrella below */

@@ -4920,6 +4920,16 @@ void ui_init(const char *names)
     lv_screen_load(scr_boot);
 }
 
+void ui_set_outfit_temps(int coat_f, int jacket_f, int hoodie_f, int warm_pm_f)
+{
+    s_opts.warm_pm_f = warm_pm_f;
+    s_opts.coat_f = coat_f;   /* this fork: the setup page's cut-offs (outfit.c) */
+    s_opts.jacket_f = jacket_f;
+    s_opts.hoodie_f = hoodie_f;
+    s_force = true;
+    render();
+}
+
 void ui_set_pet_name(const char *name)
 {
     if (cat_pill_lbl[PET_DOG]) {

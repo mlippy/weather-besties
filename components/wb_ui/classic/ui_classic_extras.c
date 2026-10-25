@@ -42,3 +42,11 @@ void ui_set_routine_times(int leave_min, int bed_min)
     (void)leave_min;   /* the Routine page is a 2.0 screen */
     (void)bed_min;
 }
+
+void ui_set_outfit_temps(int coat_f, int jacket_f, int hoodie_f, int warm_pm_f)
+{
+    (void)warm_pm_f;
+    (void)coat_f;   /* the classic screens use the BANDS table in advice.c */
+    (void)jacket_f;
+    (void)hoodie_f;
+}

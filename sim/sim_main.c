@@ -675,6 +675,27 @@ int main(int argc, char **argv)
     v2_routine_test_tap(2);
     save(out, "76_routine_bedtime");
     ui_test_set_page(0);
+    /* The setup page's jacket cut-offs: the cold-morning scenario in the winter kit by
+     * Boris's numbers, a light jacket once the coat cut-off is lowered to 30. */
+    ui_set_dress_days(NULL, 0);
+    load(sc, "halloween_cold");
+    show();
+    save(out, "72_temps_default");
+    dump(out, "72_temps_default");
+    ui_set_outfit_temps(30, 50, 60, 0);
+    save(out, "73_temps_lowered");
+    dump(out, "73_temps_lowered");
+    ui_set_outfit_temps(0, 0, 0, 0);
+    /* The warm-afternoon rule: 36 feels-like at 8 AM, 64 by afternoon. Boris's numbers
+     * give the winter kit; with the rule at 60 it's the light jacket. */
+    load(sc, "brief_morning");
+    show();
+    save(out, "77_cold_then_warm_default");
+    dump(out, "77_cold_then_warm_default");
+    ui_set_outfit_temps(0, 0, 0, 60);
+    save(out, "78_cold_then_warm_jacket");
+    dump(out, "78_cold_then_warm_jacket");
+    ui_set_outfit_temps(0, 0, 0, 0);
     ui_set_cat_choice(0);
 
     ui_show_wifi_error("HomeWiFi", NULL);

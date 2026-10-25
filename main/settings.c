@@ -43,6 +43,10 @@ void settings_defaults(wb_settings_t *s)
     s->cat = 3;      /* the family's Brittany */
     s->leave_min = 8 * 60 + 30;
     s->bed_min = 20 * 60;
+    s->coat_f = 45;   /* Boris's cut-offs: winter kit, light jacket, hoodie */
+    s->jacket_f = 57;
+    s->hoodie_f = 64;
+    s->warm_pm_f = 60;   /* 40 in the morning, 68 by afternoon: a light jacket */
     s->off_from = 21;
     s->off_to = 6;
     for (size_t i = 0; i < sizeof(DEFAULT_EVENTS) / sizeof(DEFAULT_EVENTS[0]) && s->nevents < EVENT_MAX; i++) {
@@ -114,6 +118,10 @@ void settings_load(wb_settings_t *s)
     get_str(h, "petn", s->pet_name, sizeof(s->pet_name));
     nvs_get_u16(h, "leave", &s->leave_min);
     nvs_get_u16(h, "bed", &s->bed_min);
+    get_u8(h, "tcoat", &s->coat_f);
+    get_u8(h, "tjack", &s->jacket_f);
+    get_u8(h, "thood", &s->hoodie_f);
+    get_u8(h, "twarm", &s->warm_pm_f);
     get_u8(h, "nto", &s->off_to);
     events_blob_t eb;
     size_t len = sizeof(eb);
@@ -155,6 +163,10 @@ void settings_save(const wb_settings_t *s)
     nvs_set_str(h, "petn", s->pet_name);
     nvs_set_u16(h, "leave", s->leave_min);
     nvs_set_u16(h, "bed", s->bed_min);
+    nvs_set_u8(h, "tcoat", s->coat_f);
+    nvs_set_u8(h, "tjack", s->jacket_f);
+    nvs_set_u8(h, "thood", s->hoodie_f);
+    nvs_set_u8(h, "twarm", s->warm_pm_f);
     nvs_set_u8(h, "nto", s->off_to);
     events_blob_t eb = {.ver = EVENTS_VER, .n = s->nevents};
     memcpy(eb.ev, s->events, sizeof(eb.ev));
