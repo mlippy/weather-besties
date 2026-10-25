@@ -46,7 +46,7 @@ It's all one C program, built with Espressif's ESP-IDF framework. The screens an
 | Layer | Files / contents | Builds for |
 |---|---|---|
 | Board glue | `main.c`, `board.c`, `net.c`, `portal.c`, `settings.c` | firmware only |
-| Screens (one of two, `ui_select.h`) | classic: `classic/ui.c`, `advice.c` (clothes, special events), `thermo.c` (thermometer); 2.0: Boris's `ui.c`, `outfit.c`, `cat.c` | board, PC, browser |
+| Screens (one of two, `ui_select.h`) | classic: `classic/ui.c`, `advice.c` (clothes, special events); 2.0: Boris's `ui.c`, `outfit.c`, `cat.c`, plus this fork's `ui_v2_extras.c` (Routine, thermometer, dress-up days, countdown, buttons); both: `thermo.c` (thermometer) | board, PC, browser |
 | Shared logic | `wx.c` (forecast), `alerts.c` (NWS alerts), `cal.c` (iCal reader), `events.c`, `update.c` (OTA manifest), `wb_request.c` | board, PC, browser |
 | Artwork + fonts | 49 images, 6 sizes of Fredoka, as C arrays | board, PC, browser |
 | Libraries | LVGL 9.5 (graphics), cJSON (parsing) | board, PC, browser |
@@ -95,6 +95,10 @@ Two designs implement the same `ui.h`; `components/wb_ui/ui_select.h` picks one 
 | Next days | Three day cards with the outfit and a mini pet |
 | Routine (this fork) | Morning checklist before noon, bedtime checklist after, each with a bar that empties over the last hour before leaving / bedtime (times from setup); ticks reset daily |
 | Settings (hold an empty spot) | Pet picker, WiFi, town, version, speed test, Refresh, Change WiFi or town, Update |
+
+How the 2.0 outfit is picked (Boris's `outfit.c`, with this fork's settings): by the **feels-like temperature when it's time to go** (8 AM for Tomorrow, the current hour on Today), not the high or low. Winter kit at or below 45°F, light jacket to 57, hoodie to 64, no layer above (the cut-offs are on the setup page). A coat-cold morning above freezing that warms to 60°F or more (also on the setup page) gets the light jacket instead, and the afternoon high adds "take it off later". Rain, snow and storms override the layer. On light-jacket days the dress is for dress-up days only.
+
+Everything tappable on 2.0 wears one raised look (`v2_raise`: a soft edge underneath, sinks while pressed, a bigger tap area); status pills stay flat. After 20 seconds with no touch, the next unchecked tile or Routine step glows (`v2_hint_target`).
 
 **Classic:**
 
