@@ -35,9 +35,69 @@ void ui_set_events(const wb_event_t *events, int n)
     }
 }
 
+/* ------------------------------------------------------------------ weather alerts */
+
+/* While an alert is on, a calm strip takes the page title's place on Today and Tomorrow:
+ * the kid title and line from alerts.c, purple for a warning and blue for a watch or
+ * advisory, no warning sign. The official name stays a grown-up thing. */
+static wx_alerts_t s_alerts;
+static lv_obj_t *s_al_title_lbl, *s_al_strip, *s_al_head, *s_al_line;
+
 void ui_set_alerts(const wx_alerts_t *alerts)
 {
-    (void)alerts;   /* 2.0 doesn't show weather alerts yet */
+    if (alerts) {
+        s_alerts = *alerts;
+    } else {
+        s_alerts.n = 0;
+    }
+}
+
+void v2_alert_attach(lv_obj_t *page, lv_obj_t *title)
+{
+    s_al_title_lbl = title;
+    s_al_strip = lv_obj_create(page);
+    lv_obj_remove_style_all(s_al_strip);
+    lv_obj_remove_flag(s_al_strip, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_pos(s_al_strip, 20, 6);
+    lv_obj_set_height(s_al_strip, 60);
+    lv_obj_set_style_radius(s_al_strip, 16, 0);
+    lv_obj_set_style_bg_opa(s_al_strip, LV_OPA_COVER, 0);
+    lv_obj_set_style_pad_hor(s_al_strip, 14, 0);
+    s_al_head = lv_label_create(s_al_strip);
+    lv_obj_set_style_text_font(s_al_head, &font_chip, 0);
+    lv_obj_set_style_text_color(s_al_head, lv_color_white(), 0);
+    lv_label_set_long_mode(s_al_head, LV_LABEL_LONG_MODE_DOTS);
+    lv_obj_set_pos(s_al_head, 0, 4);
+    s_al_line = lv_label_create(s_al_strip);
+    lv_obj_set_style_text_font(s_al_line, &font_tiny, 0);
+    lv_obj_set_style_text_color(s_al_line, lv_color_white(), 0);
+    lv_label_set_long_mode(s_al_line, LV_LABEL_LONG_MODE_DOTS);
+    lv_obj_set_pos(s_al_line, 0, 32);
+    lv_obj_add_flag(s_al_strip, LV_OBJ_FLAG_HIDDEN);
+}
+
+/* Shows the strip (and hides the title) when there's an alert; x_right is where the
+ * weather block starts. */
+static void alert_apply(int x_right)
+{
+    if (!s_al_strip) {
+        return;
+    }
+    if (s_alerts.n <= 0) {
+        lv_obj_add_flag(s_al_strip, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(s_al_title_lbl, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+    const wx_alert_t *al = &s_alerts.a[0];
+    int w = x_right - 20 - 12;
+    lv_obj_set_width(s_al_strip, w);
+    lv_obj_set_style_bg_color(s_al_strip, lv_color_hex(al->level == ALERT_WARNING ? 0x7B61C9 : 0x3E8ED0), 0);
+    lv_label_set_text(s_al_head, al->title);
+    lv_label_set_text(s_al_line, al->kid);
+    lv_obj_set_width(s_al_head, w - 28);
+    lv_obj_set_width(s_al_line, w - 28);
+    lv_obj_add_flag(s_al_title_lbl, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(s_al_strip, LV_OBJ_FLAG_HIDDEN);
 }
 
 /* ------------------------------------------------------------------ thermometer */
@@ -59,6 +119,7 @@ void v2_thermo_create(lv_obj_t *page)
 
 void v2_thermo_show(int icon_x, float temp_f)
 {
+    alert_apply(icon_x - V2_THERMO_GAP - V2_THERMO_W);   /* the weather block sets the alert strip's width */
     if (!s_v2_thermo_made) {
         return;
     }
@@ -69,6 +130,7 @@ void v2_thermo_show(int icon_x, float temp_f)
 
 void v2_thermo_hide(void)
 {
+    alert_apply(780);
     if (s_v2_thermo_made) {
         lv_obj_add_flag(s_v2_thermo.root, LV_OBJ_FLAG_HIDDEN);
     }
@@ -345,6 +407,16 @@ static const rt_step_t RT_BEDTIME[] = {{"Potty", &img_rt_potty},  {"Pajamas", &i
                                        {"Books", &img_rt_books},  {"Snuggle", &img_rt_snuggle}};
 
 static int s_rt_leave = 8 * 60 + 30, s_rt_bed = 20 * 60;   /* minutes after midnight */
+static float s_moon = -1;                  /* tonight's moon phase, 0 new .. 0.5 full; -1 unknown */
+static int s_sunrise = -1, s_sunset = -1;  /* minutes after midnight */
+static lv_obj_t *s_rt_moon, *s_rt_moon_shadow, *s_rt_sun;
+
+void v2_sun_moon_set(const wx_t *wx)
+{
+    s_moon = wx_moon_phase(wx->year, wx->month, wx->day, 21);
+    s_sunrise = wx->days[0].sunrise_min;
+    s_sunset = wx->days[0].sunset_min;
+}
 static lv_obj_t *s_rt_page, *s_rt_title, *s_rt_when, *s_rt_left, *s_rt_track, *s_rt_fill, *s_rt_pet;
 static lv_obj_t *s_rt_row[RT_ROWS], *s_rt_box[RT_ROWS], *s_rt_tick[RT_ROWS], *s_rt_lbl[RT_ROWS], *s_rt_pic[RT_ROWS];
 static uint8_t s_rt_checks[2];                 /* bit i = row i done; [0] morning, [1] bedtime */
@@ -451,6 +523,26 @@ lv_obj_t *v2_routine_create(lv_obj_t *scr)
         lv_obj_align(s_rt_lbl[i], LV_ALIGN_BOTTOM_MID, 0, -8);
     }
 
+    /* Tonight's moon and the sun's times, top right under "Leave at" (the classic screens'
+     * corner): a pale disc with a shadow disc sliding across it, no artwork. */
+    s_rt_sun = lv_label_create(s_rt_page);
+    lv_obj_set_style_text_font(s_rt_sun, &font_small, 0);
+    lv_obj_set_style_text_color(s_rt_sun, lv_color_hex(0x545A72), 0);
+    s_rt_moon = rt_box(s_rt_page);
+    lv_obj_set_size(s_rt_moon, 28, 28);
+    lv_obj_set_style_radius(s_rt_moon, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_clip_corner(s_rt_moon, true, 0);
+    lv_obj_set_style_bg_opa(s_rt_moon, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(s_rt_moon, lv_color_hex(0xFFF1B8), 0);
+    lv_obj_set_style_border_width(s_rt_moon, 1, 0);
+    lv_obj_set_style_border_color(s_rt_moon, lv_color_hex(0x2B3450), 0);
+    lv_obj_set_style_border_opa(s_rt_moon, 90, 0);
+    s_rt_moon_shadow = rt_box(s_rt_moon);
+    lv_obj_set_size(s_rt_moon_shadow, 28, 28);
+    lv_obj_set_style_radius(s_rt_moon_shadow, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_opa(s_rt_moon_shadow, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(s_rt_moon_shadow, lv_color_hex(0x56628C), 0);
+
     s_rt_pet = lv_image_create(s_rt_page);
     lv_obj_add_flag(s_rt_page, LV_OBJ_FLAG_HIDDEN);
     return s_rt_page;
@@ -534,6 +626,27 @@ static void rt_draw(void)
         } else {
             lv_obj_remove_flag(s_rt_fill, LV_OBJ_FLAG_HIDDEN);
         }
+    }
+
+    if (s_moon >= 0) {
+        /* waxing: the shadow slides off to the left; waning: it comes back from the right */
+        int sx = s_moon < 0.5f ? -(int)(s_moon * 2 * 29) : 29 - (int)((s_moon - 0.5f) * 2 * 29);
+        lv_obj_set_x(s_rt_moon_shadow, sx);
+        char rise[16], set[16], sb[48] = "";
+        if (s_sunrise >= 0 && s_sunset >= 0) {
+            fmt_clock12(s_sunrise, rise, sizeof(rise));
+            fmt_clock12(s_sunset, set, sizeof(set));
+            snprintf(sb, sizeof(sb), "Sunrise %s  Sunset %s", rise, set);
+        }
+        lv_label_set_text(s_rt_sun, sb);
+        lv_point_t sz;
+        lv_text_get_size(&sz, sb, &font_small, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+        lv_obj_set_pos(s_rt_sun, 772 - sz.x, 64);
+        lv_obj_set_pos(s_rt_moon, 772 - sz.x - (sb[0] ? 38 : 28), 62);
+        lv_obj_remove_flag(s_rt_moon, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_label_set_text(s_rt_sun, "");
+        lv_obj_add_flag(s_rt_moon, LV_OBJ_FLAG_HIDDEN);
     }
 
     if (s_rt_pet_img) {

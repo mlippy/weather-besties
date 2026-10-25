@@ -63,6 +63,12 @@ void v2_hint_target(lv_obj_t *o);
 void v2_hint_test_show(bool on);
 #endif
 
+/* Weather alerts (ui_set_alerts): a calm strip in the page title's place on Today and
+ * Tomorrow. Attach it to the outfit page's title once; the thermometer hooks size it. */
+void v2_alert_attach(lv_obj_t *page, lv_obj_t *title);
+/* Tonight's moon and today's sunrise and sunset, for the Routine page. */
+void v2_sun_moon_set(const wx_t *wx);
+
 /* An "Update" pill in Settings, right-aligned to x_right at y: closes Settings and asks
  * for a firmware check now (fire is ui.c's action sender). */
 void v2_update_pill_create(lv_obj_t *settings, int x_right, int y, void (*fire)(ui_action_t));

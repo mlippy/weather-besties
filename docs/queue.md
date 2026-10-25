@@ -4,12 +4,10 @@ Things we'd like to add later, roughly in order. Each has a sketch of how it wou
 
 ## This fork's features on the 2.0 screens
 
-The history is now Boris's commits with this fork's on top, and both designs build (`components/wb_ui/ui_select.h`); the family's board runs 2.0. It already has the WPA2 setup, OTA updates with an **Update** pill in Settings, the real-clock fix, this fork's settings, the thermometer next to his "33° now", his My Day page fed by this fork's calendar reader (`cal_publish` in `cal.c`) with countdowns in its header, and dress-up days. Still classic-only:
+The history is now Boris's commits with this fork's on top, and both designs build (`components/wb_ui/ui_select.h`); the family's board runs 2.0. It already has the WPA2 setup, OTA updates with an **Update** pill in Settings, the real-clock fix, this fork's settings, the thermometer next to his "33° now", his My Day page fed by this fork's calendar reader (`cal_publish` in `cal.c`) with countdowns in its header, dress-up days, the Routine tab with tonight's moon and the sun times, weather alerts in the title's place, and no Next days tab. Still classic-only:
 
 - **Special events and calendar reminders:** feed `ui_set_events()` (today a no-op in `ui_v2_extras.c`) into his `outfit.c` sentence and chips ("Soccer today: bring rain gear!"); his bike-bus rule is the same idea for one event.
-- **Weather alerts:** a calm strip above his sentence, using `alerts.c`'s kid titles; the official name in his Settings page.
-- **Mini thermometers on his forecast cards:** no free room on those cards today (mini Pippa, temperatures and the garment list fill them); maybe as a thin bar under the high.
-- **Sun and moon:** next to the weather in his top right.
+- **The official alert name** for grown-ups in his Settings page (the classic Settings shows it).
 - **Size:** 2.0 is about 4.6 MB; offer Boris the numbers (his plan estimated 2.6 MB before the Pippa art).
 
 Keep the changes to his `ui.c` as small hooks, so rebases stay easy. The generic pieces (calendar reader, calm alerts, thermometer, WPA2 hotspot, OTA, GT911 build fix, the LVGL format-warning fix) are worth offering him as pull requests.
@@ -24,15 +22,12 @@ git push --force-with-lease origin main
 
 Then build both designs (`ui_select.h`), run `make UI=classic shots`, `make UI=v2 shots` and `make test` in `sim/`, and check the conflicts were only in the shared files listed in the README.
 
-## Next: rework the 2.0 tabs (notes, nothing built)
+## Next: more from the classic screens
 
-- **Drop the Next days tab:** the three-day forecast isn't useful day to day. Removing it frees the tab row (My Day's "Updated" line could go back next to the tabs) and the swipe order becomes Today, Tomorrow, My Day, Routine.
-- **Bring back from the classic screens, in rough order:**
-  - **Weather alerts** (the calm kid-worded bar from `alerts.c`): fetched on 2.0 today but never shown. The biggest gap.
-  - **Special events in the advice:** "Soccer tomorrow: bring rain gear!", gloves for a cold outdoor event at its start time (`advice.c`'s event rules; 2.0 only lists them on My Day).
-  - **Moon phase + sunrise/sunset** (`wx.c` already computes them; the classic draws the moon as two circles, no artwork). Liked.
-  - **Maybe:** the day in four parts (morning / afternoon / evening / tonight) in place of the three-day cards; a bigger current temperature with "Feels like"; weather-tinted backgrounds.
-- Where they could go: alerts as a strip above the advice sentence; sun and moon in the weather block's corner or on the Routine page (bedtime: tonight's moon); events in the sentence and as a chip.
+Done in 1.8.0: the Next days tab is gone, weather alerts show on Today and Tomorrow, and tonight's moon with the sun times is on the Routine page. Still to bring over:
+
+- **Special events in the advice:** "Soccer tomorrow: bring rain gear!", gloves for a cold outdoor event at its start time (`advice.c`'s event rules; 2.0 only lists them on My Day). Next up.
+- **Maybe:** the day in four parts (morning / afternoon / evening / tonight); a bigger current temperature with "Feels like"; weather-tinted backgrounds.
 
 ## Make it obvious what a kid can tap
 

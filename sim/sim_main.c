@@ -14,6 +14,7 @@
 
 #include "cJSON.h"
 #include "cal.h"
+#include "alerts.h"
 #include "lvgl.h"
 #include "ui.h"
 #include "ui_v2_extras.h"
@@ -689,6 +690,21 @@ int main(int argc, char **argv)
     save(out, "73_temps_lowered");
     dump(out, "73_temps_lowered");
     ui_set_outfit_temps(0, 0, 0, 0);
+    {   /* a weather alert: the calm strip in the title's place */
+        wx_alerts_t al = {0};
+        alerts_add(&al, "Winter Storm Warning", "Severe");
+        ui_set_alerts(&al);
+        load(sc, "snow_day");
+        show();
+        save(out, "79_alert_warning");
+        al.n = 0;
+        alerts_add(&al, "Wind Advisory", "Moderate");
+        ui_set_alerts(&al);
+        load(sc, "brief_morning");
+        show();
+        save(out, "80_alert_advisory");
+        ui_set_alerts(NULL);
+    }
     /* The warm-afternoon rule: 36 feels-like at 8 AM, 64 by afternoon. Boris's numbers
      * give the winter kit; with the rule at 60 it's the light jacket. */
     load(sc, "brief_morning");

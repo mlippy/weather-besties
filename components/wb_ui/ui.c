@@ -581,7 +581,10 @@ static char s_md_cat_look[8];                        /* the look Pippa wears on 
 #endif
 
 /* main: bottom bar */
-static lv_obj_t *tab_btn[5], *tab_lbl[5];   /* this fork: a fifth, Routine (ui_v2_extras.c) */
+static lv_obj_t *tab_btn[4], *tab_lbl[4];   /* this fork: Today, Tomorrow, My Day, Routine */
+/* This fork: the tabs and the pages they open. Next days (page 3) has no tab; swipes skip it. */
+static const char *const TAB_NAME[4] = {"Today", "Tomorrow", "My Day", "Routine"};
+static const int TAB_PAGE[4] = {0, 1, 2, 4};
 static lv_obj_t *page_routine;
 static lv_obj_t *stale_chip, *lbl_stale;
 static lv_obj_t *cmp_pill, *lbl_cmp;   /* iter-12 relative-temperature pill */
@@ -1844,14 +1847,12 @@ static void build_xchips(lv_obj_t *page)
 
 static void style_tabs(void)
 {
-    static const char *names[5] = {"Today", "Tomorrow", "My Day", "Next days", "Routine"};
-    for (int i = 0; i < 5; i++) {
-        bool on = s_page == i;
+    for (int i = 0; i < 4; i++) {
+        bool on = s_page == TAB_PAGE[i];
         lv_obj_set_style_bg_color(tab_btn[i], on ? C(COL_INK) : lv_color_white(), 0);
         lv_obj_set_style_bg_opa(tab_btn[i], on ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_color(tab_btn[i], on ? C(COL_INK) : C(COL_TAB_LINE), 0);
         lv_obj_set_style_text_color(tab_lbl[i], on ? lv_color_white() : C(COL_INK), 0);
-        (void)names;
     }
 }
 
@@ -1868,8 +1869,7 @@ static void build_tabs(lv_obj_t *scr)
     lv_obj_set_size(row, LV_SIZE_CONTENT, 50);
     lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_column(row, 10, 0);
-    static const char *names[5] = {"Today", "Tomorrow", "My Day", "Next days", "Routine"};   /* + this fork's */
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 4; i++) {
         lv_obj_t *b = lv_button_create(row);
         lv_obj_remove_style_all(b);
         lv_obj_set_height(b, 50);
@@ -1878,9 +1878,9 @@ static void build_tabs(lv_obj_t *scr)
         lv_obj_set_style_pad_hor(b, 22, 0);
         lv_obj_set_ext_click_area(b, 6);
         tab_btn[i] = b;
-        tab_lbl[i] = label(b, &font_chip, names[i]);
+        tab_lbl[i] = label(b, &font_chip, TAB_NAME[i]);
         lv_obj_center(tab_lbl[i]);
-        lv_obj_add_event_cb(b, on_tab, LV_EVENT_CLICKED, (void *)(intptr_t)i);
+        lv_obj_add_event_cb(b, on_tab, LV_EVENT_CLICKED, (void *)(intptr_t)TAB_PAGE[i]);
         v2_raise(b);   /* this fork: the one button look */
     }
 
@@ -1952,6 +1952,7 @@ static void build_outfit_page(lv_obj_t *scr)
     lv_obj_set_pos(chip, 28, 70);
     lbl_chip = label(chip, &font_chip, "");
     v2_dress_create(page_outfit, dress_changed);   /* this fork: the Dress up pill */
+    v2_alert_attach(page_outfit, lbl_title);       /* this fork: weather alerts in the title's place */
     lv_obj_center(lbl_chip);
 
     /* Weather block: icon left of two lines, the block right-aligned to
@@ -2356,7 +2357,7 @@ static void build_myday_page(lv_obj_t *scr)
     lv_obj_set_style_text_letter_space(md_tabfresh, 0, 0);
     lv_obj_set_width(md_tabfresh, 152);
     lv_obj_set_style_text_align(md_tabfresh, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(md_tabfresh, 620, 42);   /* this fork: under the date, the Routine tab took the tab row's end */
+    lv_obj_set_pos(md_tabfresh, 620, 437);
     hide(md_tabfresh);
 
     /* The stale banner (iter-20): a warn bar at the top of the
@@ -4902,6 +4903,9 @@ static void set_page(int p)
     if (p > 4) {   /* this fork: page 4 is Routine */
         p = 4;
     }
+    if (p == 3) {   /* this fork: Next days has no tab; a swipe goes past it */
+        p = s_page < 3 ? 4 : 2;
+    }
     s_page = p;
     s_page_touched = true;
     s_last_touch = lv_tick_get();
@@ -5057,6 +5061,7 @@ void ui_show_weather(const wx_t *wx)
     }
     s_wx = *wx;
     s_have_wx = true;
+    v2_sun_moon_set(wx);   /* this fork: the Routine page's moon and sun times */
     if (lv_screen_active() != scr_main) {
         lv_screen_load(scr_main);
     }
@@ -5086,7 +5091,12 @@ void ui_test_set_pippa_frame(int frame)
 
 void ui_test_set_page(int p)
 {
-    set_page(p);
+    /* Straight to the page, Next days included (this fork's tabs skip it, his shots don't). */
+    s_page = p;
+    s_page_touched = true;
+    s_last_touch = lv_tick_get();
+    s_force = true;
+    render();
 }
 
 /* Drives a tile/chip toggle through the exact path a tap takes

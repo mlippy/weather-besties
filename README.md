@@ -10,7 +10,7 @@ It builds with either of two screen designs, picked in one line of [`components/
 |---|---|
 | ![Classic today screen](docs/classic/today.png) | ![2.0 morning screen](docs/dog/morning.png) |
 
-Both share everything else: the weather, the settings and phone setup page, the Google Calendar reader, and over-the-air updates. (Special events, weather alerts, and sun and moon only show on the classic screens so far.) This is a fork of [Boris Kozak's Weather Besties](https://github.com/boriskozak/weather-besties) for Cleo and Lila, with this fork's changes kept on top of his code ([below](#based-on-boriss-weather-besties)).
+Both share everything else: the weather, the settings and phone setup page, the Google Calendar reader, and over-the-air updates. (Special events in the clothing advice, the day in four parts and the three-day forecast only show on the classic screens.) This is a fork of [Boris Kozak's Weather Besties](https://github.com/boriskozak/weather-besties) for Cleo and Lila, with this fork's changes kept on top of his code ([below](#based-on-boriss-weather-besties)).
 
 ## The idea
 
@@ -45,7 +45,7 @@ This is not a general weather dashboard. It answers one kid-sized question in wo
 
 ### 2.0 screens (`WB_UI_CLASSIC 0`)
 
-Boris's redesign around one question, "what do I wear?": Pippa the cat (or the dog) dressed in the day's outfit, big garment tiles to check off as clothes get laid out, the extra layer called out in words, one plain sentence about the day, Today / Tomorrow / My Day / Next days tabs, an honest "Weather from..." chip when the data is old, seasonal touches, and a black / pink / take-turns cat picker in Settings. See [his screenshots and wardrobe](https://github.com/boriskozak/weather-besties#readme) and [docs/REDESIGN_PLAN.md](docs/REDESIGN_PLAN.md).
+Boris's redesign around one question, "what do I wear?": Pippa the cat (or the dog) dressed in the day's outfit, big garment tiles to check off as clothes get laid out, the extra layer called out in words, one plain sentence about the day, Today / Tomorrow / My Day tabs (his Next days page is still in the code, but this fork gives it no tab), an honest "Weather from..." chip when the data is old, seasonal touches, and a black / pink / take-turns cat picker in Settings. See [his screenshots and wardrobe](https://github.com/boriskozak/weather-besties#readme) and [docs/REDESIGN_PLAN.md](docs/REDESIGN_PLAN.md).
 
 Boris's **My Day** page lists today's and tomorrow's calendar events as cards, with an icon for each (soccer ball, book, cupcake...), NOW / NEXT / DONE tags, and the time each one starts and ends. In this fork it reads the family calendar through the same reader as the classic screens (`cal.c`), so repeating events, skipped or moved dates, and the title filter words all apply; Boris's own reader expects a separate calendar where nothing repeats.
 
@@ -55,7 +55,9 @@ Boris's **My Day** page lists today's and tomorrow's calendar events as cards, w
 
 This fork's additions to 2.0 live in `ui_v2_extras.c`, with one-line hooks in his `ui.c`:
 
-- **A Routine tab** (the fifth): before noon, the morning checklist (go potty, eat breakfast, brush teeth, brush hair, get dressed) with a bar that runs out at leaving time (8:30 AM by default) and turns from green to yellow, orange and red over the last hour; after noon, the bedtime checklist (go potty, pajamas on, have a snack, brush teeth, read books, snuggle) with a bar that runs out at bedtime (8:00 PM). Each step is a big square button with a picture (toilet, cereal bowl, toothbrush, hairbrush, shirt; pajamas, apple, books, teddy bear) and a short word, three across with room between. Tap a step to tick it; the title turns to "Ready for school!" or "Ready for bed!". Ticks reset each day, weekends say "No school today!", and both times are on the setup page. It stays up for 20 idle minutes (the other pages go back to Today after 3). My Day's "Updated" line moved under the date to make room for the tab.
+- **Weather alerts:** while the National Weather Service has one out, a calm strip takes the page title's place on Today and Tomorrow, in the classic screens' kid words: purple for a warning ("Big snow on the way / Cozy coat, hat and boots!"), blue for a watch or advisory ("Super windy / Hold on to your hat!"). No warning signs or official names; "Show weather alerts" on the setup page turns them off.
+- **Next days is gone:** the tabs are Today, Tomorrow, My Day and Routine, and swipes skip his three-day page.
+- **A Routine tab:** before noon, the morning checklist (go potty, eat breakfast, brush teeth, brush hair, get dressed) with a bar that runs out at leaving time (8:30 AM by default) and turns from green to yellow, orange and red over the last hour; after noon, the bedtime checklist (go potty, pajamas on, have a snack, brush teeth, read books, snuggle) with a bar that runs out at bedtime (8:00 PM). Each step is a big square button with a picture (toilet, cereal bowl, toothbrush, hairbrush, shirt; pajamas, apple, books, teddy bear) and a short word, three across with room between. Tonight's moon (drawn like the classic screens' corner) and today's sunrise and sunset sit at the top right. Tap a step to tick it; the title turns to "Ready for school!" or "Ready for bed!". Ticks reset each day, weekends say "No school today!", and both times are on the setup page. It stays up for 20 idle minutes (the other pages go back to Today after 3).
 - **Buttons that look like buttons:** everything a kid can tap (tiles, chips, tabs, the Dress up pill, Routine steps, Settings buttons) sits on a soft edge and sinks when pressed, with a bigger tap area; status pills ("Same as yesterday", "2 of 4 ready") stay flat. When the screen is left alone for 20 seconds, the next thing to tap (the first unchecked tile or Routine step) glows pink until it's touched.
 - **Jackets and coats:** the 2.0 outfit goes by the feels-like temperature when it's time to go (8 AM, or now). The cut-offs are on the setup page (winter coat at or below 45°F, light jacket to 57, hoodie to 64 to start), and a cold-but-not-freezing morning that warms to 60°F or more gets just a light jacket with "take it off later" instead of the winter kit (40° at 8 AM and 68° by afternoon). Boris's own rule gives the winter kit there.
 - **The thermometer** beside the weather icon, the same fixed 0-100°F scale, colors and freezing tick as the classic screens: the temperature now on Today, the high on Tomorrow.
@@ -70,6 +72,8 @@ This fork's additions to 2.0 live in `ui_v2_extras.c`, with one-line hooks in hi
 | ![Dress up pill](docs/dog/dress-up.png) | ![Countdown](docs/dog/countdown.png) |
 
 ![The Routine tab, morning and bedtime](docs/dog/routine.png)
+
+![A weather alert on 2.0](docs/dog/alert.png)
 
 ### Data
 
@@ -86,7 +90,7 @@ Weather data comes from [Open-Meteo](https://open-meteo.com): free for non-comme
 
 Setting it up for the first time? [docs/deploy.md](docs/deploy.md) is the step-by-step checklist.
 
-For a first install you only need `firmware/weather-besties-v1.7.9.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`, and it erases any saved settings. **After that, updates arrive over WiFi** ([below](#over-the-air-updates)); USB is only needed again to start fresh or rescue a board.
+For a first install you only need `firmware/weather-besties-v1.8.0.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`, and it erases any saved settings. **After that, updates arrive over WiFi** ([below](#over-the-air-updates)); USB is only needed again to start fresh or rescue a board.
 
 **Chrome or Edge, no installs:** open the [esptool-js web flasher](https://espressif.github.io/esptool-js/), plug the board in (4.3: the **UART** port; 4.3B: its only USB-C port), click Connect, pick the port, set Flash Address to `0x0`, choose the .bin, click Program. Takes about a minute.
 
@@ -94,10 +98,10 @@ For a first install you only need `firmware/weather-besties-v1.7.9.bin`. It is a
 
 ```
 pip install esptool
-python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.7.9.bin
+python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.8.0.bin
 ```
 
-**USB install that keeps settings** (e.g. moving a board that ran 1.4.x, which had a single app slot, to 1.7.9): flash the four files listed in `firmware/usb/README.txt` at their addresses instead of the full image.
+**USB install that keeps settings** (e.g. moving a board that ran 1.4.x, which had a single app slot, to 1.8.0): flash the four files listed in `firmware/usb/README.txt` at their addresses instead of the full image.
 
 **If it won't connect:** hold **BOOT**, tap **RESET**, let go of BOOT, then try again. On the 4.3, if your computer doesn't see a serial port on the UART connector, try the other USB-C port.
 
@@ -114,7 +118,7 @@ Defaults if you skip things: Upper Montclair, NJ, no name, Fahrenheit, no specia
 
 ## Using it
 
-- Classic: swipe left for the next three days, right to come back. 2.0: tap the tabs at the bottom (Today, Tomorrow, My Day, Next days, Routine), or swipe.
+- Classic: swipe left for the next three days, right to come back. 2.0: tap the tabs at the bottom (Today, Tomorrow, My Day, Routine), or swipe.
 - Hold a finger still for 1.5 seconds on an empty spot (the greeting or page title is easiest, not a tile or button) to open Settings. On the classic screens it shows the WiFi, town, last update, version, and the official name of any weather alert. **Refresh** fetches the weather, alerts and calendar now; **Setup** reopens the setup hotspot (WiFi, town, events, calendar, alerts, automatic updates); **Update** checks for new firmware now. (On the 2.0 screens, Settings has the pet picker, the WiFi, town and version, Boris's speed test, **Refresh**, **Change WiFi or town** (the setup hotspot), and this fork's **Update** pill.)
 - Settings are stored on the board and survive reboots and over-the-air updates. Flashing the full image at `0x0` erases them; see [docs/deploy.md](docs/deploy.md#7-updating-the-firmware-later).
 
