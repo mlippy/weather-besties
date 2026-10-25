@@ -312,8 +312,9 @@ static esp_err_t page_root(httpd_req_t *req)
                "<b>Integrate calendar</b>, copy <b>Secret address in iCal format</b>.</p>%s"
                "<label for=\"calw\" style=\"margin-top:14px\">Only events with these words</label>"
                "<input id=\"calw\" name=\"calw\" value=\"%s\" maxlength=\"60\" placeholder=\"Name, Family\">"
-               "<p class=\"hint\">Commas between words. Add <b>(outside)</b> or &#9728;&#65039; to a title for weather "
-               "reminders, <b>(countdown)</b> or &#127874; to count the sleeps. Those always show.</p>"
+               "<p class=\"hint\">Leave blank to show every event. Words: commas between them. Add <b>(outside)</b> "
+               "or &#9728;&#65039; to a title for weather reminders, <b>(countdown)</b> or &#127874; to count the "
+               "sleeps, <b>(dress)</b> or &#128087; for a dress-up day. Tagged events always show.</p>"
                "<p class=\"hint\">%s</p></div>",
            S->ical_url[0] ? "Saved. Paste a new one to change it." : "https://calendar.google.com/calendar/ical/...",
            S->ical_url[0] ? "<label class=\"check\" style=\"margin-top:6px;font-weight:500\"><input type=\"checkbox\" "

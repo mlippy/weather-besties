@@ -1,6 +1,6 @@
 {
-  "version": "1.7.5",
-  "app": "weather-besties-v1.7.5-app.bin",
-  "sha256": "cccf0dc79d83d7927dd719327c7bd6597f1944a55837d2fde1dcbca69f2beb77",
-  "size": 4789168
+  "version": "1.7.6",
+  "app": "weather-besties-v1.7.6-app.bin",
+  "sha256": "e8f23139d41e3b85fc2a135aa3f77787b7bd5a4ec58791f036da729ea15bb3a3",
+  "size": 4789264
 }
