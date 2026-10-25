@@ -24,6 +24,18 @@ git push --force-with-lease origin main
 
 Then build both designs (`ui_select.h`), run `make UI=classic shots`, `make UI=v2 shots` and `make test` in `sim/`, and check the conflicts were only in the shared files listed in the README.
 
+## Make it obvious what a kid can tap
+
+Kids can't always tell what on the 2.0 screens is a button. Ideas, roughly cheapest first:
+
+- **One look for everything tappable:** a raised card (soft shadow under it, a 2-3 px darker bottom edge) on tiles, chips, tabs, the Dress up pill and Routine rows; nothing that isn't tappable gets that look. Today the tabs, pills and tiles each have their own style, and some status pills look like buttons.
+- **Empty check circles that invite a tap:** a bigger circle with a faint "tap" hint or a gently pulsing ring on the first unchecked tile/step each morning, stopping after the first tap of the day.
+- **Instant feedback:** every tap squishes (scale to 95% and back) and changes colour right away, so a missed tap is obvious.
+- **Hand or sparkle hint:** after 30 idle seconds on a page with things left to do, a small hand icon taps the next unchecked item once.
+- **Bigger targets:** extend click areas (the tabs already have 6 px); at least 48 px for anything a kid taps.
+- **Status vs. buttons:** make status pills (Weather from..., Same as yesterday, 2 of 4 ready) flat and borderless with no shadow, so they can't be mistaken for buttons.
+- **A one-time "how to" screen:** the pet points at the tiles, the tabs and the Routine checklist, with a big "Got it!" button.
+
 ## The dog
 
 - **Her own heart pose** on 2.0 (today she gets the floating heart Pippa's other outfits get), and maybe a happy tail-wag frame.

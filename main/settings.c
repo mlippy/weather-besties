@@ -41,6 +41,8 @@ void settings_defaults(wb_settings_t *s)
     s->alerts = true;
     s->auto_update = true;
     s->cat = 3;      /* the family's Brittany */
+    s->leave_min = 8 * 60 + 30;
+    s->bed_min = 20 * 60;
     s->off_from = 21;
     s->off_to = 6;
     for (size_t i = 0; i < sizeof(DEFAULT_EVENTS) / sizeof(DEFAULT_EVENTS[0]) && s->nevents < EVENT_MAX; i++) {
@@ -110,6 +112,8 @@ void settings_load(wb_settings_t *s)
     get_u8(h, "nfrom", &s->off_from);
     get_u8(h, "cat", &s->cat);
     get_str(h, "petn", s->pet_name, sizeof(s->pet_name));
+    nvs_get_u16(h, "leave", &s->leave_min);
+    nvs_get_u16(h, "bed", &s->bed_min);
     get_u8(h, "nto", &s->off_to);
     events_blob_t eb;
     size_t len = sizeof(eb);
@@ -149,6 +153,8 @@ void settings_save(const wb_settings_t *s)
     nvs_set_u8(h, "nfrom", s->off_from);
     nvs_set_u8(h, "cat", s->cat);
     nvs_set_str(h, "petn", s->pet_name);
+    nvs_set_u16(h, "leave", s->leave_min);
+    nvs_set_u16(h, "bed", s->bed_min);
     nvs_set_u8(h, "nto", s->off_to);
     events_blob_t eb = {.ver = EVENTS_VER, .n = s->nevents};
     memcpy(eb.ev, s->events, sizeof(eb.ev));

@@ -36,3 +36,9 @@ void ui_set_dress_days(const int *daynos, int n)
     (void)daynos;   /* the classic screens have no dress look */
     (void)n;
 }
+
+void ui_set_routine_times(int leave_min, int bed_min)
+{
+    (void)leave_min;   /* the Routine page is a 2.0 screen */
+    (void)bed_min;
+}

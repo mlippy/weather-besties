@@ -1810,16 +1810,15 @@ def main():
     n = count_where(img45, (36, 197, 84, 245), is_saturated)
     check(n > 400, f"45_myday_late: the NOW row's medallion stays saturated ({n} saturated px, need > 400)")
 
-    # Fresh "Updated" in the tab-bar row (fix 4): font_tiny, one
-    # line, clear of the last tab pill, real word gaps.
+    # Fresh "Updated" (fix 4): font_tiny, one line, real word gaps. This fork's
+    # Routine tab took the tab row's right end, so the line sits under the date
+    # instead; the box is the band between the date's ink and Pippa's ears.
+    FRESH_BOX = (620, 47, 772, 59)
     for name, im in (("40_myday", img), ("45_myday_late", img45), ("41_myday_empty", Image.open(os.path.join(OUT, "41_myday_empty.png")))):
-        rows = ink_rows(im, (612, 424, 790, 472), is_tab_ink)
-        extent = (rows[-1] - rows[0] + 1) if rows else 0
-        n = count_where(im, (612, 424, 790, 472), is_tab_ink)
-        check(n > 150 and 12 <= extent <= 20,
-              f"{name}: fresh Updated line, one line of ink in the tab-bar row ({n} px over {extent} rows, need > 150 px and 12-20 rows)")
+        n = count_where(im, FRESH_BOX, is_tab_ink)
+        check(n > 100, f"{name}: fresh Updated line under the date ({n} px, need > 100)")
         px = im.load()
-        cols = [x for x in range(612, 790) if any(is_tab_ink(*px[x, y]) for y in range(424, 472))]
+        cols = [x for x in range(FRESH_BOX[0], FRESH_BOX[2]) if any(is_tab_ink(*px[x, y]) for y in range(FRESH_BOX[1], FRESH_BOX[3]))]
         gaps = 0
         if cols:
             run = 0
@@ -1833,10 +1832,10 @@ def main():
                     run += 1
         check(cols and cols[0] >= 625 and gaps >= 2,
               f"{name}: Updated reads as separate words (starts x={cols[0] if cols else -1}, need >= 625; {gaps} word gaps >= 3 px, need >= 2)")
-        n = count_where(im, (612, 424, 790, 472), is_warn_tx)
+        n = count_where(im, FRESH_BOX, is_warn_tx)
         check(n == 0, f"{name}: no warn colour in the fresh line ({n} px, need 0)")
-    n = count_where(img43, (620, 424, 790, 472), is_tab_ink)
-    check(n == 0, f"43_myday_stale: no Updated line in the tab-bar row while stale ({n} px, need 0)")
+    n = count_where(img43, FRESH_BOX, is_tab_ink)
+    check(n == 0, f"43_myday_stale: no Updated line under the date while stale ({n} px, need 0)")
 
     # Stale (fix 3): the Today header STANDS and the warn banner
     # is directly below it; nothing warn-coloured in the fresh
@@ -1930,7 +1929,7 @@ def main():
         fl = non_bg_fraction(im, (20, 100, 420, 400))
         check(fr > 0.08 and fl < fr,
               f"{name}: Pippa stands at the right in the message states ({fr:.1%} right vs {fl:.1%} left non-background)")
-        rows = ink_rows(im, (520, 54, 795, 424),
+        rows = ink_rows(im, (520, 64, 795, 424),   # from 64: the Updated line sits above (this fork)
                         lambda r, g, b: abs(r - 251) + abs(g - 246) + abs(b - 238) > 40)
         bal = abs((rows[0] - 54) - (423 - rows[-1])) if rows else 99
         check(rows and bal <= 8,
@@ -1943,9 +1942,9 @@ def main():
         rows = ink_rows(im, box, lambda r, g, b: abs(r - 251) + abs(g - 246) + abs(b - 238) > 40)
         return (rows[-1] - rows[0] + 1) if rows else 0
 
-    hp = cat_ink_h(img, (595, 55, 795, 330))
+    hp = cat_ink_h(img, (595, 63, 795, 330))   # from 63: the Updated line sits above (this fork)
     img41p = Image.open(os.path.join(OUT, "41_myday_empty.png"))
-    hm = cat_ink_h(img41p, (520, 54, 795, 424))
+    hm = cat_ink_h(img41p, (520, 64, 795, 424))   # from 64: the Updated line sits above (this fork)
     print(f"  Pippa ink height: populated {hp}, message {hm}")
     check(hp >= 250 and abs(hp - hm) <= 2,
           f"41_myday_empty: Pippa one drawn height in every state (populated {hp} vs message {hm} ink rows, need equal within 2)")
@@ -1996,6 +1995,18 @@ def main():
     check(n > 3000, f"71_dog_myday_countdown: the countdown pill is in the header ({n} px, need > 3000)")
     n = count_where(Image.open(os.path.join(OUT, "60_dog_myday.png")), (180, 8, 560, 46), is_cd_pink)
     check(n < 50, f"60_dog_myday: no countdown pill without a countdown ({n} px)")
+
+    # The Routine page: the bar's colour says how close leaving / bedtime is (green at
+    # 55 minutes out, yellow at 30), and the rows tick green.
+    def near(c):
+        return lambda r, g, b: abs(r - (c >> 16)) <= 6 and abs(g - ((c >> 8) & 255)) <= 6 and abs(b - (c & 255)) <= 6
+
+    n = count_where(Image.open(os.path.join(OUT, "74_routine_morning.png")), (28, 98, 772, 124), near(0x4CB860))
+    check(n > 12000, f"74_routine_morning: a long green bar 55 minutes out ({n} px, need > 12000)")
+    n = count_where(Image.open(os.path.join(OUT, "76_routine_bedtime.png")), (28, 98, 772, 124), near(0xF2C230))
+    check(3000 < n < 12000, f"76_routine_bedtime: a half yellow bar 30 minutes out ({n} px)")
+    n = count_where(Image.open(os.path.join(OUT, "75_routine_done.png")), (28, 138, 80, 410), near(0x2FA866))
+    check(n > 2000, f"75_routine_done: five green ticks ({n} px, need > 2000)")
 
     # A held finger opens Settings on every page (Settings' Update pill, its pale grey).
     def is_pill_grey(r, g, b):

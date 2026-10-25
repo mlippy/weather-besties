@@ -653,6 +653,28 @@ int main(int argc, char **argv)
     show();
     save(out, "66_dress_calendar");
     dump(out, "66_dress_calendar");
+    /* The Routine page (fifth tab): the morning list with two done and the bar running
+     * down to 8:30, all done, and the bedtime list in the evening. */
+    load(sc, "brief_morning");
+    show();
+    ui_test_set_page(4);
+    pump(5);
+    v2_routine_test_tap(0);
+    v2_routine_test_tap(1);
+    save(out, "74_routine_morning");
+    for (int i = 2; i < 5; i++) {
+        v2_routine_test_tap(i);
+    }
+    save(out, "75_routine_done");
+    load(sc, "brief_evening");
+    show();
+    ui_test_set_page(4);
+    pump(5);
+    v2_routine_test_tap(0);
+    v2_routine_test_tap(1);
+    v2_routine_test_tap(2);
+    save(out, "76_routine_bedtime");
+    ui_test_set_page(0);
     ui_set_cat_choice(0);
 
     ui_show_wifi_error("HomeWiFi", NULL);

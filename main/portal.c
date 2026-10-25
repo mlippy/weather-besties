@@ -292,6 +292,14 @@ static esp_err_t page_root(httpd_req_t *req)
                "has an Update button too.</p></div>",
            S->alerts ? " checked" : "", S->auto_update ? " checked" : "");
 
+    sb_add(&b, "<div class=\"card\"><label>Routines</label>"
+               "<div class=\"row\"><label>Leave for school"
+               "<input name=\"leave\" type=\"time\" value=\"%02d:%02d\"></label>"
+               "<label>Bedtime<input name=\"bed\" type=\"time\" value=\"%02d:%02d\"></label></div>"
+               "<p class=\"hint\">The Routine page's bar runs out at these times: the morning list on "
+               "school days, the bedtime list every evening.</p></div>",
+           S->leave_min / 60, S->leave_min % 60, S->bed_min / 60, S->bed_min % 60);
+
     sb_add(&b, "<div class=\"card\"><label>Special events</label>"
                "<p class=\"hint\" style=\"margin:0 0 12px\">Things like soccer or a field trip. Pick the days it repeats, "
                "or one date. Outside events get reminders for gloves, rain gear or water. "
@@ -392,6 +400,15 @@ static esp_err_t page_save(httpd_req_t *req)
         snprintf(n.pet_name, sizeof(n.pet_name), "%s", v);
     }
     n.celsius = form_get(body, "units", v, sizeof(v)) && v[0] == 'c';
+    int hh, mm;
+    if (form_get(body, "leave", v, sizeof(v)) && sscanf(v, "%d:%d", &hh, &mm) == 2 && hh >= 0 && hh < 24 && mm >= 0 &&
+        mm < 60) {
+        n.leave_min = (uint16_t)(hh * 60 + mm);
+    }
+    if (form_get(body, "bed", v, sizeof(v)) && sscanf(v, "%d:%d", &hh, &mm) == 2 && hh >= 0 && hh < 24 && mm >= 0 &&
+        mm < 60) {
+        n.bed_min = (uint16_t)(hh * 60 + mm);
+    }
     n.night_off = form_get(body, "noff", v, sizeof(v)) && v[0] == '1';
     n.alerts = form_get(body, "alrt", v, sizeof(v)) && v[0] == '1';
     if (form_get(body, "pet", v, sizeof(v)) && v[0] >= '0' && v[0] <= '3') {

@@ -581,7 +581,8 @@ static char s_md_cat_look[8];                        /* the look Pippa wears on 
 #endif
 
 /* main: bottom bar */
-static lv_obj_t *tab_btn[4], *tab_lbl[4];
+static lv_obj_t *tab_btn[5], *tab_lbl[5];   /* this fork: a fifth, Routine (ui_v2_extras.c) */
+static lv_obj_t *page_routine;
 static lv_obj_t *stale_chip, *lbl_stale;
 static lv_obj_t *cmp_pill, *lbl_cmp;   /* iter-12 relative-temperature pill */
 
@@ -1838,8 +1839,8 @@ static void build_xchips(lv_obj_t *page)
 
 static void style_tabs(void)
 {
-    static const char *names[4] = {"Today", "Tomorrow", "My Day", "Next days"};
-    for (int i = 0; i < 4; i++) {
+    static const char *names[5] = {"Today", "Tomorrow", "My Day", "Next days", "Routine"};
+    for (int i = 0; i < 5; i++) {
         bool on = s_page == i;
         lv_obj_set_style_bg_color(tab_btn[i], on ? C(COL_INK) : lv_color_white(), 0);
         lv_obj_set_style_bg_opa(tab_btn[i], on ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
@@ -1862,8 +1863,8 @@ static void build_tabs(lv_obj_t *scr)
     lv_obj_set_size(row, LV_SIZE_CONTENT, 50);
     lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_column(row, 10, 0);
-    static const char *names[4] = {"Today", "Tomorrow", "My Day", "Next days"};
-    for (int i = 0; i < 4; i++) {
+    static const char *names[5] = {"Today", "Tomorrow", "My Day", "Next days", "Routine"};   /* + this fork's */
+    for (int i = 0; i < 5; i++) {
         lv_obj_t *b = lv_button_create(row);
         lv_obj_remove_style_all(b);
         lv_obj_set_height(b, 50);
@@ -2349,7 +2350,7 @@ static void build_myday_page(lv_obj_t *scr)
     lv_obj_set_style_text_letter_space(md_tabfresh, 0, 0);
     lv_obj_set_width(md_tabfresh, 152);
     lv_obj_set_style_text_align(md_tabfresh, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(md_tabfresh, 620, 437);
+    lv_obj_set_pos(md_tabfresh, 620, 42);   /* this fork: under the date, the Routine tab took the tab row's end */
     hide(md_tabfresh);
 
     /* The stale banner (iter-20): a warn bar at the top of the
@@ -2415,6 +2416,8 @@ static void build_main(void)
     build_outfit_page(scr_main);
     build_forecast_page(scr_main);
     build_myday_page(scr_main);
+    page_routine = v2_routine_create(scr_main);   /* this fork */
+    lv_obj_add_event_cb(page_routine, on_long_press, LV_EVENT_LONG_PRESSED, NULL);
     build_tabs(scr_main);
 }
 
@@ -4216,7 +4219,7 @@ static void render(void)
     if (!clock_now(&now, &real)) {
         return;
     }
-    if (s_page_touched && lv_tick_elaps(s_last_touch) > 180000) {
+    if (s_page_touched && lv_tick_elaps(s_last_touch) > (s_page == 4 ? 1200000u : 180000u)) {   /* Routine: 20 min */
         s_page_touched = false;   /* 3 idle minutes: fall back to the time of day */
     }
     if (!s_page_touched) {
@@ -4238,7 +4241,7 @@ static void render(void)
     char key[96];
     snprintf(key, sizeof(key), "%d|%d|%ld|%d|%d|%d", page, bucket,
              days_from_civil(now.tm_year + 1900, now.tm_mon + 1, now.tm_mday) + (page < 2 ? page : 0),
-             now.tm_hour, (int)s_checks, s_cat_choice);
+             now.tm_hour * 60 + (page == 4 ? now.tm_min : 0), (int)s_checks, s_cat_choice);   /* Routine's bar: each minute */
     if (!s_force && strcmp(key, s_key) == 0) {
         return;
     }
@@ -4255,7 +4258,13 @@ static void render(void)
      * it was swiped from. */
     solid_bg(scr_main, page >= 2 ? (now.tm_hour >= 17 ? COL_BG_EVENING : COL_BG_MORNING)
                                  : evening ? COL_BG_EVENING : COL_BG_MORNING);
-    if (page < 2) {
+    hide(page_routine);   /* this fork's fifth page, shown below when it's the one */
+    if (page == 4) {
+        hide(page_outfit);
+        hide(page_forecast);
+        hide(page_myday);
+        show_obj(page_routine);
+    } else if (page < 2) {
         show_obj(page_outfit);
         hide(page_forecast);
         hide(page_myday);
@@ -4306,6 +4315,13 @@ static void render(void)
         show_obj(stale_chip);
     } else {
         hide(stale_chip);
+    }
+
+    if (page == 4) {
+        hide(prog_chip);
+        hide(stale_chip);
+        v2_routine_render(&now, pet_sprite(PIPPA_BASE));   /* this fork: Routine (ui_v2_extras.c) */
+        return;
     }
 
     if (page == 2) {
@@ -4867,8 +4883,8 @@ static void set_page(int p)
     if (p < 0) {
         p = 0;
     }
-    if (p > 3) {
-        p = 3;
+    if (p > 4) {   /* this fork: page 4 is Routine */
+        p = 4;
     }
     s_page = p;
     s_page_touched = true;

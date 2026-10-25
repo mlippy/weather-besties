@@ -5,6 +5,8 @@
 #pragma once
 
 #include "lvgl.h"
+#include <time.h>
+
 #include "ui.h"
 
 #ifdef __cplusplus
@@ -42,6 +44,14 @@ void v2_dress_hide(void);
 void v2_countdown_create(lv_obj_t *page);
 void v2_countdown_show(int year, int month, int day, int x_left, int x_right, int y);
 bool v2_countdown_text(int year, int month, int day, char *buf, size_t n, bool short_form);
+
+/* The Routine page (fifth tab): morning checklist before noon with a bar that empties
+ * at leaving time, bedtime checklist after with one that empties at bedtime. */
+lv_obj_t *v2_routine_create(lv_obj_t *scr);
+void v2_routine_render(const struct tm *now, const lv_image_dsc_t *pet);
+#ifdef WB_SIM
+void v2_routine_test_tap(int row);
+#endif
 
 /* An "Update" pill in Settings, right-aligned to x_right at y: closes Settings and asks
  * for a firmware check now (fire is ui.c's action sender). */

@@ -22,6 +22,7 @@ typedef struct {
     bool auto_update;      /* install new firmware on its own, around 3 AM */
     uint8_t cat;           /* the pet: 0 = black cat, 1 = pink cat, 2 = take turns, 3 = the dog */
     char pet_name[24];     /* the dog's name, typed in setup; "" shows "Dog" */
+    uint16_t leave_min, bed_min;  /* Routine page: leave for school, bedtime (minutes after midnight) */
     uint8_t off_from, off_to;  /* hours, local time */
     uint8_t nevents;
     wb_event_t events[EVENT_MAX];  /* special events: soccer, field trips... */

@@ -315,3 +315,219 @@ void v2_dress_hide(void)
         lv_obj_add_flag(s_dress_pill, LV_OBJ_FLAG_HIDDEN);
     }
 }
+
+/* ------------------------------------------------------------------ Routine page */
+
+/* Morning (midnight to noon) and bedtime (noon on): a checklist and a bar that shrinks
+ * over the last hour before leaving for school / bedtime. Checks reset each day. */
+
+#define RT_ROWS 6
+#define RT_WINDOW_MIN 60      /* the bar is full an hour out and empty at the time */
+#define RT_ROW_H 42
+#define RT_ROW_GAP 4
+#define RT_LIST_Y 138
+
+static const char *const RT_MORNING[] = {"Go potty", "Eat breakfast", "Brush teeth", "Brush hair", "Get dressed"};
+static const char *const RT_BEDTIME[] = {"Go potty", "Pajamas on", "Have a snack", "Brush teeth", "Read books",
+                                         "Snuggle"};
+
+static int s_rt_leave = 8 * 60 + 30, s_rt_bed = 20 * 60;   /* minutes after midnight */
+static lv_obj_t *s_rt_page, *s_rt_title, *s_rt_when, *s_rt_left, *s_rt_track, *s_rt_fill, *s_rt_pet;
+static lv_obj_t *s_rt_row[RT_ROWS], *s_rt_box[RT_ROWS], *s_rt_tick[RT_ROWS], *s_rt_lbl[RT_ROWS];
+static uint8_t s_rt_checks[2];                 /* bit i = row i done; [0] morning, [1] bedtime */
+static int s_rt_day[2] = {-1, -1};             /* the day those checks belong to */
+static struct tm s_rt_now;
+static const lv_image_dsc_t *s_rt_pet_img;
+
+void ui_set_routine_times(int leave_min, int bed_min)
+{
+    if (leave_min > 0 && leave_min < 24 * 60) {
+        s_rt_leave = leave_min;
+    }
+    if (bed_min > 0 && bed_min < 24 * 60) {
+        s_rt_bed = bed_min;
+    }
+}
+
+static void fmt_clock12(int min, char *buf, size_t n)
+{
+    int h = min / 60 % 12;
+    snprintf(buf, n, "%d:%02d %s", h ? h : 12, min % 60, min < 12 * 60 ? "AM" : "PM");
+}
+
+static void rt_draw(void);
+
+static void on_rt_row(lv_event_t *e)
+{
+    int i = (int)(intptr_t)lv_event_get_user_data(e);
+    int m = s_rt_now.tm_hour < 12 ? 0 : 1;
+    s_rt_checks[m] ^= (uint8_t)(1u << i);
+    rt_draw();
+}
+
+static lv_obj_t *rt_box(lv_obj_t *parent)
+{
+    lv_obj_t *o = lv_obj_create(parent);
+    lv_obj_remove_style_all(o);
+    lv_obj_remove_flag(o, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+    return o;
+}
+
+lv_obj_t *v2_routine_create(lv_obj_t *scr)
+{
+    s_rt_page = rt_box(scr);
+    lv_obj_set_size(s_rt_page, 800, 480);
+    lv_obj_add_flag(s_rt_page, LV_OBJ_FLAG_CLICKABLE);   /* a long press here opens Settings too */
+
+    s_rt_title = lv_label_create(s_rt_page);
+    lv_obj_set_style_text_font(s_rt_title, &font_h1, 0);
+    lv_obj_set_style_text_color(s_rt_title, lv_color_hex(0x1E2340), 0);
+    lv_obj_set_pos(s_rt_title, 28, 4);
+
+    s_rt_when = lv_label_create(s_rt_page);   /* "Leave at 8:30 AM" */
+    lv_obj_set_style_text_font(s_rt_when, &font_label, 0);
+    lv_obj_set_style_text_color(s_rt_when, lv_color_hex(0x545A72), 0);
+    lv_obj_set_style_text_align(s_rt_when, LV_TEXT_ALIGN_RIGHT, 0);
+    lv_obj_set_width(s_rt_when, 360);
+    lv_obj_set_pos(s_rt_when, 412, 16);
+
+    s_rt_left = lv_label_create(s_rt_page);   /* "35 minutes until we leave" */
+    lv_obj_set_style_text_font(s_rt_left, &font_label, 0);
+    lv_obj_set_style_text_color(s_rt_left, lv_color_hex(0x1E2340), 0);
+    lv_obj_set_pos(s_rt_left, 28, 60);
+
+    s_rt_track = rt_box(s_rt_page);
+    lv_obj_set_pos(s_rt_track, 28, 98);
+    lv_obj_set_size(s_rt_track, 744, 26);
+    lv_obj_set_style_radius(s_rt_track, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(s_rt_track, lv_color_hex(0xECE4D5), 0);
+    lv_obj_set_style_bg_opa(s_rt_track, LV_OPA_COVER, 0);
+    s_rt_fill = rt_box(s_rt_track);
+    lv_obj_set_pos(s_rt_fill, 0, 0);
+    lv_obj_set_height(s_rt_fill, 26);
+    lv_obj_set_style_radius(s_rt_fill, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_opa(s_rt_fill, LV_OPA_COVER, 0);
+
+    for (int i = 0; i < RT_ROWS; i++) {
+        lv_obj_t *r = lv_button_create(s_rt_page);
+        lv_obj_remove_style_all(r);
+        lv_obj_set_pos(r, 28, RT_LIST_Y + i * (RT_ROW_H + RT_ROW_GAP));
+        lv_obj_set_size(r, 480, RT_ROW_H);
+        lv_obj_set_style_radius(r, 14, 0);
+        lv_obj_set_style_bg_opa(r, LV_OPA_COVER, 0);
+        lv_obj_set_style_border_width(r, 2, 0);
+        lv_obj_add_event_cb(r, on_rt_row, LV_EVENT_CLICKED, (void *)(intptr_t)i);
+        s_rt_row[i] = r;
+        s_rt_box[i] = rt_box(r);   /* the check circle */
+        lv_obj_set_size(s_rt_box[i], 30, 30);
+        lv_obj_align(s_rt_box[i], LV_ALIGN_LEFT_MID, 8, 0);
+        lv_obj_set_style_radius(s_rt_box[i], LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_border_width(s_rt_box[i], 2, 0);
+        lv_obj_set_style_bg_opa(s_rt_box[i], LV_OPA_COVER, 0);
+        s_rt_tick[i] = lv_label_create(s_rt_box[i]);
+        lv_obj_set_style_text_font(s_rt_tick[i], &font_chip, 0);
+        lv_obj_set_style_text_color(s_rt_tick[i], lv_color_white(), 0);
+        lv_label_set_text(s_rt_tick[i], LV_SYMBOL_OK);
+        lv_obj_center(s_rt_tick[i]);
+        s_rt_lbl[i] = lv_label_create(r);
+        lv_obj_set_style_text_font(s_rt_lbl[i], &font_label, 0);
+        lv_obj_set_style_text_color(s_rt_lbl[i], lv_color_hex(0x1E2340), 0);
+        lv_obj_align(s_rt_lbl[i], LV_ALIGN_LEFT_MID, 50, 0);
+    }
+
+    s_rt_pet = lv_image_create(s_rt_page);
+    lv_obj_add_flag(s_rt_page, LV_OBJ_FLAG_HIDDEN);
+    return s_rt_page;
+}
+
+static void rt_draw(void)
+{
+    const struct tm *now = &s_rt_now;
+    int m = now->tm_hour < 12 ? 0 : 1;
+    const char *const *items = m == 0 ? RT_MORNING : RT_BEDTIME;
+    int n = m == 0 ? (int)(sizeof(RT_MORNING) / sizeof(RT_MORNING[0]))
+                   : (int)(sizeof(RT_BEDTIME) / sizeof(RT_BEDTIME[0]));
+    int today = cal_dayno(now->tm_year + 1900, now->tm_mon + 1, now->tm_mday);
+    if (s_rt_day[m] != today) {
+        s_rt_day[m] = today;   /* a new day starts unchecked */
+        s_rt_checks[m] = 0;
+    }
+    bool school = m == 1 || (now->tm_wday >= 1 && now->tm_wday <= 5);
+    int target = m == 0 ? s_rt_leave : s_rt_bed;
+    int now_min = now->tm_hour * 60 + now->tm_min;
+    int left = target - now_min;
+
+    int done = 0;
+    for (int i = 0; i < RT_ROWS; i++) {
+        if (i >= n) {
+            lv_obj_add_flag(s_rt_row[i], LV_OBJ_FLAG_HIDDEN);
+            continue;
+        }
+        bool on = (s_rt_checks[m] >> i) & 1;
+        done += on;
+        lv_obj_remove_flag(s_rt_row[i], LV_OBJ_FLAG_HIDDEN);
+        lv_label_set_text(s_rt_lbl[i], items[i]);
+        lv_obj_set_style_bg_color(s_rt_row[i], lv_color_hex(on ? 0xE8F6EE : 0xFFFFFF), 0);
+        lv_obj_set_style_border_color(s_rt_row[i], lv_color_hex(on ? 0x8FD3A8 : 0xE7D9BE), 0);
+        lv_obj_set_style_bg_color(s_rt_box[i], lv_color_hex(on ? 0x2FA866 : 0xFFFFFF), 0);
+        lv_obj_set_style_border_color(s_rt_box[i], lv_color_hex(on ? 0x2FA866 : 0xC9C3D6), 0);
+        if (on) {
+            lv_obj_remove_flag(s_rt_tick[i], LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_add_flag(s_rt_tick[i], LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+
+    bool all = done == n;
+    lv_label_set_text(s_rt_title, all ? (m == 0 ? (school ? "Ready for school!" : "All done!") : "Ready for bed!")
+                                      : (m == 0 ? "Morning routine" : "Bedtime routine"));
+    char t[24], buf[64];
+    fmt_clock12(target, t, sizeof(t));
+    if (!school) {
+        lv_label_set_text(s_rt_when, "");
+        lv_label_set_text(s_rt_left, "No school today!");
+        lv_obj_add_flag(s_rt_track, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        snprintf(buf, sizeof(buf), "%s %s", m == 0 ? "Leave at" : "Bed at", t);
+        lv_label_set_text(s_rt_when, buf);
+        const char *what = m == 0 ? "until we leave" : "until bedtime";
+        if (left > 0) {
+            snprintf(buf, sizeof(buf), "%d minute%s %s", left, left == 1 ? "" : "s", what);
+        } else if (left > -RT_WINDOW_MIN) {
+            snprintf(buf, sizeof(buf), "%s", m == 0 ? "Time to go!" : "Bedtime!");
+        } else {
+            snprintf(buf, sizeof(buf), "%s", m == 0 ? "Have a great day!" : "Sweet dreams!");
+        }
+        lv_label_set_text(s_rt_left, buf);
+        lv_obj_remove_flag(s_rt_track, LV_OBJ_FLAG_HIDDEN);
+        int w = left >= RT_WINDOW_MIN ? 744 : left <= 0 ? 0 : 744 * left / RT_WINDOW_MIN;
+        /* the bar's colour says how close it is: green, yellow, orange, red */
+        uint32_t c = left > 30 ? 0x4CB860 : left > 15 ? 0xF2C230 : left > 5 ? 0xF28C28 : 0xE5483C;
+        lv_obj_set_width(s_rt_fill, w < 26 && w > 0 ? 26 : w);
+        lv_obj_set_style_bg_color(s_rt_fill, lv_color_hex(c), 0);
+        if (w == 0) {
+            lv_obj_add_flag(s_rt_fill, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_remove_flag(s_rt_fill, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+
+    if (s_rt_pet_img) {
+        lv_image_set_src(s_rt_pet, s_rt_pet_img);
+        lv_obj_set_pos(s_rt_pet, 772 - (int)s_rt_pet_img->header.w, 414 - (int)s_rt_pet_img->header.h);
+    }
+}
+
+void v2_routine_render(const struct tm *now, const lv_image_dsc_t *pet)
+{
+    s_rt_now = *now;
+    s_rt_pet_img = pet;
+    rt_draw();
+}
+
+#ifdef WB_SIM
+void v2_routine_test_tap(int row)
+{
+    lv_obj_send_event(s_rt_row[row], LV_EVENT_CLICKED, NULL);
+}
+#endif
