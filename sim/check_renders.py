@@ -2002,10 +2002,15 @@ def main():
     def near(c):
         return lambda r, g, b: abs(r - (c >> 16)) <= 6 and abs(g - ((c >> 8) & 255)) <= 6 and abs(b - (c & 255)) <= 6
 
-    n = count_where(Image.open(os.path.join(OUT, "74_routine_morning.png")), (28, 98, 772, 124), near(0x4CB860))
-    check(n > 12000, f"74_routine_morning: a long green bar 55 minutes out ({n} px, need > 12000)")
-    n = count_where(Image.open(os.path.join(OUT, "76_routine_bedtime.png")), (28, 98, 772, 124), near(0xF2C230))
+    # Left to right: 55 minutes out the bar has only started (a short green stub), 30
+    # minutes out it's half way (yellow); the bus / the bed waits at the right end.
+    n = count_where(Image.open(os.path.join(OUT, "74_routine_morning.png")), (28, 98, 716, 124), near(0x4CB860))
+    check(300 < n < 3000, f"74_routine_morning: a short green start 55 minutes out ({n} px)")
+    n = count_where(Image.open(os.path.join(OUT, "76_routine_bedtime.png")), (28, 98, 716, 124), near(0xF2C230))
     check(3000 < n < 12000, f"76_routine_bedtime: a half yellow bar 30 minutes out ({n} px)")
+    n = count_where(Image.open(os.path.join(OUT, "74_routine_morning.png")), (722, 80, 780, 140),
+                     lambda r, g, b: abs(r - 0xF8) <= 10 and abs(g - 0xD3) <= 10 and abs(b - 0x3C) <= 10)
+    check(n > 150, f"74_routine_morning: the school bus at the finish ({n} yellow px, need > 150)")
     n = count_where(Image.open(os.path.join(OUT, "75_routine_done.png")), (28, 140, 506, 410), near(0x2FA866))
     check(n > 2000, f"75_routine_done: five green ticks ({n} px, need > 2000)")
     # The jacket cut-offs from setup: Boris's numbers give the winter kit on the cold
@@ -2033,7 +2038,7 @@ def main():
     n = count_where(Image.open(os.path.join(OUT, "51_dog_morning.png")), (20, 6, 420, 66), near_c(0x7B61C9, 8))
     check(n < 50, f"51_dog_morning: no strip without an alert ({n} px)")
     # The Routine page's moon, top right: its pale disc.
-    n = count_where(Image.open(os.path.join(OUT, "74_routine_morning.png")), (600, 56, 790, 96), near_c(0xFFF1B8, 6))
+    n = count_where(Image.open(os.path.join(OUT, "74_routine_morning.png")), (600, 50, 790, 90), near_c(0xFFF1B8, 6))
     check(n > 20, f"74_routine_morning: tonight's moon by the sun times ({n} px, need > 20)")
 
     # A held finger opens Settings on every page (Settings' Update pill, its pale grey).

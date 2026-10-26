@@ -48,7 +48,7 @@ bool v2_countdown_text(int year, int month, int day, char *buf, size_t n, bool s
 /* The Routine page (fifth tab): morning checklist before noon with a bar that empties
  * at leaving time, bedtime checklist after with one that empties at bedtime. */
 lv_obj_t *v2_routine_create(lv_obj_t *scr);
-void v2_routine_render(const struct tm *now, const lv_image_dsc_t *pet);
+void v2_routine_render(const struct tm *now, const lv_image_dsc_t *pet, const lv_image_dsc_t *head);
 #ifdef WB_SIM
 void v2_routine_test_tap(int row);
 #endif

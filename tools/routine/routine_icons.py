@@ -1,7 +1,28 @@
 """Pictures for the Routine page's steps (2.0 screens), in the sticker style of the rest of
 the art: a navy outline drawn under flat fills, 100 x 100 units.
 
-    ICONS = {name: svg}   names: potty, breakfast, teeth, hair, dress, pajamas, snack, books, snuggle
+    def bus():
+    out = s("M8,30 C8,24 12,22 18,22 L78,22 C86,22 92,30 92,42 L92,70 L8,70 Z", "#F8D33C")          # body
+    out += s("M14,30 L34,30 L34,46 L14,46 Z", "#CFE3F7", 3) + s("M40,30 L58,30 L58,46 L40,46 Z", "#CFE3F7", 3)
+    out += s("M64,30 L80,30 C84,30 86,36 86,46 L64,46 Z", "#CFE3F7", 3)
+    out += line("M8,56 L92,56", 3)
+    out += '<circle cx="26" cy="72" r="9" fill="#3B3F55" stroke="#2B3450" stroke-width="4"/>'
+    out += '<circle cx="74" cy="72" r="9" fill="#3B3F55" stroke="#2B3450" stroke-width="4"/>'
+    out += '<circle cx="26" cy="72" r="3" fill="#C9CED8"/><circle cx="74" cy="72" r="3" fill="#C9CED8"/>'
+    return svg(out)
+
+
+def bed():
+    out = s("M10,28 C10,22 22,22 22,28 L22,82 L10,82 Z", "#B9A3E3")                                  # headboard
+    out += s("M22,58 L90,58 L90,82 L22,82 Z", "#9DB4F0")                                             # mattress
+    out += s("M22,48 C22,40 44,40 44,48 C44,56 22,56 22,48 Z", WHITE, 4)                              # pillow
+    out += s("M40,46 L86,46 C90,46 92,50 92,54 L92,64 L40,64 Z", "#F7A8C6")                          # blanket
+    out += line("M84,82 L84,90 M28,82 L28,90", 5)                                                    # legs
+    out += s("M70,18 C64,20 62,30 68,34 C64,30 66,22 72,20 C71,19 71,18 70,18 Z", "#F8D33C", 2.5)     # moon
+    return svg(out)
+
+
+ICONS = {name: svg}   names: potty, breakfast, teeth, hair, dress, pajamas, snack, books, snuggle
 """
 
 INK = "#2B3450"
@@ -109,5 +130,29 @@ def snuggle():
     return svg(out)
 
 
+def bus():
+    out = s("M8,30 C8,24 12,22 18,22 L78,22 C86,22 92,30 92,42 L92,70 L8,70 Z", "#F8D33C")          # body
+    out += s("M14,30 L34,30 L34,46 L14,46 Z", "#CFE3F7", 3) + s("M40,30 L58,30 L58,46 L40,46 Z", "#CFE3F7", 3)
+    out += s("M64,30 L80,30 C84,30 86,36 86,46 L64,46 Z", "#CFE3F7", 3)
+    out += line("M8,56 L92,56", 3)
+    out += '<circle cx="26" cy="72" r="9" fill="#3B3F55" stroke="#2B3450" stroke-width="4"/>'
+    out += '<circle cx="74" cy="72" r="9" fill="#3B3F55" stroke="#2B3450" stroke-width="4"/>'
+    out += '<circle cx="26" cy="72" r="3" fill="#C9CED8"/><circle cx="74" cy="72" r="3" fill="#C9CED8"/>'
+    return svg(out)
+
+
+def bed():
+    out = s("M10,28 C10,22 22,22 22,28 L22,82 L10,82 Z", "#B9A3E3")                                  # headboard
+    out += s("M22,58 L90,58 L90,82 L22,82 Z", "#9DB4F0")                                             # mattress
+    out += s("M22,48 C22,40 44,40 44,48 C44,56 22,56 22,48 Z", WHITE, 4)                              # pillow
+    out += s("M40,46 L86,46 C90,46 92,50 92,54 L92,64 L40,64 Z", "#F7A8C6")                          # blanket
+    out += line("M84,82 L84,90 M28,82 L28,90", 5)                                                    # legs
+    out += s("M70,18 C64,20 62,30 68,34 C64,30 66,22 72,20 C71,19 71,18 70,18 Z", "#F8D33C", 2.5)     # moon
+    return svg(out)
+
+
 ICONS = {"potty": potty(), "breakfast": breakfast(), "teeth": teeth(), "hair": hair(), "dress": dress(),
-         "pajamas": pajamas(), "snack": snack(), "books": books(), "snuggle": snuggle()}
+         "pajamas": pajamas(), "snack": snack(), "books": books(), "snuggle": snuggle(),
+         "bus": bus(), "bed": bed()}
+
+SIZES = {"bus": 46, "bed": 46}   # the time bar's finish line; the steps are 72

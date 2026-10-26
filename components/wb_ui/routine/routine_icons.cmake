@@ -9,4 +9,6 @@ set(WB_ROUTINE_SRCS
     routine/img_rt_snack.c
     routine/img_rt_books.c
     routine/img_rt_snuggle.c
+    routine/img_rt_bus.c
+    routine/img_rt_bed.c
 )

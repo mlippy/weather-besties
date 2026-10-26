@@ -4,7 +4,7 @@
 Draws from tools/routine/routine_icons.py (SVG) and converts like tools/dog/make_dog_assets.py
 (RGB565A8, RLE compressed, via components/lvgl/scripts/LVGLImage.py):
 
-  img_rt_<name>.c     one per step picture, ICON px square
+  img_rt_<name>.c     one per picture, ICON px square (the bar's finish line: SIZES)
   routine_icons.h     declarations
   routine_icons.cmake WB_ROUTINE_SRCS
 
@@ -36,7 +36,8 @@ def main():
     names = []
     for key, svg in routine_icons.ICONS.items():
         name = f"img_rt_{key}"
-        data = bytes(resvg_py.svg_to_bytes(svg_string=svg, width=ICON, height=ICON))
+        size = routine_icons.SIZES.get(key, ICON)
+        data = bytes(resvg_py.svg_to_bytes(svg_string=svg, width=size, height=size))
         path = os.path.join(PNG, name + ".png")
         Image.open(io.BytesIO(data)).convert("RGBA").save(path)
         subprocess.run([sys.executable, LVGLIMAGE, "--ofmt", "C", "--cf", "RGB565A8", "--compress", "RLE",

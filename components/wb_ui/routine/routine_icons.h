@@ -11,3 +11,5 @@ LV_IMAGE_DECLARE(img_rt_pajamas);
 LV_IMAGE_DECLARE(img_rt_snack);
 LV_IMAGE_DECLARE(img_rt_books);
 LV_IMAGE_DECLARE(img_rt_snuggle);
+LV_IMAGE_DECLARE(img_rt_bus);
+LV_IMAGE_DECLARE(img_rt_bed);

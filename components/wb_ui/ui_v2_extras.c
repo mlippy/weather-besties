@@ -387,7 +387,10 @@ void v2_dress_hide(void)
  * over the last hour before leaving for school / bedtime. Checks reset each day. */
 
 #define RT_ROWS 6
-#define RT_WINDOW_MIN 60      /* the bar is full an hour out and empty at the time */
+#define RT_WINDOW_MIN 60      /* the bar starts filling an hour out and is full at the time */
+#define RT_BAR_X 28
+#define RT_BAR_Y 98
+#define RT_BAR_W 688          /* the bus / the bed waits past its right end */
 #define RT_TILE_W 150     /* square-ish buttons, three across with room between */
 #define RT_TILE_H 128
 #define RT_GAP 14
@@ -418,6 +421,8 @@ void v2_sun_moon_set(const wx_t *wx)
     s_sunset = wx->days[0].sunset_min;
 }
 static lv_obj_t *s_rt_page, *s_rt_title, *s_rt_when, *s_rt_left, *s_rt_track, *s_rt_fill, *s_rt_pet;
+static lv_obj_t *s_rt_runner, *s_rt_finish;   /* the pet's head riding the bar; the bus / the bed */
+static const lv_image_dsc_t *s_rt_head_img;
 static lv_obj_t *s_rt_row[RT_ROWS], *s_rt_box[RT_ROWS], *s_rt_tick[RT_ROWS], *s_rt_lbl[RT_ROWS], *s_rt_pic[RT_ROWS];
 static uint8_t s_rt_checks[2];                 /* bit i = row i done; [0] morning, [1] bedtime */
 static int s_rt_day[2] = {-1, -1};             /* the day those checks belong to */
@@ -458,6 +463,11 @@ static lv_obj_t *rt_box(lv_obj_t *parent)
     return o;
 }
 
+static void rt_bounce(void *obj, int32_t v)
+{
+    lv_obj_set_style_translate_y(obj, v, 0);
+}
+
 lv_obj_t *v2_routine_create(lv_obj_t *scr)
 {
     s_rt_page = rt_box(scr);
@@ -482,8 +492,8 @@ lv_obj_t *v2_routine_create(lv_obj_t *scr)
     lv_obj_set_pos(s_rt_left, 28, 60);
 
     s_rt_track = rt_box(s_rt_page);
-    lv_obj_set_pos(s_rt_track, 28, 98);
-    lv_obj_set_size(s_rt_track, 744, 26);
+    lv_obj_set_pos(s_rt_track, RT_BAR_X, RT_BAR_Y);
+    lv_obj_set_size(s_rt_track, RT_BAR_W, 26);
     lv_obj_set_style_radius(s_rt_track, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(s_rt_track, lv_color_hex(0xECE4D5), 0);
     lv_obj_set_style_bg_opa(s_rt_track, LV_OPA_COVER, 0);
@@ -492,6 +502,21 @@ lv_obj_t *v2_routine_create(lv_obj_t *scr)
     lv_obj_set_height(s_rt_fill, 26);
     lv_obj_set_style_radius(s_rt_fill, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_opa(s_rt_fill, LV_OPA_COVER, 0);
+
+    /* The finish line: where the bar is headed (the bus in the morning, the bed at night),
+     * and the pet's head running along the fill toward it, with a little bounce. */
+    s_rt_finish = lv_image_create(s_rt_page);
+    lv_obj_set_pos(s_rt_finish, RT_BAR_X + RT_BAR_W + 8, RT_BAR_Y + 13 - 23);
+    s_rt_runner = lv_image_create(s_rt_page);
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, s_rt_runner);
+    lv_anim_set_exec_cb(&a, rt_bounce);
+    lv_anim_set_values(&a, 0, -5);
+    lv_anim_set_duration(&a, 450);
+    lv_anim_set_playback_duration(&a, 450);
+    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_start(&a);
 
     for (int i = 0; i < RT_ROWS; i++) {
         lv_obj_t *r = lv_button_create(s_rt_page);
@@ -603,6 +628,8 @@ static void rt_draw(void)
         lv_label_set_text(s_rt_when, "");
         lv_label_set_text(s_rt_left, "No school today!");
         lv_obj_add_flag(s_rt_track, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(s_rt_runner, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(s_rt_finish, LV_OBJ_FLAG_HIDDEN);
     } else {
         snprintf(buf, sizeof(buf), "%s %s", m == 0 ? "Leave at" : "Bed at", t);
         lv_label_set_text(s_rt_when, buf);
@@ -616,7 +643,9 @@ static void rt_draw(void)
         }
         lv_label_set_text(s_rt_left, buf);
         lv_obj_remove_flag(s_rt_track, LV_OBJ_FLAG_HIDDEN);
-        int w = left >= RT_WINDOW_MIN ? 744 : left <= 0 ? 0 : 744 * left / RT_WINDOW_MIN;
+        /* Left to right: the fill is the time gone, so it reaches the bus / the bed at the time. */
+        int gone = left >= RT_WINDOW_MIN ? 0 : left <= 0 ? RT_WINDOW_MIN : RT_WINDOW_MIN - left;
+        int w = RT_BAR_W * gone / RT_WINDOW_MIN;
         /* the bar's colour says how close it is: green, yellow, orange, red */
         uint32_t c = left > 30 ? 0x4CB860 : left > 15 ? 0xF2C230 : left > 5 ? 0xF28C28 : 0xE5483C;
         lv_obj_set_width(s_rt_fill, w < 26 && w > 0 ? 26 : w);
@@ -625,6 +654,21 @@ static void rt_draw(void)
             lv_obj_add_flag(s_rt_fill, LV_OBJ_FLAG_HIDDEN);
         } else {
             lv_obj_remove_flag(s_rt_fill, LV_OBJ_FLAG_HIDDEN);
+        }
+        lv_image_set_src(s_rt_finish, m == 0 ? &img_rt_bus : &img_rt_bed);
+        lv_obj_remove_flag(s_rt_finish, LV_OBJ_FLAG_HIDDEN);
+        if (s_rt_head_img) {
+            int hw = (int)s_rt_head_img->header.w, hh = (int)s_rt_head_img->header.h;
+            int x = RT_BAR_X + w - hw / 2;
+            if (x < RT_BAR_X - 4) {
+                x = RT_BAR_X - 4;
+            }
+            if (x > RT_BAR_X + RT_BAR_W - hw + 4) {
+                x = RT_BAR_X + RT_BAR_W - hw + 4;
+            }
+            lv_image_set_src(s_rt_runner, s_rt_head_img);
+            lv_obj_set_pos(s_rt_runner, x, RT_BAR_Y + 13 - hh / 2);
+            lv_obj_remove_flag(s_rt_runner, LV_OBJ_FLAG_HIDDEN);
         }
     }
 
@@ -641,8 +685,8 @@ static void rt_draw(void)
         lv_label_set_text(s_rt_sun, sb);
         lv_point_t sz;
         lv_text_get_size(&sz, sb, &font_small, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
-        lv_obj_set_pos(s_rt_sun, 772 - sz.x, 64);
-        lv_obj_set_pos(s_rt_moon, 772 - sz.x - (sb[0] ? 38 : 28), 62);
+        lv_obj_set_pos(s_rt_sun, 772 - sz.x, 58);
+        lv_obj_set_pos(s_rt_moon, 772 - sz.x - (sb[0] ? 38 : 28), 56);
         lv_obj_remove_flag(s_rt_moon, LV_OBJ_FLAG_HIDDEN);
     } else {
         lv_label_set_text(s_rt_sun, "");
@@ -655,10 +699,11 @@ static void rt_draw(void)
     }
 }
 
-void v2_routine_render(const struct tm *now, const lv_image_dsc_t *pet)
+void v2_routine_render(const struct tm *now, const lv_image_dsc_t *pet, const lv_image_dsc_t *head)
 {
     s_rt_now = *now;
     s_rt_pet_img = pet;
+    s_rt_head_img = head;
     rt_draw();
 }
 

@@ -4328,7 +4328,10 @@ static void render(void)
     if (page == 4) {
         hide(prog_chip);
         hide(stale_chip);
-        v2_routine_render(&now, pet_sprite(PIPPA_BASE));   /* this fork: Routine (ui_v2_extras.c) */
+        v2_routine_render(&now, pet_sprite(PIPPA_BASE),   /* this fork: Routine (ui_v2_extras.c) */
+                          s_cat_choice == PET_DOG ? &img_dog_head_thumb
+                          : s_cat_choice == 1     ? &img_pippa_head_pink_thumb
+                                                  : &img_pippa_head_thumb);
         return;
     }
 
