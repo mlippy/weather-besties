@@ -155,8 +155,22 @@ static esp_err_t panel_init(void)
     for (int i = 0; i < 16; i++) {
         cfg.data_gpio_nums[i] = RGB_DATA[i];
     }
-    ESP_RETURN_ON_ERROR(esp_lcd_new_rgb_panel(&cfg, &s_panel), TAG, "rgb panel");
-    ESP_RETURN_ON_ERROR(esp_lcd_panel_init(s_panel), TAG, "panel init");
+    esp_err_t err = esp_lcd_new_rgb_panel(&cfg, &s_panel);
+    if (err != ESP_OK) {
+        /* Name the failing allocation: this is the boot loop of iter-33,
+         * where SPIRAM_RODATA + XIP filled PSRAM and the framebuffer
+         * (LCD_W * LCD_H * 2 bytes) no longer fit. */
+        ESP_LOGE(TAG, "rgb panel create failed (%s): no room in PSRAM for the %dx%d RGB565 framebuffer (%u bytes)",
+                 esp_err_to_name(err), LCD_W, LCD_H, (unsigned)(LCD_W * LCD_H * 2));
+        return err;
+    }
+    err = esp_lcd_panel_init(s_panel);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "panel init failed (%s)", esp_err_to_name(err));
+        esp_lcd_panel_del(s_panel);
+        s_panel = NULL;
+        return err;
+    }
     return ESP_OK;
 }
 
@@ -250,6 +264,15 @@ static size_t lines_bytes(int lines)
 size_t board_free_internal(void)
 {
     return heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+}
+
+void board_mem_log(const char *stage)
+{
+    ESP_LOGI(TAG, "mem[%s]: internal free %u, largest block %u, psram free %u",
+             stage,
+             (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+             (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
 }
 
 int board_draw_lines(void)
@@ -346,7 +369,23 @@ esp_err_t board_init(void)
     s_last_touch_us = esp_timer_get_time();
 
     ESP_RETURN_ON_ERROR(i2c_and_expander_init(), TAG, "expander");
-    ESP_RETURN_ON_ERROR(panel_init(), TAG, "panel");
+    /* The panel's framebuffer is the first big PSRAM allocation of boot.
+     * Retry it a few times before giving up: app_main halts loudly on a
+     * board_init error (no more abort into a tight, silent boot loop). */
+    esp_err_t perr = ESP_FAIL;
+    for (int attempt = 1; attempt <= 3; attempt++) {
+        perr = panel_init();
+        if (perr == ESP_OK) {
+            break;
+        }
+        ESP_LOGE(TAG, "panel init attempt %d of 3 failed: %s", attempt, esp_err_to_name(perr));
+        if (attempt < 3) {
+            vTaskDelay(pdMS_TO_TICKS(500));
+        }
+    }
+    if (perr != ESP_OK) {
+        return perr;
+    }
     esp_err_t terr = touch_init();
     if (terr != ESP_OK) {
         ESP_LOGW(TAG, "no touch controller (%s), carrying on without touch", esp_err_to_name(terr));
@@ -411,7 +450,36 @@ static void lvgl_task(void *arg)
     }
 }
 
+/* Iter-36: the lvgl stack is 16 KB, doubled from 8 KB. The
+ * 2.0.1 board rebooted with "stack overflow in task lvgl" the
+ * first time a real calendar populated the flex My Day cards:
+ * the populate chain (lv_timer_handler -> render ->
+ * render_myday -> md_fill_section -> md_fill_card, then
+ * md_fit_list's repeated lv_obj_update_layout over a card tree
+ * seven levels deep, then the draw pass) peaks well past 8 KB.
+ * Measured on the host sim with a pattern-filled stack
+ * (WB_SIM_STACK_PROBE): 14,456 B for the populated path against
+ * 11,688 B for the message-state path, and the host build's
+ * frames and pointers are larger than the device's, so the
+ * device peak sits under the host number but over 8 KB. 16 KB
+ * keeps roughly 1.5x headroom over that estimate; the drawing
+ * buffer grows out of the same internal RAM, so no bigger
+ * without a measured need. board_lvgl_stack_log reports the
+ * real high-water mark on the board. */
+#define LVGL_TASK_STACK 16384
+
+static TaskHandle_t s_lvgl_task;
+
 void board_start_lvgl_task(void)
 {
-    xTaskCreatePinnedToCore(lvgl_task, "lvgl", 8192, NULL, 4, NULL, 1);
+    xTaskCreatePinnedToCore(lvgl_task, "lvgl", LVGL_TASK_STACK, NULL, 4, &s_lvgl_task, 1);
+}
+
+void board_lvgl_stack_log(const char *stage)
+{
+    if (s_lvgl_task == NULL) {
+        return;
+    }
+    ESP_LOGI(TAG, "stack[%s]: lvgl high water %u B free of %d", stage,
+             (unsigned)uxTaskGetStackHighWaterMark(s_lvgl_task), LVGL_TASK_STACK);
 }

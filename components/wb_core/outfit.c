@@ -74,8 +74,81 @@ const char *garment_label(int garment)
     static const char *n[] = {"Short sleeves", "Long sleeves", "Shorts",     "Long pants",   "Hoodie",      "Light jacket",
                               "Rain jacket",   "Warm coat",     "Winter coat", "Sneakers",     "Rain boots",  "Snow boots",
                               "Warm hat",      "Gloves",        "Umbrella",    "Sunglasses",   "Water bottle", "Scarf",
-                              "Dress",         "Warm boots",    "Tights",      "Dress shoes"};
+                              "Dress",         "Warm boots",    "Tights",      "Dress shoes",
+                              "Mustard top",   "Navy top",      "Rust top",    "Lavender dress",
+                              "Mint dress",    "Mustard dress", "Warm coat",   "Warm boots",
+                              "Logo dress",    "Winter coat"};
     return (garment >= 0 && garment < (int)(sizeof(n) / sizeof(n[0]))) ? n[garment] : "";
+}
+
+/* Iter-25: the dress band's looks all wear the one dress outfit (a
+ * dress, the light jacket, tights, dress shoes); they differ only in
+ * which dress. The tiles and the advice treat the family as one. */
+static bool is_dress_look(int look)
+{
+    return look == LOOK_DRESS || look == LOOK_DRESS_LAVENDER || look == LOOK_DRESS_MINT ||
+           look == LOOK_DRESS_MUSTARD || look == LOOK_UNIFORM_DRESS;
+}
+
+static int dress_garment(int look)
+{
+    switch (look) {
+    case LOOK_DRESS_LAVENDER: return DRESS_LAVENDER;
+    case LOOK_DRESS_MINT: return DRESS_MINT;
+    case LOOK_DRESS_MUSTARD: return DRESS_MUSTARD;
+    case LOOK_UNIFORM_DRESS: return UNIFORM_DRESS;
+    default: return DRESS;
+    }
+}
+
+/* Iter-33: the winter-variant looks (the kitp/kitr families) are the
+ * winter kit in other coat colours and shirts, plus two dresses under
+ * the open coat. All of them canonicalise to the kit's outfit whole;
+ * these helpers name the family and its per-look tile differences. */
+static bool is_kit_variant(int look)
+{
+    return look == LOOK_KITP_NAVY_STRIPE || look == LOOK_KITP_RUST_STRIPE ||
+           look == LOOK_KITP_MUSTARD_STRIPE || look == LOOK_KITP_NAVY_SOLID ||
+           look == LOOK_KITP_MUSTARD_SOLID || look == LOOK_KITP_TEAL_SOLID ||
+           look == LOOK_KITR_NAVY_STRIPE || look == LOOK_KITR_RUST_STRIPE ||
+           look == LOOK_KITR_MUSTARD_STRIPE || look == LOOK_KITR_NAVY_SOLID ||
+           look == LOOK_KITR_MUSTARD_SOLID || look == LOOK_KITR_TEAL_SOLID ||
+           look == LOOK_KITP_DRESS || look == LOOK_KITR_DRESS;
+}
+
+static bool is_kit_family(int look)
+{
+    return look == LOOK_SNOW || look == LOOK_KIT2 || is_kit_variant(look);
+}
+
+static bool is_kit_dress_look(int look)
+{
+    return look == LOOK_KITP_DRESS || look == LOOK_KITR_DRESS;
+}
+
+/* The coat tile's picture for a kit-family look: the red coat for
+ * kit2 and the whole kitr family, the kit's own coat otherwise. The
+ * label stays "Winter coat" either way (garment_label). */
+static int kit_coat_garment(int look)
+{
+    switch (look) {
+    case LOOK_KIT2:
+    case LOOK_KITR_NAVY_STRIPE:
+    case LOOK_KITR_RUST_STRIPE:
+    case LOOK_KITR_MUSTARD_STRIPE:
+    case LOOK_KITR_NAVY_SOLID:
+    case LOOK_KITR_MUSTARD_SOLID:
+    case LOOK_KITR_TEAL_SOLID:
+    case LOOK_KITR_DRESS:
+        return WINTER_COAT_RED;
+    default:
+        return WINTER_COAT;
+    }
+}
+
+static int kit_dress_garment(int look)
+{
+    return look == LOOK_KITP_DRESS ? DRESS_LAVENDER : DRESS_MINT;
 }
 
 static const char *top_phrase(top_t t)
@@ -310,6 +383,11 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
      *   every garment visible on the sprite is a tile or a chip, and
      *   every tile and chip garment is visible on the sprite.
      *
+     *   (One owner-approved exception since iter-27: the Watchung
+     *   logo hot sprite wears neither the sunglasses nor the water
+     *   bottle, but both stay prescribed on a logo hot day; see the
+     *   rotation note below.)
+     *
      * Canonical outfits (what each sprite demonstrably wears):
      *   SNOW: long sleeves, long pants, winter coat (the puffer),
      *         snow boots, warm hat, gloves. No scarf: she wears none.
@@ -404,6 +482,10 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
      * is complete underneath it.
      */
     int look;
+    bool warm_coat_tier = false;   /* iter-25: this LOOK_SNOW came from the
+                                    * warm-coat branch below, not from snow
+                                    * or a winter coat, so the rotation may
+                                    * offer the warmcoat variant */
     if (out->feet == FEET_SNOW_BOOTS || out->layer == LAYER_WINTER_COAT) {
         look = LOOK_SNOW;
     } else if ((change & CH_STORM) && (change & CH_HOT)) {
@@ -420,6 +502,7 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
          * NOT available here, warm-up or not (see the bound note at
          * the top of this file). A bike-bus gloves need in this band
          * is then satisfied by the kit itself, which wears them. */
+        warm_coat_tier = true;
         look = LOOK_SNOW;
     } else if (out->layer == LAYER_LIGHT_JACKET) {
         /* iter-09: the light-jacket tier is the dress look's band, and
@@ -433,13 +516,168 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
     } else {
         look = (change & CH_HOT) ? LOOK_HOT : LOOK_PANTS;
     }
+
+    /* ---- iter-25: the outfit rotation. Within a weather band that
+     * has more than one truthful look, the day's look is picked by the
+     * outfit's own date: seed = days since 1970-01-01 (days_from_civil
+     * of the outfit date), index = seed mod (number of candidates).
+     * The pick depends only on the date, so every page that resolves
+     * the same date (Today, Tomorrow, the forecast cards, My Day)
+     * shows the same look, the look is stable all day, and it steps
+     * forward one candidate per day through a same-weather stretch.
+     * Candidates are only ever looks whose canonical outfit below is
+     * the band's own prescription, so the rotation changes which
+     * sprite wears the weather, never the weather truth. Rain and snow
+     * are safety looks and never rotate, into or out of: the snow look
+     * rotates ONLY inside the dry warm-coat tier marked above (where
+     * the kit itself was already a stand-in for "a warm coat"), and
+     * only when the prescription carries neither hat nor gloves,
+     * because the warmcoat sprite wears neither. The Watchung logo
+     * looks are ordinary candidates in their bands, one among several,
+     * so the logo shows every once in a while, not daily.
+     *
+     * Iter-27: the hot band rotates too, between the standard hot
+     * look and the Watchung logo hot look. Iter-25 deliberately kept
+     * LOOK_UNIFORM_HOT out: its sprite wears neither the sunglasses
+     * nor the water bottle the hot look prescribes, and picking it
+     * would break the sprite/tiles/chips invariant. The owner has
+     * explicitly relaxed that for this one look ("it's ok if we don't
+     * have the water bottle for Watchung day, or sunglasses"): on a
+     * logo hot day the prescription is unchanged (the tiles and the
+     * sunglasses and water-bottle chips prescribe exactly what a
+     * standard hot day prescribes); only the sprite differs.
+     *
+     * Iter-30: the warm tier's hat days rotate too, between the kit
+     * and the red winter kit (LOOK_KIT2). Until now a hat prescription
+     * collapsed the tier to the kit alone, because the warmcoat wears
+     * no hat; kit2 wears hat and gloves exactly like the kit, so it
+     * is truthful precisely where the kit is, and the alternation the
+     * hat-free days already had extends across the whole dry warm
+     * tier. The gate is the hat alone: kit2's sprite wears one, so it
+     * must never appear on a hat-free day (a gloves-only morning,
+     * e.g. a mild bike-bus day, stays the kit's). Snow and winter-tier
+     * days are untouched: the kit there is a safety look, not a
+     * stand-in, and never rotates.
+     *
+     * Iter-33: the hat band is now all SIXTEEN truthful hat looks:
+     * the kit, kit2, the twelve shirt variants (a named long-sleeve
+     * shirt under the pink or red coat) and the two dress variants
+     * (a dress under the open coat), every one wearing hat, scarf,
+     * mittens and winter boots. Same seed rule (the outfit date mod
+     * the band size), so the pick still steps one candidate per day
+     * and every page agrees; a same-weather stretch now walks the
+     * whole wardrobe instead of alternating two kits. The gate is
+     * unchanged (the hat alone), and the hat-free and gloves-only
+     * days keep their iter-25/30 behaviour exactly. ---- */
+    {
+        static const int dress_band[] = {LOOK_DRESS, LOOK_DRESS_LAVENDER, LOOK_DRESS_MINT,
+                                         LOOK_DRESS_MUSTARD, LOOK_UNIFORM_DRESS};
+        static const int fall_band[] = {LOOK_FALL, LOOK_FALL_HOODIE, LOOK_UNIFORM_FALL};
+        static const int warm_band[] = {LOOK_SNOW, LOOK_WARMCOAT};
+        /* Iter-35: the order interleaves coat colour and shirt
+         * kind (stripe / solid / dress). In the iter-33 order the
+         * striped shirts clustered at the front of the band, so a
+         * run of hat days (Oct 26/27/28 2026 picked indices 0/1/2)
+         * read as the same outfit all week; now no two neighbours
+         * share both the same coat and the same shirt kind, and
+         * the coat colour alternates the whole way around. */
+        static const int hat_band[] = {LOOK_SNOW,           LOOK_KITR_NAVY_SOLID,
+                                       LOOK_KITP_MUSTARD_STRIPE, LOOK_KITR_DRESS,
+                                       LOOK_KITP_NAVY_SOLID,     LOOK_KIT2,
+                                       LOOK_KITP_MUSTARD_SOLID,  LOOK_KITR_NAVY_STRIPE,
+                                       LOOK_KITP_RUST_STRIPE,    LOOK_KITR_MUSTARD_SOLID,
+                                       LOOK_KITP_DRESS,          LOOK_KITR_RUST_STRIPE,
+                                       LOOK_KITP_TEAL_SOLID,     LOOK_KITR_MUSTARD_STRIPE,
+                                       LOOK_KITP_NAVY_STRIPE,    LOOK_KITR_TEAL_SOLID};
+        static const int hot_band[] = {LOOK_HOT, LOOK_UNIFORM_HOT};
+        int pants_band[5];
+        const int *band = NULL;
+        int nband = 0;
+        if (warm_coat_tier) {
+            if (extras & EX_HAT) {
+                band = hat_band;   /* iter-33: hat days rotate all 16 kit looks */
+                nband = 16;
+            } else if (!(extras & EX_GLOVES)) {
+                band = warm_band;
+                nband = 2;
+            }
+        } else if (look == LOOK_DRESS) {
+            band = dress_band;
+            nband = 5;
+        } else if (look == LOOK_HOT) {
+            band = hot_band;
+            nband = 2;
+        } else if (look == LOOK_FALL) {
+            band = fall_band;
+            nband = 3;
+        } else if (look == LOOK_PANTS) {
+            int n = 0;
+            pants_band[n++] = LOOK_PANTS;
+            pants_band[n++] = LOOK_UNIFORM_PANTS;
+            /* The coloured-top sprites wear a long-sleeve top and
+             * long pants under the jacket; they are candidates only
+             * on days the engine prescribed exactly that underneath. */
+            if (out->top == TOP_LONG_SLEEVES && out->bottom == BOTTOM_LONG_PANTS) {
+                pants_band[n++] = LOOK_TOP_MUSTARD;
+                pants_band[n++] = LOOK_TOP_NAVY;
+                pants_band[n++] = LOOK_TOP_RUST;
+            }
+            band = pants_band;
+            nband = n;
+        }
+        if (nband > 1 && !(o && o->no_rotation)) {
+            long seed = days_from_civil(out->year, out->month, out->day);
+            look = band[(int)(((seed % nband) + nband) % nband)];
+        }
+    }
+
     switch (look) {
     case LOOK_SNOW:
+    case LOOK_KIT2:
+    case LOOK_KITP_NAVY_STRIPE:
+    case LOOK_KITP_RUST_STRIPE:
+    case LOOK_KITP_MUSTARD_STRIPE:
+    case LOOK_KITP_NAVY_SOLID:
+    case LOOK_KITP_MUSTARD_SOLID:
+    case LOOK_KITP_TEAL_SOLID:
+    case LOOK_KITR_NAVY_STRIPE:
+    case LOOK_KITR_RUST_STRIPE:
+    case LOOK_KITR_MUSTARD_STRIPE:
+    case LOOK_KITR_NAVY_SOLID:
+    case LOOK_KITR_MUSTARD_SOLID:
+    case LOOK_KITR_TEAL_SOLID:
+    case LOOK_KITP_DRESS:
+    case LOOK_KITR_DRESS:
+        /* Iter-30: kit2 is the kit in a red colourway (red quilted
+         * coat, red hat, mittens; the scarf is drawn as part of that
+         * coat ensemble), and it shares the kit's canonicalisation
+         * whole: same tiles, chips and advice. Only the coat tile's
+         * picture differs (see the tiles below).
+         * Iter-33: the fourteen winter variants share it too. The
+         * shirt variants differ from the kit only in the shirt drawn
+         * under the coat (never a tile of its own: the coat covers
+         * the torso, exactly as the kit's own striped shirt is no
+         * tile either) and in the coat tile's picture for the red
+         * family. The two dress variants differ in the tiles (see
+         * the tiles below) and in sentence A naming the dress. */
         out->top = TOP_LONG_SLEEVES;
         out->bottom = BOTTOM_LONG_PANTS;
         out->layer = LAYER_WINTER_COAT;
         out->feet = FEET_SNOW_BOOTS;
         extras = EX_HAT | EX_GLOVES;   /* both are on the sprite, always */
+        break;
+    case LOOK_WARMCOAT:
+        /* Iter-25: the warmcoat sprite's own outfit in the dry
+         * warm-coat tier: long sleeves, long pants, the warm coat
+         * (its teal puffer) and warm boots (its brown fur-lined
+         * pair). No extras: the rotation only offers this look when
+         * the prescription has neither hat nor gloves, because the
+         * sprite wears neither. */
+        out->top = TOP_LONG_SLEEVES;
+        out->bottom = BOTTOM_LONG_PANTS;
+        out->layer = LAYER_WARM_COAT;
+        out->feet = FEET_WARM_BOOTS;
+        extras = 0;
         break;
     case LOOK_RAIN:
         out->top = TOP_LONG_SLEEVES;
@@ -449,17 +687,47 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
         extras = EX_UMBRELLA;   /* in her hand, so it is a required chip */
         break;
     case LOOK_HOT:
+    case LOOK_UNIFORM_HOT:
         out->top = TOP_SHORT_SLEEVES;
         out->bottom = BOTTOM_SHORTS;
         out->layer = LAYER_NONE;
         out->feet = FEET_SNEAKERS;
-        /* Both extras are on the sprite, on storm days too (iter-11,
-         * panel round 9: see the hot-storms note above). */
+        /* Both extras are on the standard sprite, on storm days too
+         * (iter-11, panel round 9: see the hot-storms note above).
+         * Iter-27: they stay prescribed on a logo hot day as well,
+         * even though the logo sprite wears neither: the owner
+         * accepted the missing props on the picture for Watchung
+         * day, and the prescription (tiles, chips, advice) must
+         * still tell the girls to take sunglasses and water. */
         extras = EX_SUNGLASSES | EX_WATER;
         break;
     case LOOK_FALL:
         out->layer = LAYER_HOODIE;   /* the fall sprite wears a hoodie */
         extras = EX_SCARF;           /* the light scarf she wears */
+        break;
+    case LOOK_FALL_HOODIE:
+        /* Iter-25: the fall twin in a lavender hooded jacket; the
+         * white scarf is on the sprite too, so the fall canonical
+         * outfit (hoodie + scarf) is unchanged. */
+        out->layer = LAYER_HOODIE;
+        extras = EX_SCARF;
+        break;
+    case LOOK_UNIFORM_FALL:
+        /* Iter-25: the logo tee under the same lavender hooded
+         * jacket, but no scarf on this sprite. */
+        out->layer = LAYER_HOODIE;
+        extras = 0;
+        break;
+    case LOOK_TOP_MUSTARD:
+    case LOOK_TOP_NAVY:
+    case LOOK_TOP_RUST:
+    case LOOK_UNIFORM_PANTS:
+        /* Iter-25: the pants band's other sprites wear the same open
+         * blue jacket over their tops, so the pants canonical outfit
+         * is unchanged; only the top tile names the day's top (see
+         * the tiles below). */
+        out->layer = LAYER_LIGHT_JACKET;
+        extras = 0;
         break;
     case LOOK_PANTS:
         /* The pants sprite wears an open blue jacket over her tee.
@@ -469,10 +737,14 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
         out->layer = LAYER_LIGHT_JACKET;
         extras = 0;   /* she wears no extras */
         break;
-    default:   /* LOOK_DRESS */
+    default:   /* LOOK_DRESS and the iter-25 dress-band looks */
         /* The dress sprite's layer is her light jacket, stated as
          * such (iter-09): the canonicalisation pins it so the tile,
-         * the caption and the advice can never call it a warm coat. */
+         * the caption and the advice can never call it a warm coat.
+         * The rotation's dress variants (the three new dresses and
+         * the Watchung logo dress) wear the same jacket, tights and
+         * Mary Janes, so they share this canonical outfit; the tiles
+         * below name the day's dress itself. */
         out->layer = LAYER_LIGHT_JACKET;
         extras = 0;   /* no extras; the sprite wears none */
         break;
@@ -486,20 +758,59 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
      * the same way as any other day (iter-08): the dress, its layer,
      * her tights and her dress shoes, four tiles filling the grid. ---- */
     int n = 0;
-    if (look == LOOK_DRESS) {
-        out->tile_kind[n++] = DRESS;
+    if (is_dress_look(look)) {
+        out->tile_kind[n++] = dress_garment(look);
         if (out->layer != LAYER_NONE) {
             static const int layer_garment[] = {0, HOODIE, LIGHT_JACKET, RAIN_JACKET, WARM_COAT, WINTER_COAT};
             out->tile_kind[n++] = layer_garment[out->layer];
         }
         out->tile_kind[n++] = TIGHTS;
         out->tile_kind[n++] = DRESS_SHOES;
+    } else if (look == LOOK_WARMCOAT) {
+        /* Iter-25: the warmcoat sprite's garments are its own (the
+         * teal puffer, not the kit's blue warm coat; brown fur-lined
+         * boots, not snow boots), so its tiles are itemised here
+         * rather than through the generic layer/feet mapping. */
+        out->tile_kind[n++] = LONG_SLEEVES;
+        out->tile_kind[n++] = LONG_PANTS;
+        out->tile_kind[n++] = WARM_COAT_TEAL;
+        out->tile_kind[n++] = BROWN_BOOTS;
+    } else if (is_kit_dress_look(look)) {
+        /* Iter-33: the dress-under-coat variants tile what the
+         * sprite wears: the dress itself in place of Long pants (the
+         * sprite wears warm leggings, not long pants), NO Long
+         * sleeves tile (the dress is the torso garment; the coat's
+         * arms cover the arms), the day's own coat, and the winter
+         * boots (named Warm boots on a dry day, the kit's own rule). */
+        out->tile_kind[n++] = kit_dress_garment(look);
+        out->tile_kind[n++] = kit_coat_garment(look);
+        out->tile_kind[n++] = (has_snow || ice) ? SNOW_BOOTS : WARM_BOOTS;
     } else {
-        out->tile_kind[n++] = out->top == TOP_SHORT_SLEEVES ? SHORT_SLEEVES : LONG_SLEEVES;
+        /* Iter-25: a coloured-top day tiles the day's top itself, not
+         * the generic long sleeves it canonicalises to. */
+        int top_tile = out->top == TOP_SHORT_SLEEVES ? SHORT_SLEEVES : LONG_SLEEVES;
+        if (look == LOOK_TOP_MUSTARD) {
+            top_tile = MUSTARD_TOP;
+        } else if (look == LOOK_TOP_NAVY) {
+            top_tile = NAVY_TOP;
+        } else if (look == LOOK_TOP_RUST) {
+            top_tile = RUST_TOP;
+        }
+        out->tile_kind[n++] = top_tile;
         out->tile_kind[n++] = out->bottom == BOTTOM_SHORTS ? SHORTS : LONG_PANTS;
         if (out->layer != LAYER_NONE) {
             static const int layer_garment[] = {0, HOODIE, LIGHT_JACKET, RAIN_JACKET, WARM_COAT, WINTER_COAT};
-            out->tile_kind[n++] = layer_garment[out->layer];
+            int lg = layer_garment[out->layer];
+            /* Iter-30: on a kit2 day the "Winter coat" tile pictures
+             * the day's own red coat (same per-look swap as the
+             * warmcoat's teal tile); the label stays "Winter coat".
+             * Iter-33: the whole red kit family (kitr) takes the same
+             * swap through kit_coat_garment; the pink family and the
+             * kit itself keep the standard coat picture. */
+            if (is_kit_family(look) && lg == WINTER_COAT) {
+                lg = kit_coat_garment(look);
+            }
+            out->tile_kind[n++] = lg;
         }
         if (out->feet == FEET_SNEAKERS) {
             out->tile_kind[n++] = SNEAKERS;
@@ -532,14 +843,19 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
      * (and sentence A's verb flips to "Bring", like any warm-up).
      * Storm, snow and bike-bus days are excluded: their own sentence
      * B already owns the day's story and must keep winning. */
-    bool kit_warmup = look == LOOK_SNOW && (f_max - f_dep) >= 10.0f &&
+    bool kit_warmup = is_kit_family(look) && (f_max - f_dep) >= 10.0f &&
                       !(change & (CH_STORM | CH_SNOW | CH_BIKE_BUS));
     bool warmup_words = (change & CH_WARMUP) || kit_warmup;
     char a[64], b[80];   /* longest A is 43 chars, longest B is 70, both fit advice_short */
     b[0] = 0;
-    if (look == LOOK_DRESS) {
-        /* The dress replaces top and bottom in the words too. */
-        snprintf(a, sizeof(a), "Wear your dress. %s %s.", (change & CH_WARMUP) ? "Bring" : "Wear",
+    if (is_dress_look(look) || is_kit_dress_look(look)) {
+        /* The dress replaces top and bottom in the words too.
+         * Iter-33: the dress-under-coat variants name the dress the
+         * same way; their verb follows warmup_words, which for a kit
+         * family look is the kit family's warm-up path (for the
+         * dress-band looks warmup_words is just CH_WARMUP, as
+         * before, because kit_warmup is never set for them). */
+        snprintf(a, sizeof(a), "Wear your dress. %s %s.", warmup_words ? "Bring" : "Wear",
                  layer_phrase(out->layer));
     } else if (out->layer == LAYER_NONE) {
         snprintf(a, sizeof(a), "Wear %s and %s.", top_phrase(out->top), bottom_phrase(out->bottom));

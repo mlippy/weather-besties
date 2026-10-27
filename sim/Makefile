@@ -37,12 +37,12 @@ endif
 SRC := $(shell find $(LVGL_DIR)/src -name '*.c') $(SHARED_SRC) $(UI_SRC) $(CJSON)/cJSON.c
 OBJ := $(patsubst %.c,build/%.o,$(subst $(ROOT)/,root/,$(SRC)))
 
-CFLAGS := -O2 -g -I$(ROOT)/components -I$(LVGL_DIR) -I$(UI_DIR) -I$(CORE_DIR) -I$(CJSON) \
+CFLAGS := -O2 -g -pthread -I$(ROOT)/components -I$(LVGL_DIR) -I$(UI_DIR) -I$(CORE_DIR) -I$(CJSON) \
           -DLV_LVGL_H_INCLUDE_SIMPLE -DLV_CONF_INCLUDE_SIMPLE -DLV_KCONFIG_IGNORE -Wno-unused-result -DWB_SIM \
           -MMD -MP   # rebuild a file when a header it uses changes
 
 render-$(UI): $(OBJ)
-	$(CC) -o $@ $^ -lm
+	$(CC) -o $@ $^ -lm -pthread
 
 -include $(OBJ:.o=.d)
 

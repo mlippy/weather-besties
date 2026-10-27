@@ -4,8 +4,8 @@
 Pippa's artwork comes from external packages (flattened full-character
 sprites, 260x252, transparent PNGs; PNG transparency is authoritative).
 This script converts the pieces the UI uses into the same LVGL image
-format as every other asset (RGB565A8, RLE compressed, via
-components/lvgl/scripts/LVGLImage.py) and generates:
+format as every other asset (RGB565A8, LZ4 compressed since iter-34,
+via components/lvgl/scripts/LVGLImage.py) and generates:
 
   assets/img_pippa_<variant>.c    (13 sprites: six outfits x two fur
                                    colourways, plus the undressed base)
@@ -75,9 +75,66 @@ for _outfit in ("dress", "pants", "snow", "rain", "hot", "fall"):
         _sym = "img_pippa_" + (_outfit if _color == "black" else f"pink_{_outfit}")
         VARIANTS.append((_enum, _sym, os.path.join(
             WARDROBE, "sprites", _color, f"pippa-{_outfit}.png")))
+# Iter-25 rotation variants: their art is committed in this repo under
+# art/ (the original packages above live outside it). Same black/pink
+# pairing, naming and normalisation (260x252, baseline y=240): the new
+# outfit sprites in art/pippa-new-outfits/sprites and the Watchung
+# logo sprites in art/pippa-watchung-uniforms.
+_ART_OUTFITS = os.path.join(ROOT, "art", "pippa-new-outfits", "sprites")
+for _outfit in ("warmcoat", "top_mustard", "top_navy", "top_rust",
+                "dress_lavender", "dress_mint", "dress_mustard", "fall_hoodie"):
+    for _color in ("black", "pink"):
+        _enum = "PIPPA_" + (_outfit if _color == "black" else f"pink_{_outfit}").upper()
+        _sym = "img_pippa_" + (_outfit if _color == "black" else f"pink_{_outfit}")
+        VARIANTS.append((_enum, _sym, os.path.join(
+            _ART_OUTFITS, f"pippa-{_outfit.replace('_', '-')}-{_color}.png")))
+_ART_UNIFORMS = os.path.join(ROOT, "art", "pippa-watchung-uniforms")
+for _outfit in ("dress", "pants", "hot", "fall"):
+    _name = f"uniform_{_outfit}"
+    for _color in ("black", "pink"):
+        _enum = "PIPPA_" + (_name if _color == "black" else f"pink_{_name}").upper()
+        _sym = "img_pippa_" + (_name if _color == "black" else f"pink_{_name}")
+        VARIANTS.append((_enum, _sym, os.path.join(
+            _ART_UNIFORMS, f"pippa-uniform-{_outfit}-{_color}.png")))
+# Iter-30: the red winter kit (kit2), archived with the new-outfits
+# package. Appended last so every existing variant keeps its value
+# (PIPPA_BASE, appended below, is the only one that moves).
+for _color in ("black", "pink"):
+    _enum = "PIPPA_" + ("kit2" if _color == "black" else "pink_kit2").upper()
+    _sym = "img_pippa_" + ("kit2" if _color == "black" else "pink_kit2")
+    VARIANTS.append((_enum, _sym, os.path.join(
+        _ART_OUTFITS, f"pippa-winterkit2-{_color}.png")))
+# Iter-33: the winter-variant batch (art/pippa-winter-variants), wired
+# BLACK FUR ONLY per the owner's call ("all 14 outfits, black only, if
+# the slots stretch" — the dual 0x7F0000 OTA slots do). The pink-fur
+# PNGs stay archived art and are never registered. Each outfit still
+# gets its black/pink enum pair (ui.c's colourway arithmetic relies on
+# pink = black + 1), but the pink entry's source is None: an ALIAS.
+# Aliases generate no image of their own; pippa_sets.c points the pink
+# slot at the black sprite's descriptor, so a pink-fur day shows the
+# black sprite (the owner's named fallback) at zero extra flash cost.
+_ART_WINTER = os.path.join(ROOT, "art", "pippa-winter-variants", "sprites")
+for _name, _file in (("kitp_navy_stripe", "pinkcoat-navy-stripe"),
+                     ("kitp_rust_stripe", "pinkcoat-rust-stripe"),
+                     ("kitp_mustard_stripe", "pinkcoat-mustard-stripe"),
+                     ("kitp_navy_solid", "pinkcoat-navy-solid"),
+                     ("kitp_mustard_solid", "pinkcoat-mustard-solid"),
+                     ("kitp_teal_solid", "pinkcoat-teal-solid"),
+                     ("kitr_navy_stripe", "redcoat-navy-stripe"),
+                     ("kitr_rust_stripe", "redcoat-rust-stripe"),
+                     ("kitr_mustard_stripe", "redcoat-mustard-stripe"),
+                     ("kitr_navy_solid", "redcoat-navy-solid"),
+                     ("kitr_mustard_solid", "redcoat-mustard-solid"),
+                     ("kitr_teal_solid", "redcoat-teal-solid"),
+                     ("kitp_dress", "pinkcoat-lavender-dress"),
+                     ("kitr_dress", "redcoat-mint-dress")):
+    _sym = "img_pippa_" + _name
+    VARIANTS.append(("PIPPA_" + _name.upper(), _sym,
+                     os.path.join(_ART_WINTER, f"pippa-{_file}-black.png")))
+    VARIANTS.append(("PIPPA_PINK_" + _name.upper(), _sym, None))   # alias
 VARIANTS.append(("PIPPA_BASE", "img_pippa_base",
                  os.path.join(PKG, "sprites", "pippa_base-260x252.png")))
-SPRITES = [(sym, src) for _, sym, src in VARIANTS]
+SPRITES = [(sym, src) for _, sym, src in VARIANTS if src is not None]
 
 HEART_MS = [260, 150, 150, 240, 500, 400]   # animations/manifest.json
 HEART = [(f"img_pippa_heart_{i}", os.path.join(PKG, "animations", "frames", "heart", f"0{i}.png"))
@@ -142,7 +199,7 @@ MINI_H = 104   # iter-08 (panel round 6): at 50 the minis read as a logo,
                # so ~104 px tall fits the 236x344 card with the day,
                # weather, temps and key garment all legible.
 MINIS = [(sym.replace("img_pippa_", "img_pippa_mini_"), src)
-         for _, sym, src in VARIANTS if sym != "img_pippa_base"]
+         for _, sym, src in VARIANTS if src is not None and sym != "img_pippa_base"]
 
 
 def convert_mini(png_path, name):
@@ -168,7 +225,7 @@ def convert_mini(png_path, name):
     cropped = os.path.join(PNG, name + ".png")
     im.crop(bb).save(cropped)
     subprocess.run([sys.executable, LVGLIMAGE, "--ofmt", "C", "--cf", "RGB565A8",
-                    "--compress", "RLE", "-o", OUT, "--name", name, cropped],
+                    "--compress", "LZ4", "-o", OUT, "--name", name, cropped],
                    check=True, stdout=subprocess.DEVNULL)
     produced = os.path.join(OUT, name + ".png.c")
     if not os.path.exists(produced):
@@ -183,7 +240,7 @@ def _write_lvimg(png_path, name):
     """Convert one prepared PNG to an LVGL C image in OUT (the tail
     of convert()/convert_mini(), shared by the iter-11 assets)."""
     subprocess.run([sys.executable, LVGLIMAGE, "--ofmt", "C", "--cf", "RGB565A8",
-                    "--compress", "RLE", "-o", OUT, "--name", name, png_path],
+                    "--compress", "LZ4", "-o", OUT, "--name", name, png_path],
                    check=True, stdout=subprocess.DEVNULL)
     produced = os.path.join(OUT, name + ".png.c")
     if not os.path.exists(produced):
@@ -294,7 +351,7 @@ def convert(png_path, name, window=None):
     cropped = os.path.join(PNG, name + ".png")
     im.crop(bb).save(cropped)
     subprocess.run([sys.executable, LVGLIMAGE, "--ofmt", "C", "--cf", "RGB565A8",
-                    "--compress", "RLE", "-o", OUT, "--name", name, cropped],
+                    "--compress", "LZ4", "-o", OUT, "--name", name, cropped],
                    check=True, stdout=subprocess.DEVNULL)
     produced = os.path.join(OUT, name + ".png.c")
     if not os.path.exists(produced):
@@ -394,12 +451,11 @@ extern const lv_point_t WB_PIPPA_HEART_OVERLAY_POS;
         f.write("/* Generated by tools/make_pippa_assets.py. Do not edit. */\n")
         f.write('#include "pippa_sets.h"\n\n')
         f.write("const lv_image_dsc_t *const WB_PIPPA_SPRITES[PIPPA_COUNT] = {"
-                + ", ".join(f"&{n}" for n, _ in SPRITES) + "};\n")
+                + ", ".join(f"&{sym}" for _, sym, _ in VARIANTS) + "};\n")
         f.write("const lv_point_t WB_PIPPA_SPRITE_POS[PIPPA_COUNT] = {"
-                + ", ".join(f"{{{info[n][0]}, {info[n][1]}}}" for n, _ in SPRITES) + "};\n")
-        mini_by_variant = {sym: mini for mini, (_, sym, _) in
-                             zip([m for m, _ in MINIS],
-                                 [v for v in VARIANTS if v[1] != "img_pippa_base"])}
+                + ", ".join(f"{{{info[sym][0]}, {info[sym][1]}}}" for _, sym, _ in VARIANTS) + "};\n")
+        mini_by_variant = {sym: sym.replace("img_pippa_", "img_pippa_mini_")
+                           for _, sym, _ in VARIANTS if sym != "img_pippa_base"}
         f.write("const lv_image_dsc_t *const WB_PIPPA_MINIS[PIPPA_COUNT] = {"
                 + ", ".join(("&" + mini_by_variant[sym]) if sym in mini_by_variant else "NULL"
                             for _, sym, _ in VARIANTS) + "};\n\n")

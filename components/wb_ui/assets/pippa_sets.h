@@ -21,6 +21,46 @@ LV_IMAGE_DECLARE(img_pippa_hot);
 LV_IMAGE_DECLARE(img_pippa_pink_hot);
 LV_IMAGE_DECLARE(img_pippa_fall);
 LV_IMAGE_DECLARE(img_pippa_pink_fall);
+LV_IMAGE_DECLARE(img_pippa_warmcoat);
+LV_IMAGE_DECLARE(img_pippa_pink_warmcoat);
+LV_IMAGE_DECLARE(img_pippa_top_mustard);
+LV_IMAGE_DECLARE(img_pippa_pink_top_mustard);
+LV_IMAGE_DECLARE(img_pippa_top_navy);
+LV_IMAGE_DECLARE(img_pippa_pink_top_navy);
+LV_IMAGE_DECLARE(img_pippa_top_rust);
+LV_IMAGE_DECLARE(img_pippa_pink_top_rust);
+LV_IMAGE_DECLARE(img_pippa_dress_lavender);
+LV_IMAGE_DECLARE(img_pippa_pink_dress_lavender);
+LV_IMAGE_DECLARE(img_pippa_dress_mint);
+LV_IMAGE_DECLARE(img_pippa_pink_dress_mint);
+LV_IMAGE_DECLARE(img_pippa_dress_mustard);
+LV_IMAGE_DECLARE(img_pippa_pink_dress_mustard);
+LV_IMAGE_DECLARE(img_pippa_fall_hoodie);
+LV_IMAGE_DECLARE(img_pippa_pink_fall_hoodie);
+LV_IMAGE_DECLARE(img_pippa_uniform_dress);
+LV_IMAGE_DECLARE(img_pippa_pink_uniform_dress);
+LV_IMAGE_DECLARE(img_pippa_uniform_pants);
+LV_IMAGE_DECLARE(img_pippa_pink_uniform_pants);
+LV_IMAGE_DECLARE(img_pippa_uniform_hot);
+LV_IMAGE_DECLARE(img_pippa_pink_uniform_hot);
+LV_IMAGE_DECLARE(img_pippa_uniform_fall);
+LV_IMAGE_DECLARE(img_pippa_pink_uniform_fall);
+LV_IMAGE_DECLARE(img_pippa_kit2);
+LV_IMAGE_DECLARE(img_pippa_pink_kit2);
+LV_IMAGE_DECLARE(img_pippa_kitp_navy_stripe);
+LV_IMAGE_DECLARE(img_pippa_kitp_rust_stripe);
+LV_IMAGE_DECLARE(img_pippa_kitp_mustard_stripe);
+LV_IMAGE_DECLARE(img_pippa_kitp_navy_solid);
+LV_IMAGE_DECLARE(img_pippa_kitp_mustard_solid);
+LV_IMAGE_DECLARE(img_pippa_kitp_teal_solid);
+LV_IMAGE_DECLARE(img_pippa_kitr_navy_stripe);
+LV_IMAGE_DECLARE(img_pippa_kitr_rust_stripe);
+LV_IMAGE_DECLARE(img_pippa_kitr_mustard_stripe);
+LV_IMAGE_DECLARE(img_pippa_kitr_navy_solid);
+LV_IMAGE_DECLARE(img_pippa_kitr_mustard_solid);
+LV_IMAGE_DECLARE(img_pippa_kitr_teal_solid);
+LV_IMAGE_DECLARE(img_pippa_kitp_dress);
+LV_IMAGE_DECLARE(img_pippa_kitr_dress);
 LV_IMAGE_DECLARE(img_pippa_base);
 LV_IMAGE_DECLARE(img_pippa_heart_0);
 LV_IMAGE_DECLARE(img_pippa_heart_1);
@@ -41,6 +81,46 @@ LV_IMAGE_DECLARE(img_pippa_mini_hot);   /* forecast-card mini */
 LV_IMAGE_DECLARE(img_pippa_mini_pink_hot);   /* forecast-card mini */
 LV_IMAGE_DECLARE(img_pippa_mini_fall);   /* forecast-card mini */
 LV_IMAGE_DECLARE(img_pippa_mini_pink_fall);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_warmcoat);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_pink_warmcoat);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_top_mustard);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_pink_top_mustard);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_top_navy);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_pink_top_navy);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_top_rust);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_pink_top_rust);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_dress_lavender);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_pink_dress_lavender);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_dress_mint);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_pink_dress_mint);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_dress_mustard);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_pink_dress_mustard);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_fall_hoodie);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_pink_fall_hoodie);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_uniform_dress);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_pink_uniform_dress);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_uniform_pants);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_pink_uniform_pants);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_uniform_hot);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_pink_uniform_hot);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_uniform_fall);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_pink_uniform_fall);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kit2);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_pink_kit2);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitp_navy_stripe);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitp_rust_stripe);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitp_mustard_stripe);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitp_navy_solid);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitp_mustard_solid);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitp_teal_solid);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitr_navy_stripe);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitr_rust_stripe);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitr_mustard_stripe);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitr_navy_solid);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitr_mustard_solid);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitr_teal_solid);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitp_dress);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitr_dress);   /* forecast-card mini */
 LV_IMAGE_DECLARE(img_pippa_head_thumb);   /* Settings cat-pill thumbnail */
 LV_IMAGE_DECLARE(img_pippa_head_pink_thumb);   /* Settings cat-pill thumbnail */
 LV_IMAGE_DECLARE(img_pippa_heart_overlay);   /* all-done heart overlay */
@@ -63,8 +143,62 @@ typedef enum {
     PIPPA_PINK_HOT = 9,
     PIPPA_FALL = 10,
     PIPPA_PINK_FALL = 11,
-    PIPPA_BASE = 12,
-    PIPPA_COUNT = 13
+    PIPPA_WARMCOAT = 12,
+    PIPPA_PINK_WARMCOAT = 13,
+    PIPPA_TOP_MUSTARD = 14,
+    PIPPA_PINK_TOP_MUSTARD = 15,
+    PIPPA_TOP_NAVY = 16,
+    PIPPA_PINK_TOP_NAVY = 17,
+    PIPPA_TOP_RUST = 18,
+    PIPPA_PINK_TOP_RUST = 19,
+    PIPPA_DRESS_LAVENDER = 20,
+    PIPPA_PINK_DRESS_LAVENDER = 21,
+    PIPPA_DRESS_MINT = 22,
+    PIPPA_PINK_DRESS_MINT = 23,
+    PIPPA_DRESS_MUSTARD = 24,
+    PIPPA_PINK_DRESS_MUSTARD = 25,
+    PIPPA_FALL_HOODIE = 26,
+    PIPPA_PINK_FALL_HOODIE = 27,
+    PIPPA_UNIFORM_DRESS = 28,
+    PIPPA_PINK_UNIFORM_DRESS = 29,
+    PIPPA_UNIFORM_PANTS = 30,
+    PIPPA_PINK_UNIFORM_PANTS = 31,
+    PIPPA_UNIFORM_HOT = 32,
+    PIPPA_PINK_UNIFORM_HOT = 33,
+    PIPPA_UNIFORM_FALL = 34,
+    PIPPA_PINK_UNIFORM_FALL = 35,
+    PIPPA_KIT2 = 36,
+    PIPPA_PINK_KIT2 = 37,
+    PIPPA_KITP_NAVY_STRIPE = 38,
+    PIPPA_PINK_KITP_NAVY_STRIPE = 39,
+    PIPPA_KITP_RUST_STRIPE = 40,
+    PIPPA_PINK_KITP_RUST_STRIPE = 41,
+    PIPPA_KITP_MUSTARD_STRIPE = 42,
+    PIPPA_PINK_KITP_MUSTARD_STRIPE = 43,
+    PIPPA_KITP_NAVY_SOLID = 44,
+    PIPPA_PINK_KITP_NAVY_SOLID = 45,
+    PIPPA_KITP_MUSTARD_SOLID = 46,
+    PIPPA_PINK_KITP_MUSTARD_SOLID = 47,
+    PIPPA_KITP_TEAL_SOLID = 48,
+    PIPPA_PINK_KITP_TEAL_SOLID = 49,
+    PIPPA_KITR_NAVY_STRIPE = 50,
+    PIPPA_PINK_KITR_NAVY_STRIPE = 51,
+    PIPPA_KITR_RUST_STRIPE = 52,
+    PIPPA_PINK_KITR_RUST_STRIPE = 53,
+    PIPPA_KITR_MUSTARD_STRIPE = 54,
+    PIPPA_PINK_KITR_MUSTARD_STRIPE = 55,
+    PIPPA_KITR_NAVY_SOLID = 56,
+    PIPPA_PINK_KITR_NAVY_SOLID = 57,
+    PIPPA_KITR_MUSTARD_SOLID = 58,
+    PIPPA_PINK_KITR_MUSTARD_SOLID = 59,
+    PIPPA_KITR_TEAL_SOLID = 60,
+    PIPPA_PINK_KITR_TEAL_SOLID = 61,
+    PIPPA_KITP_DRESS = 62,
+    PIPPA_PINK_KITP_DRESS = 63,
+    PIPPA_KITR_DRESS = 64,
+    PIPPA_PINK_KITR_DRESS = 65,
+    PIPPA_BASE = 66,
+    PIPPA_COUNT = 67
 } pippa_variant_t;
 #define PIPPA_NONE (-1)
 

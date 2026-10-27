@@ -2,13 +2,13 @@
 """Builds the Brittany's images into components/wb_ui/dog/ for both screen designs.
 
 Draws from tools/dog/dog_art.py (SVG) and converts like tools/make_pippa_assets.py does
-for Pippa (RGB565A8, RLE compressed, via components/lvgl/scripts/LVGLImage.py), so
+for Pippa (RGB565A8, LZ4 compressed, via components/lvgl/scripts/LVGLImage.py), so
 the 2.0 screens can show her exactly where they show Pippa:
 
   img_dog_<look>.c        six outfits + base, 260x252 stage, cropped to the alpha
                           bounding box with the crop offset recorded
   img_dog_mini_<look>.c   forecast-card minis, drawn at MINI_H px tall (not scaled at
-                          runtime: this LVGL build can't scale RLE images)
+                          runtime: this LVGL build can't scale compressed images)
   img_dog_head.c          head badge for the 2.0 boot / setup / error screens
   img_dog_head_thumb.c    Settings pill thumbnail
   img_dog_head_classic.c  head for the classic boot and setup screens (110 px, like
@@ -53,7 +53,7 @@ def to_c(im, name):
     bb = im.getchannel("A").getbbox()
     path = os.path.join(PNG, name + ".png")
     im.crop(bb).save(path)
-    subprocess.run([sys.executable, LVGLIMAGE, "--ofmt", "C", "--cf", "RGB565A8", "--compress", "RLE",
+    subprocess.run([sys.executable, LVGLIMAGE, "--ofmt", "C", "--cf", "RGB565A8", "--compress", "LZ4",
                     "-o", OUT, "--name", name, path], check=True, stdout=subprocess.DEVNULL)
     for produced in (os.path.join(OUT, name + ".png.c"), os.path.join(OUT, name + ".c")):
         if os.path.exists(produced) and produced != os.path.join(OUT, name + ".c"):

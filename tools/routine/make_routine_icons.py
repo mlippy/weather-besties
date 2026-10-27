@@ -2,7 +2,7 @@
 """Builds the Routine page's step pictures into components/wb_ui/routine/ (2.0 screens).
 
 Draws from tools/routine/routine_icons.py (SVG) and converts like tools/dog/make_dog_assets.py
-(RGB565A8, RLE compressed, via components/lvgl/scripts/LVGLImage.py):
+(RGB565A8, LZ4 compressed, via components/lvgl/scripts/LVGLImage.py):
 
   img_rt_<name>.c     one per picture, ICON px square (the bar's finish line: SIZES)
   routine_icons.h     declarations
@@ -40,7 +40,7 @@ def main():
         data = bytes(resvg_py.svg_to_bytes(svg_string=svg, width=size, height=size))
         path = os.path.join(PNG, name + ".png")
         Image.open(io.BytesIO(data)).convert("RGBA").save(path)
-        subprocess.run([sys.executable, LVGLIMAGE, "--ofmt", "C", "--cf", "RGB565A8", "--compress", "RLE",
+        subprocess.run([sys.executable, LVGLIMAGE, "--ofmt", "C", "--cf", "RGB565A8", "--compress", "LZ4",
                         "-o", OUT, "--name", name, path], check=True, stdout=subprocess.DEVNULL)
         produced = os.path.join(OUT, name + ".png.c")
         if os.path.exists(produced):

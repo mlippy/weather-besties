@@ -22,6 +22,18 @@ void board_grow_draw_buffer(void);
 void board_shrink_draw_buffer(void);   /* back to the start size when memory is tight */
 int board_draw_lines(void);
 size_t board_free_internal(void);      /* bytes of internal RAM free right now */
+/* Iter-35 memory stage log: one line per boot/refresh stage naming
+ * internal free, the largest internal block (the number that decides
+ * whether a TLS handshake or a WiFi buffer set still fits; the total
+ * alone hides fragmentation), and PSRAM free. Read off the board's
+ * boot log after each phase that moves memory around. */
+void board_mem_log(const char *stage);
+/* Iter-36: the lvgl task's stack high-water mark (bytes of its
+ * stack never yet used), logged beside the mem[] stage lines.
+ * The 2.0.1 board overflowed the old 8 KB lvgl stack the first
+ * time the flex My Day cards populated; this is the line that
+ * proves the 16 KB stack's headroom on real boots. */
+void board_lvgl_stack_log(const char *stage);
 /* Speed test: true = draw like v1.3.0 (20 lines a pass) to compare. */
 void board_speed_old_mode(bool old);
 

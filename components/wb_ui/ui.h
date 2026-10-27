@@ -108,6 +108,19 @@ void ui_test_tap_tile(int i);   /* drive the tile toggle path exactly as a tap d
 void ui_test_tap_chip(int j);   /* drive the extras-chip toggle path exactly as a tap does */
 void ui_test_set_pippa_frame(int frame);   /* pin Pippa's heart animation to a frame, -1 releases */
 void ui_test_dump(const char *path);       /* last outfit render's state as text (see ui.c) */
+/* Iter-35 layout gate: walk the visible page's object tree and
+ * count violations (sibling overlaps, children outside the parent's
+ * content area, label text taller than its box outside DOTS mode,
+ * objects in the tab bar area). Prints one line per violation. */
+int ui_test_layout_check(const char *tag);
+/* Iter-36: outline every visible object of the active screen in
+ * 1 px red (and restore the real borders on false), for the
+ * debug render of the worst-case My Day fixture. */
+void ui_test_outline(bool on);
+/* Iter-37: scroll the My Day list to its very bottom, so a
+ * render can prove the last card is reachable and lands clear
+ * of the tab bar; the layout gate runs on the scrolled state. */
+void ui_test_scroll_myday_bottom(void);
 #endif
 
 #ifdef __cplusplus

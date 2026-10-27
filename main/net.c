@@ -43,6 +43,7 @@ static const char *TAG = "net";
 #define CAL_REFRESH_US (60LL * 60 * 1000 * 1000)
 #define CAL_MAX_BYTES (8 * 1024 * 1024)
 #define USER_AGENT WB_USER_AGENT_PREFIX WB_VERSION WB_USER_AGENT_SUFFIX
+#define WIFI_INIT_RETRY_MS (10 * 1000)
 
 static EventGroupHandle_t s_ev;
 static wb_settings_t *S;
@@ -93,15 +94,16 @@ static void set_local_tz(int utc_offset_s)
     }
     applied = utc_offset_s;
     /* A POSIX TZ offset is what you add to local time to get UTC:
-     * the opposite sign of the usual "UTC+x" offset. */
+     * the opposite sign of the usual "UTC+x" offset. The zone name needs 3+ letters:
+     * libc rejects a 2-letter one and quietly falls back to UTC (Boris's iter-29). */
     int posix = -utc_offset_s;
     int sign = posix < 0 ? -1 : 1;
     int a = posix < 0 ? -posix : posix;
     char tz[24];
     if (a % 3600 == 0) {
-        snprintf(tz, sizeof(tz), "WB%d", sign * (a / 3600));
+        snprintf(tz, sizeof(tz), "WBT%d", sign * (a / 3600));
     } else {
-        snprintf(tz, sizeof(tz), "WB%d:%02d", sign * (a / 3600), (a % 3600) / 60);
+        snprintf(tz, sizeof(tz), "WBT%d:%02d", sign * (a / 3600), (a % 3600) / 60);
     }
     setenv("TZ", tz, 1);
     tzset();
@@ -159,38 +161,112 @@ static void on_wifi(void *arg, esp_event_base_t base, int32_t id, void *data)
         snprintf(s_ip, sizeof(s_ip), IPSTR, IP2STR(&e->ip_info.ip));
         ESP_LOGI(TAG, "got ip %s", s_ip);
         xEventGroupSetBits(s_ev, EV_CONNECTED);
+        /* Iter-35: the wifi stage of the memory log, once per boot:
+         * the driver's static buffers are internal by design, so this
+         * is the baseline the two fetch stages spend from. */
+        static bool mem_logged;
+        if (!mem_logged) {
+            mem_logged = true;
+            board_mem_log("wifi");
+        }
     }
 }
 
-static void wifi_init(void)
+/* One-time network stack bring-up plus the WiFi driver init. Returns
+ * false (and logs) when a step fails, so net_task can wait and retry:
+ * esp_wifi_init's static RX buffers come out of internal DRAM, and on a
+ * memory-tight boot the init can fail with ESP_ERR_NO_MEM. Aborting
+ * here used to reboot-loop the device forever; a failed init now just
+ * means "no network yet", like a router that is still booting. */
+static bool wifi_init(void)
 {
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-    esp_netif_create_default_wifi_sta();
-    esp_netif_create_default_wifi_ap();
+    static bool stack_up;
+    if (!stack_up) {
+        esp_err_t e = esp_netif_init();
+        if (e != ESP_OK && e != ESP_ERR_INVALID_STATE) {
+            ESP_LOGE(TAG, "esp_netif_init failed: %s", esp_err_to_name(e));
+            return false;
+        }
+        e = esp_event_loop_create_default();
+        if (e != ESP_OK && e != ESP_ERR_INVALID_STATE) {
+            ESP_LOGE(TAG, "esp_event_loop_create_default failed: %s", esp_err_to_name(e));
+            return false;
+        }
+        esp_netif_create_default_wifi_sta();
+        esp_netif_create_default_wifi_ap();
+        stack_up = true;
+    }
+
+    /* Default buffer counts, deliberately not trimmed: this board has a
+     * weak-signal history, and fewer RX buffers make marginal reception
+     * worse. The internal DRAM for them comes from the calendar stores
+     * moving to PSRAM (see cal.c), not from starving the radio. */
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-    ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
-    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, on_wifi, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, on_wifi, NULL));
-    const esp_timer_create_args_t t = {.callback = reconnect_cb, .name = "reconnect"};
-    ESP_ERROR_CHECK(esp_timer_create(&t, &s_reconnect));
+    esp_err_t e = esp_wifi_init(&cfg);
+    if (e == ESP_ERR_INVALID_STATE) {
+        e = ESP_OK; /* already initialised; an earlier attempt got this far */
+    }
+    if (e != ESP_OK) {
+        ESP_LOGE(TAG, "esp_wifi_init failed: %s", esp_err_to_name(e));
+        esp_wifi_deinit();
+        return false;
+    }
+    e = esp_wifi_set_storage(WIFI_STORAGE_RAM);
+    if (e != ESP_OK) {
+        ESP_LOGE(TAG, "esp_wifi_set_storage failed: %s", esp_err_to_name(e));
+        return false;
+    }
+
+    static bool hooks_up;
+    if (!hooks_up) {
+        e = esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, on_wifi, NULL);
+        if (e != ESP_OK) {
+            ESP_LOGE(TAG, "wifi event handler failed: %s", esp_err_to_name(e));
+            return false;
+        }
+        e = esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, on_wifi, NULL);
+        if (e != ESP_OK) {
+            ESP_LOGE(TAG, "ip event handler failed: %s", esp_err_to_name(e));
+            return false;
+        }
+        const esp_timer_create_args_t t = {.callback = reconnect_cb, .name = "reconnect"};
+        e = esp_timer_create(&t, &s_reconnect);
+        if (e != ESP_OK) {
+            ESP_LOGE(TAG, "reconnect timer failed: %s", esp_err_to_name(e));
+            return false;
+        }
+        hooks_up = true;
+    }
+    return true;
 }
 
-static void wifi_start_sta(void)
+static bool wifi_start_sta(void)
 {
     wifi_config_t wc = {0};
     memcpy(wc.sta.ssid, S->ssid, strnlen(S->ssid, sizeof(wc.sta.ssid)));
     memcpy(wc.sta.password, S->pass, strnlen(S->pass, sizeof(wc.sta.password)));
     wc.sta.threshold.authmode = S->pass[0] ? WIFI_AUTH_WEP : WIFI_AUTH_OPEN;
     wc.sta.pmf_cfg.capable = true;
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wc));
-    ESP_ERROR_CHECK(esp_wifi_start());
+    esp_err_t e = esp_wifi_set_mode(WIFI_MODE_STA);
+    if (e != ESP_OK) {
+        ESP_LOGE(TAG, "esp_wifi_set_mode failed: %s", esp_err_to_name(e));
+        return false;
+    }
+    e = esp_wifi_set_config(WIFI_IF_STA, &wc);
+    if (e != ESP_OK) {
+        ESP_LOGE(TAG, "esp_wifi_set_config failed: %s", esp_err_to_name(e));
+        return false;
+    }
+    e = esp_wifi_start();
+    if (e != ESP_OK && e != ESP_ERR_INVALID_STATE) {
+        ESP_LOGE(TAG, "esp_wifi_start failed: %s", esp_err_to_name(e));
+        return false;
+    }
     /* Wall powered, so no modem sleep. Sleeping between DTIM beacons adds
      * delay to every round trip, and on a weak signal that pushed TLS +
      * forecast downloads past the HTTP timeout. */
     esp_wifi_set_ps(WIFI_PS_NONE);
+    return true;
 }
 
 /* ------------------------------------------------------------------ http */
@@ -513,14 +589,31 @@ static void go_portal(void)
 static void net_task(void *arg)
 {
     (void)arg;
-    wifi_init();
+    /* A failed WiFi bring-up is retried, never fatal: the screen is
+     * already up, and the loop below simply has no network until an
+     * attempt lands (see wifi_init). While retries run, the boot
+     * screen switches to its connecting state, so the page never sits
+     * on unexplained old (or no) weather; the first successful fetch
+     * replaces it like any normal boot. */
+    bool init_shown = false;
+    while (!wifi_init()) {
+        if (!init_shown) {
+            UI_LOCKED(wb_ui_show_connecting(S->ssid));
+            init_shown = true;
+        }
+        ESP_LOGW(TAG, "wifi bring-up failed, retrying in %u s", (unsigned)(WIFI_INIT_RETRY_MS / 1000));
+        vTaskDelay(pdMS_TO_TICKS(WIFI_INIT_RETRY_MS));
+    }
 
     if (!S->ssid[0]) {
         go_portal();
     }
 
     UI_LOCKED(wb_ui_show_connecting(S->ssid));
-    wifi_start_sta();
+    while (!wifi_start_sta()) {
+        ESP_LOGW(TAG, "wifi start failed, retrying in %u s", (unsigned)(WIFI_INIT_RETRY_MS / 1000));
+        vTaskDelay(pdMS_TO_TICKS(WIFI_INIT_RETRY_MS));
+    }
 
     /* Wait for the first connection, showing an error (with a setup button) if it takes too long. */
     bool shown_error = false;
@@ -564,6 +657,7 @@ static void net_task(void *arg)
         xEventGroupWaitBits(s_ev, EV_CONNECTED, pdFALSE, pdFALSE, pdMS_TO_TICKS(CONNECT_WAIT_MS));
         bool ok = (xEventGroupGetBits(s_ev) & EV_CONNECTED) && fetch_weather();
         if (ok) {
+            board_mem_log("weather");
             if (!have) {
                 /* WiFi and the secure download both work, so now we know how much
                  * internal RAM they leave; give the spare to the drawing area. */
@@ -572,6 +666,8 @@ static void net_task(void *arg)
             ota_mark_good();   /* a new version that gets the weather is a keeper */
             fetch_alerts();
             fetch_calendar(forced);
+            board_mem_log("calendar");
+            board_lvgl_stack_log("calendar");   /* the lvgl stack's deepest known path (Boris's iter-36) */
             fails = 0;
             have = true;
             struct tm t;
@@ -611,6 +707,17 @@ static void net_task(void *arg)
         size_t free_int = board_free_internal();
         ESP_LOGI(TAG, "internal RAM free %u KB, drawing area %d lines", (unsigned)(free_int / 1024),
                  board_draw_lines());
+        board_lvgl_stack_log("cycle");
+        /* Iter-35 guardrail: under 60 KB internal free after a fetch
+         * cycle, the next TLS handshake is living on borrowed room;
+         * say so loudly. (The 24 KB line below stays the shrink
+         * trigger; 40 KB is a rule of thumb, not a measured floor,
+         * and the largest free block in the mem[] lines is the
+         * number that actually decides whether a big allocation
+         * still fits.) */
+        if (free_int < 60 * 1024) {
+            ESP_LOGW(TAG, "internal RAM low: %u KB free after fetch cycle", (unsigned)(free_int / 1024));
+        }
         if (!ok) {
             ESP_LOGW(TAG, "weather fetch failed (%d in a row), retrying in %u s", fails, (unsigned)(wait / 1000));
             if (free_int < 24 * 1024) {

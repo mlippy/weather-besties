@@ -7,6 +7,7 @@
  * clock independently of the forecast's own time (the plan's stale/rollover
  * cases). Without it the clock is the forecast time + 7 minutes, as before.
  */
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,9 +55,26 @@ static void pump(int frames)
     lv_refr_now(NULL);
 }
 
+static int s_layout_fails;
+
+/* Like save(), but without the layout gate: for the iter-36
+ * outline debug render, whose 1 px borders deliberately
+ * perturb the layout the gate measures. */
+static void save_raw(const char *dir, const char *name)
+{
+    pump(30);
+    char path[512];
+    snprintf(path, sizeof(path), "%s/%s.rgb565", dir, name);
+    FILE *f = fopen(path, "wb");
+    fwrite(fb, 2, UI_W * UI_H, f);
+    fclose(f);
+    printf("saved %s\n", path);
+}
+
 static void save(const char *dir, const char *name)
 {
     pump(30);
+    s_layout_fails += ui_test_layout_check(name);
     char path[512];
     snprintf(path, sizeof(path), "%s/%s.rgb565", dir, name);
     FILE *f = fopen(path, "wb");
@@ -169,6 +187,27 @@ static void ymd(char *buf, const struct tm *t)
     sprintf(buf, "%04d%02d%02d", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday);
 }
 
+/* Parses and publishes an iCal fixture through this fork's calendar reader (the board's),
+ * no filter words: the fixtures are kids-only calendars. */
+static bool cal_parse(const char *ics, size_t n)
+{
+    static cal_t cal;
+    struct tm lt = now_tm;
+    lt.tm_isdst = -1;
+    mktime(&lt);
+    cal_begin(&cal, cal_dayno(now_tm.tm_year + 1900, now_tm.tm_mon + 1, now_tm.tm_mday), (int)lt.tm_gmtoff, "");
+    cal_feed(&cal, ics, n);
+    if (!cal_end(&cal)) {
+        return false;
+    }
+    cal_publish(&cal);
+    return true;
+}
+
+/* Boris's fixtures carry a VTIMEZONE block for his reader; this fork's reads TZID times as
+ * the board's own wall clock, so it isn't needed. */
+#define VTZ_NY ""
+
 static void fixture_cal(bool with_events)
 {
     struct tm today = now_tm, tom = now_tm, later = now_tm;
@@ -223,19 +262,10 @@ static void fixture_cal(bool with_events)
                       d10, d10);
     }
     n += snprintf(ics + n, sizeof(ics) - n, "END:VCALENDAR\r\n");
-    /* Through this fork's calendar reader (the one the board uses), no filter words: the
-     * fixture is a kids-only calendar. */
-    static cal_t cal;
-    struct tm lt = now_tm;
-    lt.tm_isdst = -1;
-    mktime(&lt);
-    cal_begin(&cal, cal_dayno(now_tm.tm_year + 1900, now_tm.tm_mon + 1, now_tm.tm_mday), (int)lt.tm_gmtoff, "");
-    cal_feed(&cal, ics, (size_t)n);
-    if (!cal_end(&cal)) {
+    if (!cal_parse(ics, (size_t)n)) {
         fprintf(stderr, "fixture calendar did not parse\n");
         exit(1);
     }
-    cal_publish(&cal);
 }
 
 /* Records the fixture fetch at a fixed time on the sim clock, so
@@ -252,6 +282,123 @@ static void fixture_fetched_at(int hour, int min)
 }
 
 /* The usual pin: a 7:02 AM fetch ("Updated 7:02 AM"). */
+/* Iter-35: the stress shapes the layout rework has to survive.
+ * Invented events (the repo is public), modelled on the lengths
+ * and tag combinations real family days produce: titles in the
+ * 30-45 character band that used to wrap at the old narrowed
+ * width, a long street-address location in the feed (iter-36:
+ * locations no longer print on cards, but the feed still
+ * carries them), an all-day event, names for one kid, the
+ * other, and both. Two cards carry two pills each (NOW + LILA,
+ * NEXT + CLEO). The scenario clock is 9:20 AM: one event is
+ * DONE, one is NOW, three are still to come, and tomorrow is
+ * sparse (a single event). */
+static void fixture_cal_stress(void)
+{
+    struct tm today = now_tm, tom = now_tm;
+    tom.tm_mday += 1;
+    tom.tm_isdst = -1;
+    mktime(&tom);
+    char d0[9], d1[9];
+    ymd(d0, &today);
+    ymd(d1, &tom);
+    char ics[6144];
+    int n = 0;
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VCALENDAR\r\nPRODID:-//WeatherBesties Sim//EN\r\nVERSION:2.0\r\n");
+    n += snprintf(ics + n, sizeof(ics) - n, "%s", VTZ_NY);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-s1\r\nDTSTART;VALUE=DATE:%s\r\nDTEND;VALUE=DATE:%s\r\n"
+                  "SUMMARY:Autumn classroom photo retake day\r\nEND:VEVENT\r\n",
+                  d0, d1);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-s2\r\nDTSTART;TZID=America/New_York:%sT073000\r\n"
+                  "DTEND;TZID=America/New_York:%sT081500\r\nSUMMARY:Cleo and Lila dentist checkup and cleaning\r\n"
+                  "LOCATION:Bright Smiles Dental\\, 214 Maplewood Avenue\\, Suite 3\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-s3\r\nDTSTART;TZID=America/New_York:%sT090000\r\n"
+                  "DTEND;TZID=America/New_York:%sT100000\r\nSUMMARY:Lila's occupational therapy evaluation\r\n"
+                  "LOCATION:Kids Progress Center\\, 88 Valley Road\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-s4\r\nDTSTART;TZID=America/New_York:%sT100000\r\n"
+                  "DTEND;TZID=America/New_York:%sT110000\r\nSUMMARY:Cleo's reading buddy celebration party\r\n"
+                  "LOCATION:Watchung School library\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-s5\r\nDTSTART;TZID=America/New_York:%sT121500\r\n"
+                  "DTEND;TZID=America/New_York:%sT130000\r\nSUMMARY:Lila's gymnastics make-up class\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-s6\r\nDTSTART;TZID=America/New_York:%sT153000\r\n"
+                  "DTEND;TZID=America/New_York:%sT163000\r\nSUMMARY:Cleo's piano lesson\r\n"
+                  "LOCATION:Music school\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-s7\r\nDTSTART;TZID=America/New_York:%sT083000\r\n"
+                  "DTEND;TZID=America/New_York:%sT091500\r\nSUMMARY:Lila's book fair preview morning\r\n"
+                  "LOCATION:Watchung School library\r\nEND:VEVENT\r\n",
+                  d1, d1);
+    n += snprintf(ics + n, sizeof(ics) - n, "END:VCALENDAR\r\n");
+    if (!cal_parse(ics, (size_t)n)) {
+        fprintf(stderr, "stress fixture calendar did not parse\n");
+        exit(1);
+    }
+}
+
+/* Iter-35: the evening shape. At 6:30 PM three of today's events
+ * are finished, so they fold into the "3 done today" line and
+ * tomorrow gets the room; one event is still to come tonight. */
+static void fixture_cal_evening(void)
+{
+    struct tm today = now_tm, tom = now_tm;
+    tom.tm_mday += 1;
+    tom.tm_isdst = -1;
+    mktime(&tom);
+    char d0[9], d1[9];
+    ymd(d0, &today);
+    ymd(d1, &tom);
+    char ics[4096];
+    int n = 0;
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VCALENDAR\r\nPRODID:-//WeatherBesties Sim//EN\r\nVERSION:2.0\r\n");
+    n += snprintf(ics + n, sizeof(ics) - n, "%s", VTZ_NY);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-e1\r\nDTSTART;TZID=America/New_York:%sT080000\r\n"
+                  "DTEND;TZID=America/New_York:%sT084500\r\nSUMMARY:Cleo's morning swim lesson\r\n"
+                  "LOCATION:Aquatics center\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-e2\r\nDTSTART;TZID=America/New_York:%sT100000\r\n"
+                  "DTEND;TZID=America/New_York:%sT104500\r\nSUMMARY:Lila's library story time\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-e3\r\nDTSTART;TZID=America/New_York:%sT153000\r\n"
+                  "DTEND;TZID=America/New_York:%sT163000\r\nSUMMARY:Cleo's soccer practice\r\n"
+                  "LOCATION:Roosevelt Field\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-e4\r\nDTSTART;TZID=America/New_York:%sT190000\r\n"
+                  "DTEND;TZID=America/New_York:%sT194500\r\nSUMMARY:Video call with Grandma\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-e5\r\nDTSTART;TZID=America/New_York:%sT080000\r\n"
+                  "DTEND;TZID=America/New_York:%sT090000\r\nSUMMARY:School bake sale\r\n"
+                  "LOCATION:Watchung School gym\r\nEND:VEVENT\r\n",
+                  d1, d1);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-e6\r\nDTSTART;TZID=America/New_York:%sT160000\r\n"
+                  "DTEND;TZID=America/New_York:%sT163000\r\nSUMMARY:Cleo's piano lesson\r\n"
+                  "LOCATION:Music school\r\nEND:VEVENT\r\n",
+                  d1, d1);
+    n += snprintf(ics + n, sizeof(ics) - n, "END:VCALENDAR\r\n");
+    if (!cal_parse(ics, (size_t)n)) {
+        fprintf(stderr, "evening fixture calendar did not parse\n");
+        exit(1);
+    }
+}
+
 static void fixture_fetched(void)
 {
     fixture_fetched_at(7, 2);
@@ -285,10 +432,114 @@ static void hold(int x, int y, int hold_ms)
     pump(5);
 }
 
+/* Iter-36 stack probe (host-only diagnostic): runs the My Day
+ * populate path, the one that overflowed the board's 8 KB lvgl
+ * stack, on a pattern-filled pthread stack and reports the peak
+ * usage it finds afterwards. The host build overstates the
+ * device number (8-byte pointers where the board has 4, wider
+ * frames), so a host peak over 8192 is consistent with the
+ * board's overflow at 8192, and a host peak well under 16384
+ * backs the board's bump to a 16 KB lvgl stack. Run with:
+ * WB_SIM_STACK_PROBE=1 ./render out scenarios */
+static uint8_t s_probe_stack[1 << 20] __attribute__((aligned(64)));
+static const char *s_probe_sc;
+
+static void *probe_thread(void *arg)
+{
+    (void)arg;
+    lv_init();
+    lv_tick_set_cb(tick_cb);
+    lv_display_t *d = lv_display_create(UI_W, UI_H);
+    lv_display_set_buffers(d, fb, NULL, sizeof(fb), LV_DISPLAY_RENDER_MODE_DIRECT);
+    lv_display_set_flush_cb(d, flush_cb);
+    ui_init("Cleo & Lila");
+    ui_set_time_cb(time_cb);
+    setenv("TZ", "America/New_York", 1);
+    tzset();
+    const char *early = getenv("WB_SIM_STACK_PROBE");
+    if (early != NULL && strcmp(early, "boot") == 0) {
+        /* Init and the boot screen only: the floor every other
+         * path stands on. */
+        ui_show_boot(NULL);
+        pump(30);
+        return NULL;
+    }
+    load(s_probe_sc, "brief_morning");
+    show();
+    if (early != NULL && strcmp(early, "outfit") == 0) {
+        /* The outfit page's render and draw, nothing else. */
+        pump(30);
+        return NULL;
+    }
+    ui_set_calendar_configured(true);
+    ui_test_set_page(2);
+    const char *mode = getenv("WB_SIM_STACK_PROBE");
+    if (mode != NULL && strcmp(mode, "empty") == 0) {
+        /* No feed ever lands: the lightweight message state, the
+         * path the board took in the earlier "0 bytes" boot. */
+        pump(30);
+        return NULL;
+    }
+    if (mode != NULL && strcmp(mode, "plain") == 0) {
+        /* The ordinary six-event fixture day. */
+        fixture_cal(true);
+        fixture_fetched();
+        pump(30);
+        return NULL;
+    }
+    /* The stress day: the full 12-card pool is filled and the
+     * fit pass folds the overflow, the deepest the populate
+     * path gets. */
+    fixture_cal_stress();
+    fixture_fetched();
+    now_tm.tm_hour = 9;
+    now_tm.tm_min = 20;
+    ui_refresh_clock();
+    pump(30);
+    ui_test_layout_check("stack_probe_stress");
+    /* The evening shape too: the collapse partition runs first. */
+    fixture_cal_evening();
+    fixture_fetched_at(18, 2);
+    now_tm.tm_hour = 18;
+    now_tm.tm_min = 30;
+    ui_refresh_clock();
+    pump(30);
+    ui_test_layout_check("stack_probe_evening");
+    return NULL;
+}
+
+static int run_stack_probe(const char *sc)
+{
+    s_probe_sc = sc;
+    memset(s_probe_stack, 0xA5, sizeof(s_probe_stack));
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setstack(&attr, s_probe_stack, sizeof(s_probe_stack));
+    pthread_t th;
+    if (pthread_create(&th, &attr, probe_thread, NULL) != 0) {
+        fprintf(stderr, "stack probe: pthread_create failed\n");
+        return 1;
+    }
+    pthread_join(th, NULL);
+    pthread_attr_destroy(&attr);
+    size_t untouched = 0;
+    while (untouched < sizeof(s_probe_stack) && s_probe_stack[untouched] == 0xA5) {
+        untouched++;
+    }
+    printf("STACK PROBE: peak stack used %u bytes (host x86-64 build; the device "
+           "build's pointers and frames are smaller)\n",
+           (unsigned)(sizeof(s_probe_stack) - untouched));
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     const char *out = argc > 1 ? argv[1] : "out";
     const char *sc = argc > 2 ? argv[2] : "scenarios";
+
+    if (getenv("WB_SIM_STACK_PROBE")) {
+        return run_stack_probe(sc);
+    }
 
     lv_init();
     lv_tick_set_cb(tick_cb);
@@ -485,6 +736,134 @@ int main(int argc, char **argv)
     save(out, "39_no_yesterday");
     dump(out, "39_no_yesterday");
 
+    /* Iter-25: the outfit rotation. Six consecutive dress-band days
+     * (scenarios rot_dress_0..5, 2026-11-08..13) whose Today looks
+     * walk the dress band in candidate order (dress, lavender, mint,
+     * mustard, the Watchung logo dress, dress again), plus each day's
+     * Tomorrow page, which must show the NEXT day's pick: the
+     * rotation is seeded by the outfit's own date, not the viewing
+     * date. The cat is pinned to the black colourway so the sequence
+     * reads as outfit changes, not colourway changes. Last, the dry
+     * warm-coat tier's warmcoat variant. */
+    ui_set_cat_choice(0);
+    {
+        static const char *rot_names[] = {"50_rot_nov08", "51_rot_nov09", "52_rot_nov10",
+                                          "53_rot_nov11", "54_rot_nov12", "55_rot_nov13"};
+        char scen[32], tname[40];
+        for (int i = 0; i < 6; i++) {
+            snprintf(scen, sizeof(scen), "rot_dress_%d", i);
+            load(sc, scen);
+            show();
+            save(out, rot_names[i]);
+            dump(out, rot_names[i]);
+            ui_test_set_page(1);
+            pump(10);
+            snprintf(tname, sizeof(tname), "%.24sb_tomorrow", rot_names[i]);
+            save(out, tname);
+            dump(out, tname);
+            ui_test_set_page(0);
+        }
+    }
+    load(sc, "warmcoat_morning");
+    show();
+    save(out, "56_warmcoat");
+    dump(out, "56_warmcoat");
+
+    /* Iter-27: the hot band rotation. Two consecutive hot days
+     * (scenarios rot_hot_0..1, 2027-07-13..14): the first day's pick
+     * is the standard hot look, the next day's is the Watchung logo
+     * hot look, and the first day's Tomorrow page must already show
+     * the logo pick (the seed is the outfit's own date). The logo
+     * day's tiles and chips must prescribe exactly what the standard
+     * day prescribes, sunglasses and water bottle included; only the
+     * sprite differs. The cat stays pinned to black, as above. */
+    load(sc, "rot_hot_0");
+    show();
+    save(out, "57_rot_jul13");
+    dump(out, "57_rot_jul13");
+    ui_test_set_page(1);
+    pump(10);
+    save(out, "57_rot_jul13b_tomorrow");
+    dump(out, "57_rot_jul13b_tomorrow");
+    ui_test_set_page(0);
+    load(sc, "rot_hot_1");
+    show();
+    save(out, "58_rot_jul14");
+    dump(out, "58_rot_jul14");
+
+    /* Iter-30: the warm tier's hat-day rotation. Two consecutive dry
+     * warm-coat-tier mornings that prescribe the hat (scenarios
+     * rot_kit_0..1, 2026-12-13..14 since iter-33 widened the band to
+     * 16 looks): the first day's pick is the winter kit, the next
+     * day's is the red winter kit (kit2), and the first day's
+     * Tomorrow page must already show kit2 (the seed is the outfit's
+     * own date). Both days prescribe identically (same tiles by
+     * name, hat and gloves chips); only the sprite and the coat
+     * tile's picture differ. A third render shows the kit day in
+     * the pink colourway (iter-35: it loaded the Dec 14 scenario
+     * through iter-33, but that date's pick is a black-fur-only
+     * variant now, so the pink proof rides the kit day, whose
+     * sprite has pink art), then the choice is restored to the
+     * black pin the blocks above run under. */
+    load(sc, "rot_kit_0");
+    show();
+    save(out, "59_kit_dec13");
+    dump(out, "59_kit_dec13");
+    ui_test_set_page(1);
+    pump(10);
+    save(out, "59_kit_dec13b_tomorrow");
+    dump(out, "59_kit_dec13b_tomorrow");
+    ui_test_set_page(0);
+    load(sc, "rot_kit_1");
+    show();
+    save(out, "60_kit2_dec14");
+    dump(out, "60_kit2_dec14");
+    load(sc, "rot_kit_0");
+    ui_set_cat_choice(1);
+    show();
+    save(out, "61_kit2_pink");
+    dump(out, "61_kit2_pink");
+    ui_set_cat_choice(0);
+
+    /* Iter-33: the winter-variant hat days (scenarios rot_hat_0..2,
+     * same weather as rot_kit_*). A pink-coat shirt day (Dec 15,
+     * kitp_navy_stripe) whose Tomorrow steps to the next shirt
+     * (Dec 16, kitp_rust_stripe), a red-coat shirt day (Dec 21,
+     * kitr_navy_stripe), and the dress pair: Dec 11 (kitp_dress, the
+     * lavender dress under the pink coat) whose Tomorrow is Dec 12
+     * (kitr_dress, the mint dress under the red coat). The last
+     * render shows the kitp_dress day under the PINK cat choice: the
+     * batch is black fur only, so the pink slot aliases the black
+     * sprite and the stage must be pixel-identical to the black
+     * render. The choice is restored to the black pin after. */
+    load(sc, "rot_hat_0");
+    show();
+    save(out, "62_hat_kitp_shirt");
+    dump(out, "62_hat_kitp_shirt");
+    ui_test_set_page(1);
+    pump(10);
+    save(out, "62b_hat_kitp_shirt_tomorrow");
+    dump(out, "62b_hat_kitp_shirt_tomorrow");
+    ui_test_set_page(0);
+    load(sc, "rot_hat_1");
+    show();
+    save(out, "63_hat_kitr_shirt");
+    dump(out, "63_hat_kitr_shirt");
+    load(sc, "rot_hat_2");
+    show();
+    save(out, "64_hat_kitp_dress");
+    dump(out, "64_hat_kitp_dress");
+    ui_test_set_page(1);
+    pump(10);
+    save(out, "64b_hat_kitr_dress_tomorrow");
+    dump(out, "64b_hat_kitr_dress_tomorrow");
+    ui_test_set_page(0);
+    ui_set_cat_choice(1);
+    show();
+    save(out, "65_hat_kitp_dress_pink");
+    dump(out, "65_hat_kitp_dress_pink");
+    ui_set_cat_choice(0);
+
     /* Iter-14: the My Day page, third screen. The populated state
      * (fixture events on both days), the configured-but-clear state,
      * and the no-calendar-link state, all on the brief_morning clock
@@ -555,6 +934,63 @@ int main(int argc, char **argv)
     pump(10);
     save(out, "45_myday_late");
     dump(out, "45_myday_late");
+
+    /* Iter-35: the stress and evening shapes on the same page.
+     * The weather reload parks the clock back at the morning, so
+     * each fixture's clock is set explicitly before its capture,
+     * like renders 43/45 above. */
+    load(sc, "brief_morning");
+    show();
+    ui_set_calendar_configured(true);
+    ui_test_set_page(2);
+    fixture_cal_stress();
+    fixture_fetched();
+    now_tm.tm_hour = 9;
+    now_tm.tm_min = 20;
+    ui_refresh_clock();
+    pump(10);
+    save(out, "47_myday_stress");
+    dump(out, "47_myday_stress");
+
+    fixture_cal_evening();
+    fixture_fetched_at(18, 2);
+    now_tm.tm_hour = 18;
+    now_tm.tm_min = 30;
+    ui_refresh_clock();
+    pump(10);
+    save(out, "48_myday_evening");
+    dump(out, "48_myday_evening");
+
+    /* Iter-36: the debug outline render of the worst-case
+     * fixture: the stress day again, with a 1 px outline drawn
+     * on every object, so the boxes the layout gate reasons
+     * about are visible in the PNG. The gate does not run on
+     * this frame (the outlines inset content by a pixel); the
+     * plain 47 render above is the gated measurement of the
+     * same state. */
+    fixture_cal_stress();
+    fixture_fetched();
+    now_tm.tm_hour = 9;
+    now_tm.tm_min = 20;
+    ui_refresh_clock();
+    pump(10);
+    ui_test_outline(true);
+    save_raw(out, "47b_myday_stress_outline");
+    ui_test_outline(false);
+    pump(10);
+
+    /* Iter-37: the same stress state scrolled to the very
+     * bottom of the now-scrollable list. The stress fixture's
+     * seven cards overflow the viewport; this render proves
+     * the last one (tomorrow's book fair) is reachable by
+     * scrolling and lands fully inside the list, clear of the
+     * tab bar. save() runs the layout gate on the scrolled
+     * state too. */
+    ui_test_scroll_myday_bottom();
+    save(out, "47c_myday_stress_scrolled");
+    dump(out, "47c_myday_stress_scrolled");
+
+
     ui_test_set_page(0);
     /* the family's Brittany (pet choice 3; tools/dog/): every outfit, all-done, the
      * forecast minis, Settings and the badge. */
@@ -584,6 +1020,7 @@ int main(int argc, char **argv)
     fixture_fetched();
     ui_test_set_page(2);
     pump(10);
+
     save(out, "60_dog_myday");
     {   /* a countdown 11 days out in the My Day header */
         wb_event_t cd = {.name = "Kid's birthday", .countdown = true, .all_day = true};
@@ -767,5 +1204,10 @@ int main(int argc, char **argv)
     lv_mem_monitor(&mon);
     printf("LVGL heap: %u of %u bytes used (%u%%), biggest free block %u\n", (unsigned)(mon.total_size - mon.free_size),
            (unsigned)mon.total_size, (unsigned)mon.used_pct, (unsigned)mon.free_biggest_size);
+    if (s_layout_fails > 0) {
+        printf("LAYOUT CHECK: %d violation(s)\n", s_layout_fails);
+        return 1;
+    }
+    printf("LAYOUT CHECK: clean\n");
     return 0;
 }

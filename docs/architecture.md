@@ -92,7 +92,7 @@ Two designs implement the same `ui.h` (under the `wb_ui.h` contract); `component
 | Where | What |
 |---|---|
 | Today / Tomorrow | The page title (with the name from setup when it fits; a calm purple or blue alert strip in its place while a weather alert is out), the day chip and its **Dress up?** pill (or the "2 of 4 ready" chip once something is checked), the thermometer and weather, Pippa or the dog in the day's outfit, garment tiles and extras to check off, one sentence about the day |
-| My Day | Today's and tomorrow's calendar events as cards (icons, NOW / NEXT / DONE), the countdown pill in the header, "Updated 7:02 AM" under the date |
+| My Day | Today's and tomorrow's calendar events as cards in a scrolling list (icons, NOW / NEXT / DONE, finished ones folded into "3 done today" in the evening), the date after the title, the countdown pill, a small pet top right, "Updated 7:02 AM" by the tabs |
 | Next days (no tab in this fork) | Three day cards with the outfit and a mini pet; still built, swipes skip it |
 | Routine (this fork) | Tonight's moon and the sun times at the top right; morning checklist before noon, bedtime checklist after, as square picture buttons (three across), each with a bar that fills left to right over the last hour before leaving / bedtime (times from setup), the pet's head riding it toward a school bus / a bed; ticks reset daily |
 | Settings (hold an empty spot) | Pet picker, WiFi, town, version, Brightness slider (a dark see-through layer on LVGL's top layer; the backlight itself is on/off only), Refresh, Change WiFi or town, Update |
@@ -135,7 +135,7 @@ Running from PSRAM helps here too: writing the new image to flash doesn't stall 
 | PSRAM | 8 MB | code + constants copied in at boot (3.4 MB classic, 4.5 MB 2.0), framebuffer (768 KB), LVGL's objects | about 3.8 MB (classic) or 2.7 MB (2.0) for WiFi/HTTPS buffers, JSON (alerts can be a few hundred KB) and downloads |
 | Internal RAM | 512 KB | 137 KB static; WiFi, the drawing area (grows only while 64 KB stays free) | Boris measured about 78 KB free after a download on v1.4.0. Since 1.7.1 LVGL stays out of it; "Can't reach the weather service" shows how much is free |
 
-The app is the number to watch: every byte of it costs PSRAM as well as flash. Classic is 3.6 MB; 2.0 is 4.6 MB with Pippa's artwork, My Day's icons and the dog's full wardrobe, even compressed (more than the 2.6 MB his plan estimated before Pippa, and past its 3.5 MB guideline, but it fits). The dog's 2.0 sprites are about 420 KB of that; dropping them from a 2.0 build is one line in `components/wb_ui/CMakeLists.txt`.
+The app is the number to watch: every byte of it costs PSRAM as well as flash. At boot the code and constants are copied into the 8 MB PSRAM, and what's left must still hold the screen's 768 KB framebuffer: Boris's board boot-looped when his rotation art pushed code + constants to 7.9 MB. So every image is LZ4-compressed (high compression, lossless), and `tools/check_size_budget.py` fails a release over 5 MB of code + constants or over the 6 MB update slot. Classic is 3.6 MB; 2.0 is 4.7 MB (4.6 MB of code + constants) with Pippa's rotating outfits, My Day's icons and the dog's full wardrobe. The dog's 2.0 sprites are about 150 KB of that; dropping them from a 2.0 build is one line in `components/wb_ui/CMakeLists.txt`.
 
 ## The setup hotspot
 
@@ -162,12 +162,12 @@ The DNS and redirect answers are the whole trick. A DNS server that answers ever
 
 ## Where it lives in flash
 
-The app is a 4.6 MB image with the 2.0 screens (3.6 MB with the classic ones). Most of it is artwork, fonts and other constant data, not code. Since 1.5.0 the flash has **two app slots**, so the board can download a new version into one while it runs from the other:
+The app is a 4.7 MB image with the 2.0 screens (3.6 MB with the classic ones). Most of it is artwork, fonts and other constant data, not code. Since 1.5.0 the flash has **two app slots**, so the board can download a new version into one while it runs from the other:
 
 ```
 16 MB flash
 |128K| App slot A (ota_0), 6 MB          | App slot B (ota_1), 6 MB          | Free, 3.9 MB |
-|    | app 4.6 MB | spare 1.4 MB         | (the next update lands here)      |              |
+|    | app 4.7 MB | spare 1.3 MB         | (the next update lands here)      |              |
 
 first 128 KB: bootloader, partition table (0x8000), settings (0x9000, 24 KB),
               which-slot-to-boot (otadata, 0xf000), radio calibration (0x11000)
@@ -181,7 +181,7 @@ Because the screens never touch hardware, the same files (`ui.c`, `advice.c`, `w
 
 | Target | Toolchain + glue | Output |
 |---|---|---|
-| Board firmware | Xtensa GCC + `board.c` | 4.6 MB app (2.0) or 3.6 MB (classic); first install as one image at `0x0` |
+| Board firmware | Xtensa GCC + `board.c` | 4.7 MB app (2.0) or 3.6 MB (classic); first install as one image at `0x0` |
 | Screenshot renderer | GCC + `sim_main.c` | PC program, writes PNGs |
 | Browser emulator | clang wasm32 + `emu_main.c` | WebAssembly + canvas, Boris's 2.0 screens (`make web`) |
 

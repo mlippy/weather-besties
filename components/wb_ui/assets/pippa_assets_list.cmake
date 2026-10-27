@@ -12,6 +12,46 @@ set(WB_PIPPA_ASSET_SRCS
     assets/img_pippa_pink_hot.c
     assets/img_pippa_fall.c
     assets/img_pippa_pink_fall.c
+    assets/img_pippa_warmcoat.c
+    assets/img_pippa_pink_warmcoat.c
+    assets/img_pippa_top_mustard.c
+    assets/img_pippa_pink_top_mustard.c
+    assets/img_pippa_top_navy.c
+    assets/img_pippa_pink_top_navy.c
+    assets/img_pippa_top_rust.c
+    assets/img_pippa_pink_top_rust.c
+    assets/img_pippa_dress_lavender.c
+    assets/img_pippa_pink_dress_lavender.c
+    assets/img_pippa_dress_mint.c
+    assets/img_pippa_pink_dress_mint.c
+    assets/img_pippa_dress_mustard.c
+    assets/img_pippa_pink_dress_mustard.c
+    assets/img_pippa_fall_hoodie.c
+    assets/img_pippa_pink_fall_hoodie.c
+    assets/img_pippa_uniform_dress.c
+    assets/img_pippa_pink_uniform_dress.c
+    assets/img_pippa_uniform_pants.c
+    assets/img_pippa_pink_uniform_pants.c
+    assets/img_pippa_uniform_hot.c
+    assets/img_pippa_pink_uniform_hot.c
+    assets/img_pippa_uniform_fall.c
+    assets/img_pippa_pink_uniform_fall.c
+    assets/img_pippa_kit2.c
+    assets/img_pippa_pink_kit2.c
+    assets/img_pippa_kitp_navy_stripe.c
+    assets/img_pippa_kitp_rust_stripe.c
+    assets/img_pippa_kitp_mustard_stripe.c
+    assets/img_pippa_kitp_navy_solid.c
+    assets/img_pippa_kitp_mustard_solid.c
+    assets/img_pippa_kitp_teal_solid.c
+    assets/img_pippa_kitr_navy_stripe.c
+    assets/img_pippa_kitr_rust_stripe.c
+    assets/img_pippa_kitr_mustard_stripe.c
+    assets/img_pippa_kitr_navy_solid.c
+    assets/img_pippa_kitr_mustard_solid.c
+    assets/img_pippa_kitr_teal_solid.c
+    assets/img_pippa_kitp_dress.c
+    assets/img_pippa_kitr_dress.c
     assets/img_pippa_base.c
     assets/img_pippa_heart_0.c
     assets/img_pippa_heart_1.c
@@ -32,6 +72,46 @@ set(WB_PIPPA_ASSET_SRCS
     assets/img_pippa_mini_pink_hot.c
     assets/img_pippa_mini_fall.c
     assets/img_pippa_mini_pink_fall.c
+    assets/img_pippa_mini_warmcoat.c
+    assets/img_pippa_mini_pink_warmcoat.c
+    assets/img_pippa_mini_top_mustard.c
+    assets/img_pippa_mini_pink_top_mustard.c
+    assets/img_pippa_mini_top_navy.c
+    assets/img_pippa_mini_pink_top_navy.c
+    assets/img_pippa_mini_top_rust.c
+    assets/img_pippa_mini_pink_top_rust.c
+    assets/img_pippa_mini_dress_lavender.c
+    assets/img_pippa_mini_pink_dress_lavender.c
+    assets/img_pippa_mini_dress_mint.c
+    assets/img_pippa_mini_pink_dress_mint.c
+    assets/img_pippa_mini_dress_mustard.c
+    assets/img_pippa_mini_pink_dress_mustard.c
+    assets/img_pippa_mini_fall_hoodie.c
+    assets/img_pippa_mini_pink_fall_hoodie.c
+    assets/img_pippa_mini_uniform_dress.c
+    assets/img_pippa_mini_pink_uniform_dress.c
+    assets/img_pippa_mini_uniform_pants.c
+    assets/img_pippa_mini_pink_uniform_pants.c
+    assets/img_pippa_mini_uniform_hot.c
+    assets/img_pippa_mini_pink_uniform_hot.c
+    assets/img_pippa_mini_uniform_fall.c
+    assets/img_pippa_mini_pink_uniform_fall.c
+    assets/img_pippa_mini_kit2.c
+    assets/img_pippa_mini_pink_kit2.c
+    assets/img_pippa_mini_kitp_navy_stripe.c
+    assets/img_pippa_mini_kitp_rust_stripe.c
+    assets/img_pippa_mini_kitp_mustard_stripe.c
+    assets/img_pippa_mini_kitp_navy_solid.c
+    assets/img_pippa_mini_kitp_mustard_solid.c
+    assets/img_pippa_mini_kitp_teal_solid.c
+    assets/img_pippa_mini_kitr_navy_stripe.c
+    assets/img_pippa_mini_kitr_rust_stripe.c
+    assets/img_pippa_mini_kitr_mustard_stripe.c
+    assets/img_pippa_mini_kitr_navy_solid.c
+    assets/img_pippa_mini_kitr_mustard_solid.c
+    assets/img_pippa_mini_kitr_teal_solid.c
+    assets/img_pippa_mini_kitp_dress.c
+    assets/img_pippa_mini_kitr_dress.c
     assets/img_pippa_head_thumb.c
     assets/img_pippa_head_pink_thumb.c
     assets/img_pippa_heart_overlay.c
