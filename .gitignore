@@ -10,6 +10,8 @@ sim/build/
 sim/build-web/
 sim/render-classic
 sim/render-v2
+sim/render-example
+sim/out-example/
 sim/out-classic/
 sim/classic/scenarios/
 sim/test_request

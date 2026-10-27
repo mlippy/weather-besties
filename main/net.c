@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "alerts.h"
+#include "app.h"
 #include "board.h"
 #include "cJSON.h"
 #include "cal.h"
@@ -108,14 +109,13 @@ static void set_local_tz(int utc_offset_s)
 
 /* ------------------------------------------------------------------ ui glue */
 
-void net_ui_action(ui_action_t a, void *user)
+void net_ui_action(wb_action_t a)
 {
-    (void)user;
-    if (a == UI_ACT_SETUP) {
+    if (a == WB_ACT_SETUP) {
         xEventGroupSetBits(s_ev, EV_PORTAL);
-    } else if (a == UI_ACT_REFRESH) {
+    } else if (a == WB_ACT_REFRESH) {
         xEventGroupSetBits(s_ev, EV_REFRESH);
-    } else if (a == UI_ACT_UPDATE) {
+    } else if (a == WB_ACT_UPDATE) {
         xEventGroupSetBits(s_ev, EV_UPDATE);
     }
 }
@@ -445,12 +445,11 @@ static void fetch_calendar(bool forced)
         s_ncal = cal_to_events(&cal, s_cal_events, 0, CAL_MAX);
         s_cal_at = now;
         s_cal_day = today;
-        int dress[8];
-        int ndress = cal_dress_days(&cal, dress, 8);
+        wb_state_t *st = app_state();
         UI_LOCKED({
-            cal_publish(&cal);
-            ui_show_calendar();               /* the 2.0 My Day page */
-            ui_set_dress_days(dress, ndress); /* "(dress)" events */
+            cal_publish(&cal);   /* My Day's list (the screens read it while drawing) */
+            st->ndress = cal_dress_days(&cal, st->dress_days, WB_DRESS_DAYS_MAX);   /* "(dress)" events */
+            st->cal_reads++;
         });
         snprintf(s_cal_status, sizeof(s_cal_status), "Read at %s: %d events in the calendar, %d coming up.", when,
                  cal.nevents_seen, s_ncal);
@@ -465,40 +464,41 @@ static void fetch_calendar(bool forced)
                  when, status);
     }
     if (!(ok && seen)) {
-        UI_LOCKED(ui_calendar_fetch_failed());   /* My Day marks what it shows as old */
+        app_state()->cal_fails++;   /* My Day marks what it shows as old */
     }
     ESP_LOGI(TAG, "calendar: %s (%u bytes)", s_cal_status, (unsigned)total);
 }
 
+/* Fills the state's weather, alerts, events and grown-up lines, and hands it to the screens. */
 static void show_weather(bool fresh_ok, const char *last_update)
 {
-    ui_info_t info = {0};
-    snprintf(info.wifi, sizeof(info.wifi), "%s", S->ssid);
-    snprintf(info.place, sizeof(info.place), "%s", S->place_name);
-    snprintf(info.ip, sizeof(info.ip), "%s", s_ip);
-    snprintf(info.version, sizeof(info.version), "%s", WB_VERSION);
-    if (last_update[0]) {
-        snprintf(info.updated, sizeof(info.updated), "Weather updated %s", last_update);
-    }
-    char status[64];
-    if (fresh_ok) {
-        snprintf(status, sizeof(status), "Updated %s", last_update);
-    } else {
-        snprintf(status, sizeof(status), "Offline. Last update %s", last_update);
-    }
-    static wb_event_t all[EVENT_LIST_MAX];
-    int n = S->nevents < EVENT_MAX ? S->nevents : EVENT_MAX;
-    memcpy(all, S->events, (size_t)n * sizeof(all[0]));
-    for (int i = 0; i < s_ncal && n < EVENT_LIST_MAX; i++) {
-        all[n++] = s_cal_events[i];
-    }
+    wb_state_t *st = app_state();
     UI_LOCKED({
-        ui_set_events(all, n);
-        ui_set_alerts(&s_alerts);
-        ui_show_weather(&s_wx);
-        ui_set_footer(S->place_name, status, !fresh_ok);
-        ui_set_info(&info);
+        snprintf(st->wifi, sizeof(st->wifi), "%s", S->ssid);
+        snprintf(st->place, sizeof(st->place), "%s", S->place_name);
+        snprintf(st->ip, sizeof(st->ip), "%s", s_ip);
+        snprintf(st->version, sizeof(st->version), "%s", WB_VERSION);
+        st->updated[0] = 0;
+        if (last_update[0]) {
+            snprintf(st->updated, sizeof(st->updated), "Weather updated %s", last_update);
+        }
+        if (fresh_ok) {
+            snprintf(st->status, sizeof(st->status), "Updated %s", last_update);
+        } else {
+            snprintf(st->status, sizeof(st->status), "Offline. Last update %s", last_update);
+        }
+        st->status_warn = !fresh_ok;
+        int n = S->nevents < EVENT_MAX ? S->nevents : EVENT_MAX;
+        memcpy(st->events, S->events, (size_t)n * sizeof(st->events[0]));
+        for (int i = 0; i < s_ncal && n < EVENT_LIST_MAX; i++) {
+            st->events[n++] = s_cal_events[i];
+        }
+        st->nevents = n;
+        st->alerts = s_alerts;
+        st->wx = s_wx;
+        st->have_wx = s_wx.valid;
     });
+    app_publish();
 }
 
 /* ------------------------------------------------------------------ main loop */
@@ -519,7 +519,7 @@ static void net_task(void *arg)
         go_portal();
     }
 
-    UI_LOCKED(ui_show_connecting(S->ssid));
+    UI_LOCKED(wb_ui_show_connecting(S->ssid));
     wifi_start_sta();
 
     /* Wait for the first connection, showing an error (with a setup button) if it takes too long. */
@@ -534,7 +534,7 @@ static void net_task(void *arg)
             break;
         }
         if (!shown_error) {
-            UI_LOCKED(ui_show_wifi_error(S->ssid, NULL));
+            UI_LOCKED(wb_ui_show_wifi_error(S->ssid, NULL));
             shown_error = true;
         }
     }
@@ -543,9 +543,9 @@ static void net_task(void *arg)
     esp_netif_sntp_init(&sntp);
 
     if (!S->has_coords) {
-        UI_LOCKED(ui_show_boot("Finding your town..."));
+        UI_LOCKED(wb_ui_show_boot("Finding your town..."));
         while (!geocode()) {
-            UI_LOCKED(ui_show_wifi_error(S->ssid, "Couldn't find your town. Check the spelling in setup."));
+            UI_LOCKED(wb_ui_show_wifi_error(S->ssid, "Couldn't find your town. Check the spelling in setup."));
             EventBits_t b = xEventGroupWaitBits(s_ev, EV_PORTAL | EV_REFRESH, pdTRUE, pdFALSE,
                                                 pdMS_TO_TICKS(RETRY_FAST_MS));
             if (b & EV_PORTAL) {
@@ -554,7 +554,7 @@ static void net_task(void *arg)
         }
     }
 
-    UI_LOCKED(ui_show_boot("Asking the sky..."));
+    UI_LOCKED(wb_ui_show_boot("Asking the sky..."));
     bool have = false;
     bool forced = true;
     int fails = 0;
@@ -595,13 +595,13 @@ static void net_task(void *arg)
             if (have) {
                 show_weather(false, last);
             } else if (!(xEventGroupGetBits(s_ev) & EV_CONNECTED)) {
-                UI_LOCKED(ui_show_wifi_error(S->ssid, NULL));
+                UI_LOCKED(wb_ui_show_wifi_error(S->ssid, NULL));
             } else if (fails >= 2) {
                 /* One blip on a weak link is normal; only show the error once a quick retry also fails. */
                 char msg[160];
                 snprintf(msg, sizeof(msg), "Can't reach the weather service. Trying again soon.\n(%s, %u KB free)",
                          s_net_err[0] ? s_net_err : "no answer", (unsigned)(board_free_internal() / 1024));
-                UI_LOCKED(ui_show_boot(msg));
+                UI_LOCKED(wb_ui_show_boot(msg));
             }
         }
         uint32_t wait = ok ? REFRESH_MS

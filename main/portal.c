@@ -23,7 +23,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "net.h"
-#include "ui_select.h"
 
 static const char *TAG = "portal";
 
@@ -514,7 +513,7 @@ static esp_err_t page_save(httpd_req_t *req)
     free(b.p);
 
     if (board_lvgl_lock(-1)) {
-        ui_show_boot("Saved! Restarting...");
+        wb_ui_show_boot("Saved! Restarting...");
         board_lvgl_unlock();
     }
     esp_timer_start_once(s_restart, 1500 * 1000);
@@ -553,7 +552,7 @@ void portal_run(wb_settings_t *s)
     s_ap_pass[10] = 0;
 
     if (board_lvgl_lock(-1)) {
-        ui_show_boot("Getting setup ready...");
+        wb_ui_show_boot("Getting setup ready...");
         board_lvgl_unlock();
     }
 
@@ -598,7 +597,7 @@ void portal_run(wb_settings_t *s)
 
     ESP_LOGI(TAG, "setup hotspot '%s' is up at http://192.168.4.1", s_ap);
     if (board_lvgl_lock(-1)) {
-        ui_show_setup(s_ap, s_ap_pass, "192.168.4.1");
+        wb_ui_show_setup(s_ap, s_ap_pass, "192.168.4.1");
         board_lvgl_unlock();
     }
     while (1) {

@@ -5,12 +5,12 @@
 #include <time.h>
 
 #include "settings.h"
-#include "ui.h"
+#include "wb_ui.h"
 
 #define WB_VERSION "1.8.3"
 
 void net_start(wb_settings_t *s);
-void net_ui_action(ui_action_t a, void *user);  /* UI button callback */
+void net_ui_action(wb_action_t a);              /* Setup, Refresh, Update from the screens */
 bool net_local_time(struct tm *out);            /* local clock at the weather location */
 const char *net_calendar_status(void);          /* one line for the setup page */
 

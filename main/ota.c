@@ -14,7 +14,7 @@
 #include "freertos/task.h"
 #include "mbedtls/sha256.h"
 #include "net.h"
-#include "ui.h"
+#include "wb_ui.h"
 #include "update.h"
 
 static const char *TAG = "ota";
@@ -62,7 +62,7 @@ void ota_mark_good(void)
 static void say(const char *msg)
 {
     if (board_lvgl_lock(-1)) {
-        ui_show_boot(msg);
+        wb_ui_show_boot(msg);
         board_lvgl_unlock();
     }
 }

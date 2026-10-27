@@ -3,6 +3,7 @@
  * Board: Waveshare ESP32-S3-Touch-LCD-4.3. Weather: Open-Meteo (no API key).
  */
 #include <stdio.h>
+#include <string.h>
 
 #include "board.h"
 #include "esp_log.h"
@@ -10,11 +11,13 @@
 #include "net.h"
 #include "nvs_flash.h"
 #include "ota.h"
+#include "app.h"
 #include "settings.h"
-#include "ui.h"
+#include "wb_ui.h"
 
 static const char *TAG = "main";
 static wb_settings_t S;
+static wb_state_t s_state;   /* what the screens show (wb_state.h) */
 
 /* Optional "screen off at night": checked once a second in the LVGL thread. */
 static void power_timer(lv_timer_t *t)
@@ -44,28 +47,61 @@ static void power_timer(lv_timer_t *t)
     }
 }
 
-/* Cat choice from Settings (2.0 screens): remember it and show it right away. */
-static void cat_cb(int choice)
+wb_state_t *app_state(void)
 {
-    S.cat = (uint8_t)choice;
-    settings_save(&S);
-    board_lvgl_lock(-1);
-    ui_set_cat_choice(choice);
-    board_lvgl_unlock();
+    return &s_state;
 }
 
-/* The Settings slider let go: keep the new brightness (the UI already shows it). */
-static void brightness_cb(int pct)
+void app_publish(void)
 {
-    S.brightness = (uint8_t)pct;
-    settings_save(&S);
+    if (board_lvgl_lock(-1)) {
+        s_state.seq++;
+        wb_ui_update(&s_state);
+        board_lvgl_unlock();
+    }
 }
 
-/* Speed test readout and old/new switch (the UI calls this; see ui_set_speed_cb). */
-static void speed_cb(bool old_mode, char *info, size_t n)
+/* The settings parts of the state, from what's saved. */
+static void state_from_settings(void)
 {
-    board_speed_old_mode(old_mode);
-    snprintf(info, n, "%d lines, %u KB free", board_draw_lines(), (unsigned)(board_free_internal() / 1024));
+    snprintf(s_state.names, sizeof(s_state.names), "%s", S.names);
+    snprintf(s_state.pet_name, sizeof(s_state.pet_name), "%s", S.pet_name);
+    s_state.pet = (wb_pet_t)S.cat;
+    s_state.brightness = S.brightness;
+    s_state.leave_min = S.leave_min;
+    s_state.bed_min = S.bed_min;
+    s_state.coat_f = S.coat_f;
+    s_state.jacket_f = S.jacket_f;
+    s_state.hoodie_f = S.hoodie_f;
+    s_state.warm_pm_f = S.warm_pm_f;
+    s_state.bike_bus_wday = -1;   /* no bike bus here; special events cover it */
+    s_state.celsius = S.celsius;
+    s_state.cal_configured = S.ical_url[0] != 0;
+    int n = S.nevents < EVENT_MAX ? S.nevents : EVENT_MAX;
+    memcpy(s_state.events, S.events, (size_t)n * sizeof(s_state.events[0]));
+    s_state.nevents = n;
+}
+
+/* What a person did on the screen (wb_ui.h). Runs in the LVGL thread. */
+static void on_action(wb_action_t act, int value, void *user)
+{
+    (void)user;
+    switch (act) {
+    case WB_ACT_SET_PET:
+        S.cat = (uint8_t)value;
+        settings_save(&S);
+        s_state.pet = (wb_pet_t)value;
+        app_publish();   /* show it right away */
+        break;
+    case WB_ACT_SET_BRIGHTNESS:
+        S.brightness = (uint8_t)value;
+        settings_save(&S);
+        s_state.brightness = value;   /* the screen already shows it */
+        break;
+    default:
+        net_ui_action(act);   /* Setup, Refresh, Update */
+        break;
+    }
 }
 
 void app_main(void)
@@ -81,22 +117,11 @@ void app_main(void)
 
     ESP_ERROR_CHECK(board_init());
 
+    state_from_settings();
     board_lvgl_lock(-1);
-    ui_init(S.names);
-    ui_set_pet_name(S.pet_name);
-    ui_set_dress_days(NULL, 0);   /* the dress only on dress-up days (calendar or the Dress up pill) */
-    ui_set_routine_times(S.leave_min, S.bed_min);
-    ui_set_brightness(S.brightness);
-    ui_set_brightness_cb(brightness_cb);
-    ui_set_outfit_temps(S.coat_f, S.jacket_f, S.hoodie_f, S.warm_pm_f);
-    ui_set_cat_cb(cat_cb);
-    ui_set_cat_choice(S.cat);
-    ui_set_bike_bus_day(-1);   /* no bike bus here; special events cover it */
-    ui_set_events(S.events, S.nevents);
-    ui_set_speed_cb(speed_cb);
-    ui_set_action_cb(net_ui_action, NULL);
-    ui_set_time_cb(net_local_time);
-    ui_set_calendar_configured(S.ical_url[0] != 0);
+    wb_ui_start(on_action, NULL, net_local_time);
+    s_state.seq++;
+    wb_ui_update(&s_state);   /* the settings; the weather comes from net.c */
     lv_timer_create(power_timer, 1000, NULL);
     lv_refr_now(NULL);
     board_lvgl_unlock();

@@ -18,6 +18,7 @@
 #include "lvgl.h"
 #include "ui.h"
 #include "ui_v2_extras.h"
+#include "wb_ui.h"
 #include "wx.h"
 
 static uint16_t fb[UI_W * UI_H];
@@ -728,6 +729,36 @@ int main(int argc, char **argv)
     dump(out, "78_cold_then_warm_jacket");
     ui_set_outfit_temps(0, 0, 0, 0);
     ui_set_cat_choice(0);
+
+    {   /* The contract (wb_ui.h): the controller's way in. One state, one call; the same
+         * scene as the dog's morning plus an alert, built the way main/ builds it. */
+        static wb_state_t st;
+        load(sc, "brief_morning");
+        snprintf(st.names, sizeof(st.names), "Kid");
+        st.pet = WB_PET_DOG;
+        st.brightness = 100;
+        st.leave_min = 8 * 60 + 30;
+        st.bed_min = 20 * 60;
+        st.bike_bus_wday = -1;
+        st.wx = wx;
+        st.have_wx = true;
+        alerts_add(&st.alerts, "Wind Advisory", "Moderate");
+        snprintf(st.status, sizeof(st.status), "Updated 7:30 AM");
+        snprintf(st.version, sizeof(st.version), "2.0.0");
+        st.seq = 1;
+        v2_set_name_in_title(true);   /* the board's setting */
+        wb_ui_update(&st);
+        ui_refresh_clock();
+        pump(10);
+        save(out, "82_contract");
+        dump(out, "82_contract");
+        st.alerts.n = 0;   /* the next update clears the strip */
+        st.seq++;
+        wb_ui_update(&st);
+        v2_set_name_in_title(false);
+        ui_set_names("Cleo & Lila");
+        ui_set_cat_choice(0);
+    }
 
     ui_show_wifi_error("HomeWiFi", NULL);
     save(out, "10_wifi_error");

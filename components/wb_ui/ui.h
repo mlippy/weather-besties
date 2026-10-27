@@ -1,7 +1,8 @@
 /*
- * Weather Besties screens. Pure LVGL: the firmware and the desktop renderer
- * both call these. Call everything from the LVGL thread (or with the LVGL
- * lock held).
+ * The parts each screen design implements (2.0: ui.c + ui_v2_extras.c; classic:
+ * classic/ui.c + ui_classic_extras.c). The controller doesn't call these: it uses the
+ * contract in wb_ui.h, and wb_ui.c maps that onto them. The desktop renderer calls them
+ * directly to set up its scenes. Pure LVGL; call from the LVGL thread.
  */
 #pragma once
 

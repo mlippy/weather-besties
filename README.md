@@ -144,6 +144,12 @@ In [`components/wb_ui/ui_select.h`](components/wb_ui/ui_select.h), set `#define 
 
 Switching designs on a running board is just another update: build, `tools/release.py --publish`, push. Settings carry over.
 
+### Make your own
+
+The screens are separate from the rest. The controller (`main/`) fills in one struct (`wb_state_t`) and hands it to whichever design is built through a seven-function contract (`components/wb_ui/wb_ui.h`); taps come back as actions (Refresh, Update, Setup, pet, brightness). The rules (what to wear, the routine, countdowns, calendar, alerts) are plain C in `components/wb_core/` that any design can call. A new design needs no changes in `main/`. [docs/new-ui.md](docs/new-ui.md) walks through it, starting from a text-only example (`components/wb_ui/example/`, `#define WB_UI_EXAMPLE 1`):
+
+![The text-only example design](docs/example/03_weather.png)
+
 ## Over-the-air updates
 
 The board updates itself from this repo:
@@ -188,7 +194,8 @@ cd sim
 make shots              # renders the screens picked in ui_select.h
 make UI=classic shots   # ...or pick here: classic screens to sim/out-classic/*.png
 make UI=v2 shots        # 2.0 screens to sim/out/*.png, plus Boris's render checks
-make test               # calendar reader + update manifest tests, and every request fits the HTTP send buffer
+make UI=example shots   # the text-only example design to sim/out-example/*.png
+make test               # calendar reader, update manifest, countdown / dress-up / routine tests, and every request fits the HTTP send buffer
 make web                # Boris's browser emulator of the 2.0 screens (needs wasi-sdk)
 ```
 
@@ -208,36 +215,42 @@ For how the pieces fit together (hardware, tasks, setup hotspot, flash layout), 
 | `main/ota.c` | Over-the-air updates: check, download, verify, trial run and rollback |
 | `main/lv_mem_psram.c` | LVGL's memory functions: everything LVGL allocates goes to PSRAM |
 | `main/settings.c` | Saved settings (NVS), and the `DEFAULT_EVENTS` list |
-| `components/wb_ui/ui_select.h` | Which screens to build: classic or 2.0 |
-| `components/wb_ui/ui.h` | The screen interface both designs implement |
-| `components/wb_ui/classic/` | Classic screens: `ui.c`, `advice.c` (what-to-wear rules, special events), `assets/` |
+| `main/app.h` | The controller's state (`app_state()`) and `app_publish()`, which hands it to the screens |
+| `components/wb_core/` | The logic, plain C with no screens or board: forecast, alerts, calendar, events, outfits, the routine, countdowns, dress-up days, updates. `wb_state.h`: everything the screens show, in one struct |
+| `components/wb_ui/wb_ui.h` | The contract between the controller and the screens: `wb_ui_start`, `wb_ui_update`, four status screens, and the actions that come back ([make your own](docs/new-ui.md)) |
+| `components/wb_ui/ui_select.h` | Which screens to build: classic, 2.0 or the text-only example |
+| `components/wb_ui/ui.h`, `wb_ui.c` | The finer setters 2.0 and classic implement, and the adapter that turns each new state into the setter calls whose parts changed |
+| `components/wb_ui/example/` | The text-only example design: implements `wb_ui.h` directly in one file |
+| `components/wb_ui/classic/` | Classic screens: `ui.c`, `assets/` (their what-to-wear rules are `wb_core/advice.c`) |
 | `components/wb_ui/thermo.c` | The thermometer, shared by both designs |
-| `components/wb_ui/ui_v2_extras.c` | This fork's additions to 2.0 (the Routine page, thermometer, dress-up days, countdown, name in the title, Update pill), hooked into `ui.c` with one-line calls |
-| `components/wb_ui/ui.c`, `outfit.c`, `cat.c`, `assets/` | Boris's 2.0 screens, outfit engine, seasonal touches and Pippa artwork |
+| `components/wb_ui/ui_v2_extras.c` | This fork's additions to 2.0 (the Routine page, thermometer, dress-up pill, countdown pill, alerts strip, brightness, name in the title, Update pill), hooked into `ui.c` with one-line calls; their rules are in `wb_core` |
+| `components/wb_ui/ui.c`, `assets/`; `wb_core/outfit.c`, `cat.c` | Boris's 2.0 screens and Pippa artwork; his outfit engine and seasonal touches |
 | `components/wb_ui/ui_v2_extras.c`, `classic/ui_classic_extras.c` | The parts of `ui.h` one design doesn't use |
-| `components/wb_ui/events.c` | Special events (shared by the setup page, the calendar and the advice) |
-| `components/wb_ui/alerts.c` | NWS alerts: which to show, kid words for each |
-| `components/wb_ui/cal.c` | Google Calendar (iCal) reader: repeating events, tags, filter words |
-| `components/wb_ui/update.c` | Reads `latest.json`, compares versions |
-| `components/wb_ui/wx.c` | Forecast parsing, parts of the day, moon phase |
+| `components/wb_core/events.c` | Special events (shared by the setup page, the calendar and the advice) |
+| `components/wb_core/alerts.c` | NWS alerts: which to show, kid words for each |
+| `components/wb_core/cal.c` | Google Calendar (iCal) reader: repeating events, tags, filter words |
+| `components/wb_core/routine.c`, `countdown.c`, `dress.c` | The Routine page's lists, times and bar; the countdown wording; dress-up days |
+| `components/wb_core/update.c` | Reads `latest.json`, compares versions |
+| `components/wb_core/wx.c` | Forecast parsing, parts of the day, moon phase |
 | `components/lv_conf.h` | LVGL settings, shared with the PC renderer |
 | `tools/icons.py`, `make_assets.py`, `make_pippa_assets.py` | Boris's 2.0 artwork and the scripts that turn it into C files |
 | `tools/classic/` | The classic artwork (SVG) and its converter |
 | `tools/dog/`, `components/wb_ui/dog/` | The family's Brittany: the drawing (SVG), its converter, and the generated images |
 | `tools/routine/`, `components/wb_ui/routine/` | The Routine page's step pictures (SVG), their converter (`make_routine_icons.py`), and the generated images |
-| `sim/` | PC renderer (`sim_main.c` for 2.0, `classic/` for classic) and Boris's browser emulator |
+| `sim/` | PC renderer (`sim_main.c` for 2.0, `classic/` for classic, `example/` for the example), tests, and Boris's browser emulator |
 | `cad/` | Boris's 3D-printable case |
 | `firmware/` | Full image (`0x0`, first install), the app (what updates download), `usb/` pieces for a USB install that keeps settings, and `latest.json` (what boards update to) |
 | `tools/release.py` | Puts a build into `firmware/`; `--publish` updates `latest.json` |
-| `docs/` | Screenshots, [how it's built](docs/architecture.md), [deployment checklist](docs/deploy.md), [ideas queue](docs/queue.md) |
+| `docs/` | Screenshots, [how it's built](docs/architecture.md), [make your own screens](docs/new-ui.md), [deployment checklist](docs/deploy.md), [ideas queue](docs/queue.md) |
 
 ## Tweaking
 
-- Clothing rules: classic, the `BANDS` table at the top of `components/wb_ui/classic/advice.c` (temperatures are feels-like in °F); 2.0, `components/wb_ui/outfit.c`, with the jacket cut-offs and the warm-afternoon rule on the setup page ("Jackets and coats").
+- Clothing rules: classic, the `BANDS` table at the top of `components/wb_core/advice.c` (temperatures are feels-like in °F); 2.0, `components/wb_core/outfit.c`, with the jacket cut-offs and the warm-afternoon rule on the setup page ("Jackets and coats").
 - Special events the board starts with: the `DEFAULT_EVENTS` list at the top of `main/settings.c` (examples are in the comment). The phone setup page edits the same list, up to 8 events.
-- Event reminders and the "a lot colder" threshold: `EVENT_COLD_F`, `EVENT_HOT_F`, `EVENT_RAIN_POP` and `BIG_CHANGE_F` in `components/wb_ui/classic/advice.h`.
-- Which weather alerts show, and the kid title and line for each: the `SKIP` and `KID` tables at the top of `components/wb_ui/alerts.c`.
-- Calendar tags and the countdown range: the top of `components/wb_ui/cal.c` and `CAL_COUNTDOWN_DAYS` in `cal.h`.
+- Event reminders and the "a lot colder" threshold: `EVENT_COLD_F`, `EVENT_HOT_F`, `EVENT_RAIN_POP` and `BIG_CHANGE_F` in `components/wb_core/advice.h`.
+- Which weather alerts show, and the kid title and line for each: the `SKIP` and `KID` tables at the top of `components/wb_core/alerts.c`.
+- Calendar tags and the countdown range: the top of `components/wb_core/cal.c` and `CAL_COUNTDOWN_DAYS` in `cal.h`.
+- Routine steps, their words and the bar's colours: the `MORNING` / `BEDTIME` lists and `wb_routine_view()` in `components/wb_core/routine.c`; the times are on the setup page ("Routines"), the pictures in `tools/routine/`.
 - Thermometer scale and colors: `THERMO_MIN_F` / `THERMO_MAX_F` in `components/wb_ui/thermo.h` and the `ZONES` table in `thermo.c` (keep its cut-offs in step with `BANDS` in `advice.c`).
 - Colors: the theme table at the top of `components/wb_ui/classic/ui.c`.
 - Classic artwork: edit `tools/classic/icons.py`, then run `python3 tools/classic/make_assets.py`. 2.0 artwork: see Boris's notes in `tools/`. Both need `pip install resvg-py pillow pypng` and `npm install lv_font_conv` inside `tools/`.

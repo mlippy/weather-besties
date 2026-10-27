@@ -2052,6 +2052,14 @@ def main():
     lb, ld = mean_lum("51_dog_morning"), mean_lum("81_dimmed")
     check(ld < lb * 0.6, f"81_dimmed: 40 % brightness darkens the screen (mean {ld:.0f} vs {lb:.0f})")
 
+    # The contract (wb_ui.h): one wb_ui_update() with a wb_state_t gives the same screen
+    # the setters give (the dog's morning look, the name in the title) plus the alert strip.
+    d82 = dump("82_contract")
+    check(d82["look_name"] == dump("51_dog_morning")["look_name"] and "Kid" in d82["title"],
+          f"82_contract: wb_ui_update draws the dog's morning (look={d82['look_name']}, title={d82['title']})")
+    n = count_where(Image.open(os.path.join(OUT, "82_contract.png")), (20, 6, 420, 66), near_c(0x3E8ED0, 8))
+    check(n > 8000, f"82_contract: the state's alert shows as the blue strip ({n} px, need > 8000)")
+
     # A held finger opens Settings on every page (Settings' Update pill, its pale grey).
     def is_pill_grey(r, g, b):
         return abs(r - 0xED) <= 3 and abs(g - 0xF1) <= 3 and abs(b - 0xF5) <= 3

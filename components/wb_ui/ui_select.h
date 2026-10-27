@@ -12,8 +12,13 @@
  *      family calendar) / Next days, plus this fork's thermometer and Update pill
  *      (ui_v2_extras.c). Special events, countdowns and alerts aren't shown there yet.
  *      The family's board runs this one.
+ *
+ * WB_UI_EXAMPLE 1 builds neither: the text-only example (components/wb_ui/example/), the
+ * smallest design that implements the contract in wb_ui.h. A starting point for your own;
+ * see docs/new-ui.md.
  */
 #pragma once
 
 #define WB_UI_CLASSIC 0
+#define WB_UI_EXAMPLE 0
 

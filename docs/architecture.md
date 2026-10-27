@@ -45,15 +45,16 @@ It's all one C program, built with Espressif's ESP-IDF framework. The screens an
 
 | Layer | Files / contents | Builds for |
 |---|---|---|
-| Board glue | `main.c`, `board.c`, `net.c`, `portal.c`, `settings.c` | firmware only |
-| Screens (one of two, `ui_select.h`) | classic: `classic/ui.c`, `advice.c` (clothes, special events); 2.0: Boris's `ui.c`, `outfit.c`, `cat.c`, plus this fork's `ui_v2_extras.c` (Routine, thermometer, dress-up days, countdown, buttons); both: `thermo.c` (thermometer) | board, PC, browser |
-| Shared logic | `wx.c` (forecast), `alerts.c` (NWS alerts), `cal.c` (iCal reader), `events.c`, `update.c` (OTA manifest), `wb_request.c` | board, PC, browser |
+| Controller (`main/`) | `main.c`, `board.c`, `net.c`, `portal.c`, `settings.c`, `ota.c`: owns the one `wb_state_t` and talks to the screens only through `wb_ui.h` | firmware only |
+| Contract (`components/wb_ui/wb_ui.h`) | `wb_ui_start`, `wb_ui_update(&state)`, four status screens; taps come back as `wb_action_t`. `wb_ui.c` adapts it to the finer setters in `ui.h` that 2.0 and classic implement | board, PC, browser |
+| Screens (one of three, `ui_select.h`) | 2.0: Boris's `ui.c` plus this fork's `ui_v2_extras.c` (Routine, thermometer, dress-up and countdown pills, alerts strip, brightness, buttons); classic: `classic/ui.c`; both: `thermo.c` (thermometer). Example: `example/wb_ui_text.c`, text only, straight against `wb_ui.h` | board, PC, browser |
+| Logic (`components/wb_core/`) | `wx.c` (forecast), `alerts.c` (NWS alerts), `cal.c` (iCal reader), `events.c`, `outfit.c` and `cat.c` (2.0's what to wear), `advice.c` (classic's), `routine.c`, `countdown.c`, `dress.c`, `update.c` (OTA manifest), `wb_request.c`; `wb_state.h` (the state) | board, PC, browser |
 | Artwork + fonts | 49 images, 6 sizes of Fredoka, as C arrays | board, PC, browser |
 | Libraries | LVGL 9.5 (graphics), cJSON (parsing) | board, PC, browser |
 | Board libraries | GT911 touch driver, DNS server for setup | firmware only |
 | ESP-IDF 5.5 | FreeRTOS, WiFi + lwIP, mbedTLS (HTTPS), SNTP clock, HTTP client + server, NVS settings, LCD / I2C / GPIO drivers | firmware only |
 
-Swap the board glue for a different file and the same screens run on a laptop or in a web page, pixel for pixel.
+Swap the board glue for a different file and the same screens run on a laptop or in a web page, pixel for pixel. Swap the screens and the controller doesn't change: [make your own screens](new-ui.md).
 
 ## What runs while it's on
 
@@ -66,7 +67,7 @@ FreeRTOS gives the program tasks, timers and locks, and nothing else. Two tasks 
 3. HTTPS GET to `api.weather.gov/alerts/active?point=lat,lon` for US National Weather Service alerts (`alerts.c`). It keeps the alerts that matter to a kid, most serious first, and swaps each official name for a calm kid title and line ("Big snow on the way"). The official name only shows in Settings, for grown-ups. If this call fails, the last alerts stay up for about an hour, then clear.
 4. Once an hour (or on Refresh, or when the day changes), streams the family calendar's secret iCal address through `cal.c` in 4 KB chunks, so even a calendar with years of history never has to fit in memory. It keeps the kid's events for today and tomorrow, plus countdown events up to 60 days out, working out repeats (weekly soccer, yearly birthdays), skipped and moved instances, and all-day events. If a read fails, the last good list stays, since its events carry their own dates.
 5. Around 3 AM, checks for a firmware update (see below).
-6. Takes the lock and hands everything to the UI: the forecast, alerts, special events and calendar items, today's and tomorrow's calendar events for My Day (`cal_publish`), and dress-up days (`cal_dress_days`). The classic screens pick clothes in `advice.c` (with reminders for special events, using the forecast for the hour they start); the 2.0 screens in Boris's `outfit.c`.
+6. Takes the lock, fills in the state (`wb_state_t`: the forecast, alerts, special events and calendar items, dress-up days from `cal_dress_days`, the status line) along with today's and tomorrow's calendar events for My Day (`cal_publish`), and hands it to the screens with `wb_ui_update()` (`app_publish()` in `main/main.c`). The classic screens pick clothes in `advice.c` (with reminders for special events, using the forecast for the hour they start); the 2.0 screens in Boris's `outfit.c`.
 
 **Graphics task (core 1)**
 
@@ -84,7 +85,7 @@ Every request the board makes has to fit the HTTP client's send buffer (request 
 
 ## What's on the screen
 
-Two designs implement the same `ui.h`; `components/wb_ui/ui_select.h` picks one at build time, and the build compiles only that one's screens and artwork. The family's board runs 2.0.
+Two designs implement the same `ui.h` (under the `wb_ui.h` contract); `components/wb_ui/ui_select.h` picks one at build time, and the build compiles only that one's screens and artwork. The family's board runs 2.0. A third, the text-only example, shows the least a design needs ([new-ui.md](new-ui.md)).
 
 **2.0** (Boris's design, described in [REDESIGN_PLAN.md](REDESIGN_PLAN.md), plus this fork's `ui_v2_extras.c`):
 
@@ -116,7 +117,7 @@ Long text never pushes the layout around: the bubble steps its fonts down until 
 
 ## Over-the-air updates
 
-`main/ota.c`, with the manifest parsing in `components/wb_ui/update.c` (tested by `sim/test_update.c`):
+`main/ota.c`, with the manifest parsing in `components/wb_core/update.c` (tested by `sim/test_update.c`):
 
 1. Around 3 AM (once a day, if automatic updates are on) or on the **Update** button, the net task reads `firmware/latest.json` from the repo's `main` branch on `raw.githubusercontent.com`.
 2. If its version is newer than `WB_VERSION`, it streams the app file into the other app slot with `esp_ota_write` (4 KB at a time, erasing as it goes), hashing it with SHA-256 on the way. The screen shows the progress.
@@ -184,7 +185,7 @@ Because the screens never touch hardware, the same files (`ui.c`, `advice.c`, `w
 | Screenshot renderer | GCC + `sim_main.c` | PC program, writes PNGs |
 | Browser emulator | clang wasm32 + `emu_main.c` | WebAssembly + canvas, Boris's 2.0 screens (`make web`) |
 
-The calendar reader has its own tests (`sim/test_cal.c`, `make test`), run against a sample family calendar and checked against Google's real US-holidays feed.
+The countdown, dress-up days and routine are tested in `sim/test_core.c`, and the calendar reader has its own tests (`sim/test_cal.c`, both in `make test`), run against a sample family calendar and checked against Google's real US-holidays feed.
 
 The icons start as SVG drawings in a Python script (`tools/icons.py`) and get rendered and packed into RGB565 pixel arrays with an alpha channel. The Fredoka font gets rasterized into bitmap tables at six sizes. Both end up as C files (`tools/make_assets.py`), so the board never needs a filesystem or an image decoder.
 

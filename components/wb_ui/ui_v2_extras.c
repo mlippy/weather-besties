@@ -9,30 +9,21 @@
 #include "ui_v2_extras.h"
 #include "thermo.h"
 #include "cal.h"
+#include "countdown.h"
+#include "dress.h"
+#include "routine.h"
 #include "assets/assets.h"
 #include "routine/routine_icons.h"
 
-/* Countdowns (special events with Countdown ticked, calendar titles tagged (countdown),
- * a cake or a party popper): kept here for My Day's header pill. Other special events and
+/* Countdowns for My Day's header pill (countdown.c picks one). Other special events and
  * calendar reminders aren't shown on 2.0 yet. */
-#define CD_MAX 24
-static struct {
-    int dayno;
-    char name[EVENT_NAME_LEN];
-} s_cd[CD_MAX];
-static int s_ncd;
+static wb_event_t s_events[EVENT_LIST_MAX];
+static int s_nevents;
 
 void ui_set_events(const wb_event_t *events, int n)
 {
-    s_ncd = 0;
-    for (int i = 0; i < n && s_ncd < CD_MAX; i++) {
-        const wb_event_t *e = &events[i];
-        if (e->countdown && !e->wdays && e->year) {
-            s_cd[s_ncd].dayno = cal_dayno(e->year, e->month, e->day);
-            snprintf(s_cd[s_ncd].name, sizeof(s_cd[s_ncd].name), "%s", e->name);
-            s_ncd++;
-        }
-    }
+    s_nevents = n < EVENT_LIST_MAX ? n : EVENT_LIST_MAX;
+    memcpy(s_events, events, sizeof(s_events[0]) * s_nevents);
 }
 
 /* ------------------------------------------------------------------ weather alerts */
@@ -200,15 +191,8 @@ const char *v2_named_title(const char *his_title, const char *names, const char 
 
 /* ------------------------------------------------------------------ dress-up days */
 
-#define DRESS_MAX 8
-
 static bool s_dress_mode;                  /* false = Boris's rule: every light-jacket day */
-static int s_dress_cal[DRESS_MAX], s_ndress_cal;
-static struct {
-    int dayno;
-    bool on;
-} s_dress_tap[DRESS_MAX];                  /* the pill's choices, newest last */
-static int s_ndress_tap;
+static wb_dress_t s_dress;                 /* the calendar's days and the pill's taps (dress.c) */
 static lv_obj_t *s_dress_pill, *s_dress_lbl;
 static void (*s_dress_changed)(void);
 static int s_dress_shown = -1;             /* the day the pill is showing */
@@ -216,30 +200,12 @@ static int s_dress_shown = -1;             /* the day the pill is showing */
 void ui_set_dress_days(const int *daynos, int n)
 {
     s_dress_mode = true;
-    s_ndress_cal = 0;
-    for (int i = 0; i < n && s_ndress_cal < DRESS_MAX; i++) {
-        s_dress_cal[s_ndress_cal++] = daynos[i];
-    }
-}
-
-static bool dress_on(int dn)
-{
-    for (int i = s_ndress_tap - 1; i >= 0; i--) {
-        if (s_dress_tap[i].dayno == dn) {
-            return s_dress_tap[i].on;   /* a tap beats the calendar */
-        }
-    }
-    for (int i = 0; i < s_ndress_cal; i++) {
-        if (s_dress_cal[i] == dn) {
-            return true;
-        }
-    }
-    return false;
+    wb_dress_set_calendar(&s_dress, daynos, n);
 }
 
 bool v2_dress_wanted(int year, int month, int day)
 {
-    return !s_dress_mode || dress_on(cal_dayno(year, month, day));
+    return !s_dress_mode || wb_dress_on(&s_dress, cal_dayno(year, month, day));
 }
 
 static void on_dress_pill(lv_event_t *e)
@@ -248,21 +214,7 @@ static void on_dress_pill(lv_event_t *e)
     if (s_dress_shown < 0) {
         return;
     }
-    bool on = !dress_on(s_dress_shown);
-    int i = 0;
-    while (i < s_ndress_tap && s_dress_tap[i].dayno != s_dress_shown) {
-        i++;
-    }
-    if (i == s_ndress_tap) {
-        if (s_ndress_tap == DRESS_MAX) {   /* forget the oldest */
-            memmove(&s_dress_tap[0], &s_dress_tap[1], sizeof(s_dress_tap[0]) * (DRESS_MAX - 1));
-            s_ndress_tap--;
-            i = s_ndress_tap;
-        }
-        s_ndress_tap++;
-    }
-    s_dress_tap[i].dayno = s_dress_shown;
-    s_dress_tap[i].on = on;
+    wb_dress_toggle(&s_dress, s_dress_shown);
     if (s_dress_changed) {
         s_dress_changed();
     }
@@ -297,7 +249,7 @@ void v2_dress_show(bool fits, int year, int month, int day, int x, int y)
         return;
     }
     s_dress_shown = cal_dayno(year, month, day);
-    bool on = dress_on(s_dress_shown);
+    bool on = wb_dress_on(&s_dress, s_dress_shown);
     /* Off: an outlined question. On: filled in the dress's own pink, with a check. */
     lv_label_set_text(s_dress_lbl, on ? LV_SYMBOL_OK "  Dress-up" : "Dress up?");
     lv_obj_set_style_bg_color(s_dress_pill, lv_color_hex(on ? 0xF7A1C4 : 0xFFFFFF), 0);
@@ -329,25 +281,7 @@ void v2_countdown_create(lv_obj_t *page)
 
 bool v2_countdown_text(int year, int month, int day, char *buf, size_t n, bool short_form)
 {
-    int today = cal_dayno(year, month, day);
-    int best = -1, best_d = CAL_COUNTDOWN_DAYS + 1;
-    for (int i = 0; i < s_ncd; i++) {
-        int d = s_cd[i].dayno - today;
-        if (d >= 0 && d < best_d) {
-            best = i;
-            best_d = d;
-        }
-    }
-    if (best < 0) {
-        return false;
-    }
-    if (best_d == 0) {
-        snprintf(buf, n, "%s is today!", s_cd[best].name);
-    } else {
-        snprintf(buf, n, "%d %ssleep%s until %s!", best_d, short_form ? "" : "more ", best_d == 1 ? "" : "s",
-                 s_cd[best].name);
-    }
-    return true;
+    return wb_countdown_text(s_events, s_nevents, cal_dayno(year, month, day), short_form, buf, n);
 }
 
 void v2_countdown_show(int year, int month, int day, int x_left, int x_right, int y)
@@ -386,8 +320,7 @@ void v2_dress_hide(void)
 /* Morning (midnight to noon) and bedtime (noon on): a checklist and a bar that shrinks
  * over the last hour before leaving for school / bedtime. Checks reset each day. */
 
-#define RT_ROWS 6
-#define RT_WINDOW_MIN 60      /* the bar starts filling an hour out and is full at the time */
+#define RT_ROWS WB_ROUTINE_STEPS
 #define RT_BAR_X 28
 #define RT_BAR_Y 98
 #define RT_BAR_W 688          /* the bus / the bed waits past its right end */
@@ -397,19 +330,23 @@ void v2_dress_hide(void)
 #define RT_GRID_X 28
 #define RT_GRID_Y 140
 
-typedef struct {
-    const char *word;
-    const lv_image_dsc_t *pic;
-} rt_step_t;
+/* routine.c says what each tile is; these are the pictures */
+static const lv_image_dsc_t *rt_pic(wb_step_t step)
+{
+    switch (step) {
+    case WB_STEP_POTTY: return &img_rt_potty;
+    case WB_STEP_BREAKFAST: return &img_rt_breakfast;
+    case WB_STEP_TEETH: return &img_rt_teeth;
+    case WB_STEP_HAIR: return &img_rt_hair;
+    case WB_STEP_DRESS: return &img_rt_dress;
+    case WB_STEP_PAJAMAS: return &img_rt_pajamas;
+    case WB_STEP_SNACK: return &img_rt_snack;
+    case WB_STEP_BOOKS: return &img_rt_books;
+    case WB_STEP_SNUGGLE: return &img_rt_snuggle;
+    }
+    return NULL;
+}
 
-static const rt_step_t RT_MORNING[] = {{"Potty", &img_rt_potty},       {"Breakfast", &img_rt_breakfast},
-                                       {"Brush teeth", &img_rt_teeth}, {"Brush hair", &img_rt_hair},
-                                       {"Get dressed", &img_rt_dress}};
-static const rt_step_t RT_BEDTIME[] = {{"Potty", &img_rt_potty},  {"Pajamas", &img_rt_pajamas},
-                                       {"Snack", &img_rt_snack},  {"Brush teeth", &img_rt_teeth},
-                                       {"Books", &img_rt_books},  {"Snuggle", &img_rt_snuggle}};
-
-static int s_rt_leave = 8 * 60 + 30, s_rt_bed = 20 * 60;   /* minutes after midnight */
 static float s_moon = -1;                  /* tonight's moon phase, 0 new .. 0.5 full; -1 unknown */
 static int s_sunrise = -1, s_sunset = -1;  /* minutes after midnight */
 static lv_obj_t *s_rt_moon, *s_rt_moon_shadow, *s_rt_sun;
@@ -424,19 +361,23 @@ static lv_obj_t *s_rt_page, *s_rt_title, *s_rt_when, *s_rt_left, *s_rt_track, *s
 static lv_obj_t *s_rt_runner, *s_rt_finish;   /* the pet's head riding the bar; the bus / the bed */
 static const lv_image_dsc_t *s_rt_head_img;
 static lv_obj_t *s_rt_row[RT_ROWS], *s_rt_box[RT_ROWS], *s_rt_tick[RT_ROWS], *s_rt_lbl[RT_ROWS], *s_rt_pic[RT_ROWS];
-static uint8_t s_rt_checks[2];                 /* bit i = row i done; [0] morning, [1] bedtime */
-static int s_rt_day[2] = {-1, -1};             /* the day those checks belong to */
+static wb_routine_t s_rt;                      /* times and today's ticks (routine.c) */
+static bool s_rt_ready;
 static struct tm s_rt_now;
 static const lv_image_dsc_t *s_rt_pet_img;
 
+static wb_routine_t *rt(void)
+{
+    if (!s_rt_ready) {
+        wb_routine_init(&s_rt);
+        s_rt_ready = true;
+    }
+    return &s_rt;
+}
+
 void ui_set_routine_times(int leave_min, int bed_min)
 {
-    if (leave_min > 0 && leave_min < 24 * 60) {
-        s_rt_leave = leave_min;
-    }
-    if (bed_min > 0 && bed_min < 24 * 60) {
-        s_rt_bed = bed_min;
-    }
+    wb_routine_set_times(rt(), leave_min, bed_min);
 }
 
 static void fmt_clock12(int min, char *buf, size_t n)
@@ -450,8 +391,7 @@ static void rt_draw(void);
 static void on_rt_row(lv_event_t *e)
 {
     int i = (int)(intptr_t)lv_event_get_user_data(e);
-    int m = s_rt_now.tm_hour < 12 ? 0 : 1;
-    s_rt_checks[m] ^= (uint8_t)(1u << i);
+    wb_routine_toggle(rt(), &s_rt_now, i);
     rt_draw();
 }
 
@@ -575,32 +515,19 @@ lv_obj_t *v2_routine_create(lv_obj_t *scr)
 
 static void rt_draw(void)
 {
-    const struct tm *now = &s_rt_now;
-    int m = now->tm_hour < 12 ? 0 : 1;
-    const rt_step_t *items = m == 0 ? RT_MORNING : RT_BEDTIME;
-    int n = m == 0 ? (int)(sizeof(RT_MORNING) / sizeof(RT_MORNING[0]))
-                   : (int)(sizeof(RT_BEDTIME) / sizeof(RT_BEDTIME[0]));
-    int today = cal_dayno(now->tm_year + 1900, now->tm_mon + 1, now->tm_mday);
-    if (s_rt_day[m] != today) {
-        s_rt_day[m] = today;   /* a new day starts unchecked */
-        s_rt_checks[m] = 0;
-    }
-    bool school = m == 1 || (now->tm_wday >= 1 && now->tm_wday <= 5);
-    int target = m == 0 ? s_rt_leave : s_rt_bed;
-    int now_min = now->tm_hour * 60 + now->tm_min;
-    int left = target - now_min;
+    wb_routine_view_t v;
+    wb_routine_view(rt(), &s_rt_now, &v);
+    int m = v.mode == WB_ROUTINE_MORNING ? 0 : 1;
 
-    int done = 0;
     for (int i = 0; i < RT_ROWS; i++) {
-        if (i >= n) {
+        if (i >= v.nsteps) {
             lv_obj_add_flag(s_rt_row[i], LV_OBJ_FLAG_HIDDEN);
             continue;
         }
-        bool on = (s_rt_checks[m] >> i) & 1;
-        done += on;
+        bool on = v.done[i];
         lv_obj_remove_flag(s_rt_row[i], LV_OBJ_FLAG_HIDDEN);
-        lv_label_set_text(s_rt_lbl[i], items[i].word);
-        lv_image_set_src(s_rt_pic[i], items[i].pic);
+        lv_label_set_text(s_rt_lbl[i], v.word[i]);
+        lv_image_set_src(s_rt_pic[i], rt_pic(v.step[i]));
         lv_obj_set_style_bg_color(s_rt_row[i], lv_color_hex(on ? 0xE8F6EE : 0xFFFFFF), 0);
         lv_obj_set_style_border_color(s_rt_row[i], lv_color_hex(on ? 0x8FD3A8 : 0xE7D9BE), 0);
         lv_obj_set_style_bg_color(s_rt_box[i], lv_color_hex(on ? 0x2FA866 : 0xFFFFFF), 0);
@@ -612,44 +539,20 @@ static void rt_draw(void)
         }
     }
 
-    bool all = done == n;
-    lv_obj_t *next = NULL;
-    for (int i = 0; i < n && !next; i++) {
-        if (!((s_rt_checks[m] >> i) & 1)) {
-            next = s_rt_row[i];
-        }
-    }
-    v2_hint_target(next);
-    lv_label_set_text(s_rt_title, all ? (m == 0 ? (school ? "Ready for school!" : "All done!") : "Ready for bed!")
-                                      : (m == 0 ? "Morning routine" : "Bedtime routine"));
-    char t[24], buf[64];
-    fmt_clock12(target, t, sizeof(t));
-    if (!school) {
-        lv_label_set_text(s_rt_when, "");
-        lv_label_set_text(s_rt_left, "No school today!");
+    v2_hint_target(v.next >= 0 ? s_rt_row[v.next] : NULL);
+    lv_label_set_text(s_rt_title, v.title);
+    lv_label_set_text(s_rt_when, v.when_text);
+    lv_label_set_text(s_rt_left, v.left_text);
+    if (!v.show_bar) {
         lv_obj_add_flag(s_rt_track, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(s_rt_runner, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(s_rt_finish, LV_OBJ_FLAG_HIDDEN);
     } else {
-        snprintf(buf, sizeof(buf), "%s %s", m == 0 ? "Leave at" : "Bed at", t);
-        lv_label_set_text(s_rt_when, buf);
-        const char *what = m == 0 ? "until we leave" : "until bedtime";
-        if (left > 0) {
-            snprintf(buf, sizeof(buf), "%d minute%s %s", left, left == 1 ? "" : "s", what);
-        } else if (left > -RT_WINDOW_MIN) {
-            snprintf(buf, sizeof(buf), "%s", m == 0 ? "Time to go!" : "Bedtime!");
-        } else {
-            snprintf(buf, sizeof(buf), "%s", m == 0 ? "Have a great day!" : "Sweet dreams!");
-        }
-        lv_label_set_text(s_rt_left, buf);
         lv_obj_remove_flag(s_rt_track, LV_OBJ_FLAG_HIDDEN);
         /* Left to right: the fill is the time gone, so it reaches the bus / the bed at the time. */
-        int gone = left >= RT_WINDOW_MIN ? 0 : left <= 0 ? RT_WINDOW_MIN : RT_WINDOW_MIN - left;
-        int w = RT_BAR_W * gone / RT_WINDOW_MIN;
-        /* the bar's colour says how close it is: green, yellow, orange, red */
-        uint32_t c = left > 30 ? 0x4CB860 : left > 15 ? 0xF2C230 : left > 5 ? 0xF28C28 : 0xE5483C;
+        int w = RT_BAR_W * v.bar_gone_min / WB_ROUTINE_WINDOW_MIN;
         lv_obj_set_width(s_rt_fill, w < 26 && w > 0 ? 26 : w);
-        lv_obj_set_style_bg_color(s_rt_fill, lv_color_hex(c), 0);
+        lv_obj_set_style_bg_color(s_rt_fill, lv_color_hex(v.bar_color), 0);
         if (w == 0) {
             lv_obj_add_flag(s_rt_fill, LV_OBJ_FLAG_HIDDEN);
         } else {

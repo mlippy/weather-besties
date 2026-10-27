@@ -8,6 +8,7 @@
 #include "advice.h"
 #include "assets/assets.h"
 #include "cal.h"
+#include "countdown.h"
 #include "thermo.h"
 #include "dog/dog_sets.h"
 #include "ui_select.h"
@@ -918,28 +919,7 @@ static void fit_bubble(void)
 /* "3 more sleeps until the birthday!" for the nearest countdown event, if any. */
 static bool countdown_text(char *buf, size_t n)
 {
-    const wb_event_t *best = NULL;
-    int best_d = CAL_COUNTDOWN_DAYS + 1;
-    for (int i = 0; i < s_opts.nevents && s_today >= 0; i++) {
-        const wb_event_t *e = &s_events[i];
-        if (!e->countdown || e->wdays || !e->year) {
-            continue;
-        }
-        int d = cal_dayno(e->year, e->month, e->day) - s_today;
-        if (d >= 0 && d < best_d) {
-            best = e;
-            best_d = d;
-        }
-    }
-    if (!best) {
-        return false;
-    }
-    if (best_d == 0) {
-        snprintf(buf, n, "%s is today!", best->name);
-    } else {
-        snprintf(buf, n, "%d more sleep%s until %s!", best_d, best_d == 1 ? "" : "s", best->name);
-    }
-    return true;
+    return s_today >= 0 && wb_countdown_text(s_events, s_opts.nevents, s_today, false, buf, n);
 }
 
 /* Footer left: a countdown when there is one, else the town. */
