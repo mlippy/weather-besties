@@ -17,7 +17,7 @@ extern "C" {
  * Create once on the outfit page; show it at the icon's x with the temperature the block
  * shows in big type (now on Today, the high on Tomorrow), in °F; hide it when the icon is. */
 void v2_thermo_create(lv_obj_t *page);
-void v2_thermo_show(int icon_x, float temp_f);
+void v2_thermo_show(int icon_x, float temp_f, float lo_f, float hi_f);   /* the fill, and the day's range */
 void v2_thermo_hide(void);
 
 /* The name from setup in the title is on by default; Boris's design keeps names off the screen,

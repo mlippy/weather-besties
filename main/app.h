@@ -9,3 +9,5 @@
 
 wb_state_t *app_state(void);   /* change it from the net task, or with the LVGL lock held */
 void app_publish(void);        /* takes the LVGL lock and calls wb_ui_update() */
+/* The state's events: the special events from setup, then the calendar's (cal may be NULL). */
+void app_set_events(const wb_event_t *cal, int ncal);

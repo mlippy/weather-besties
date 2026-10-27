@@ -34,8 +34,6 @@ void board_mem_log(const char *stage);
  * time the flex My Day cards populated; this is the line that
  * proves the 16 KB stack's headroom on real boots. */
 void board_lvgl_stack_log(const char *stage);
-/* Speed test: true = draw like v1.3.0 (20 lines a pass) to compare. */
-void board_speed_old_mode(bool old);
 
 void board_backlight(bool on);
 bool board_backlight_is_on(void);

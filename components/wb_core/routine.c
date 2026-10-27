@@ -54,7 +54,7 @@ void wb_routine_toggle(wb_routine_t *r, const struct tm *now, int step)
     }
 }
 
-static void fmt_clock12(int min, char *buf, size_t n)
+void wb_fmt_clock12(int min, char *buf, size_t n)
 {
     int h = min / 60 % 12;
     snprintf(buf, n, "%d:%02d %s", h ? h : 12, min % 60, min < 12 * 60 ? "AM" : "PM");
@@ -90,7 +90,7 @@ void wb_routine_view(wb_routine_t *r, const struct tm *now, wb_routine_view_t *v
         return;
     }
     char t[16];
-    fmt_clock12(v->target_min, t, sizeof(t));
+    wb_fmt_clock12(v->target_min, t, sizeof(t));
     snprintf(v->when_text, sizeof(v->when_text), "%s %s", m == 0 ? "Leave at" : "Bed at", t);
     int left = v->minutes_left;
     const char *what = m == 0 ? "until we leave" : "until bedtime";

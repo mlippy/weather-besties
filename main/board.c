@@ -49,7 +49,6 @@ static const int RGB_DATA[16] = {
 #define EXIO_USB_SEL (1 << 5) /* low = USB, high = CAN */
 
 #define DRAW_LINES_START 40     /* one 40-line area = the same 64 KB as v1.3.0's two 20-line ones */
-#define DRAW_LINES_OLD 20       /* speed test "old" mode */
 #define INTERNAL_MARGIN (64 * 1024)   /* keep this much internal RAM free after growing */
 
 static i2c_master_bus_handle_t s_bus;
@@ -254,8 +253,6 @@ static lv_display_t *s_disp;
 static uint8_t *s_buf;
 static int s_buf_lines;     /* lines the allocated buffer holds */
 static bool s_buf_internal;
-static bool s_old_mode;
-
 static size_t lines_bytes(int lines)
 {
     return (size_t)LCD_W * lines * sizeof(uint16_t);
@@ -277,7 +274,7 @@ void board_mem_log(const char *stage)
 
 int board_draw_lines(void)
 {
-    return s_old_mode ? DRAW_LINES_OLD : s_buf_lines;
+    return s_buf_lines;
 }
 
 static void apply_lines(void)
@@ -350,16 +347,6 @@ void board_shrink_draw_buffer(void)
     resize_locked(DRAW_LINES_START);
     ESP_LOGW(TAG, "memory tight: drawing area back to %d lines, internal free %u KB", s_buf_lines,
              (unsigned)(board_free_internal() / 1024));
-    board_lvgl_unlock();
-}
-
-void board_speed_old_mode(bool old)
-{
-    if (old == s_old_mode || !board_lvgl_lock(-1)) {
-        return;
-    }
-    s_old_mode = old;
-    apply_lines();
     board_lvgl_unlock();
 }
 

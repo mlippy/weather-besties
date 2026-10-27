@@ -9,9 +9,24 @@
 
 #include "ui.h"
 
+_Static_assert((int)UI_ACT_SETUP == (int)WB_ACT_SETUP && (int)UI_ACT_REFRESH == (int)WB_ACT_REFRESH &&
+                   (int)UI_ACT_UPDATE == (int)WB_ACT_UPDATE,
+               "on_action passes ui.h's actions straight through as wb_action_t");
+
 static wb_action_cb_t s_cb;
 static void *s_user;
-static wb_state_t s_last;   /* what the screens were last given */
+
+/* The parts of the state the setters below compare: what the screens were last given.
+ * Only these, not the whole ~4 KB state. */
+#define SEEN_FIELDS(X)                                                                             \
+    X(names) X(pet_name) X(pet) X(brightness) X(leave_min) X(bed_min) X(coat_f) X(jacket_f)      \
+    X(hoodie_f) X(warm_pm_f) X(bike_bus_wday) X(ndress) X(dress_days) X(cal_configured)            \
+    X(cal_reads) X(cal_fails)
+#define SEEN_DECL(f) __typeof__(((wb_state_t *)0)->f) f;
+#define SEEN_COPY(f) memcpy(&s_last.f, &st->f, sizeof(st->f));
+static struct {
+    SEEN_FIELDS(SEEN_DECL)
+} s_last;
 static bool s_have_last;
 
 static void on_action(ui_action_t a, void *user)
@@ -103,7 +118,7 @@ void wb_ui_update(const wb_state_t *st)
         ui_show_weather(&st->wx);    /* last: it draws the page */
     }
 
-    s_last = *st;
+    SEEN_FIELDS(SEEN_COPY)
     s_have_last = true;
 }
 

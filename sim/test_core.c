@@ -8,24 +8,15 @@
 #include "dress.h"
 #include "routine.h"
 
-static int fails;
-#define CHECK(cond, ...)                         \
-    do {                                         \
-        if (!(cond)) {                           \
-            printf("FAIL %s:%d: ", __FILE__, __LINE__); \
-            printf(__VA_ARGS__);                 \
-            printf("\n");                        \
-            fails++;                             \
-        }                                        \
-    } while (0)
+#include "test_check.h"
 
-static struct tm at(int y, int mo, int d, int wday, int h, int mi)
+static struct tm at(int y, int mo, int d, int h, int mi)
 {
     struct tm t = {0};
     t.tm_year = y - 1900;
     t.tm_mon = mo - 1;
     t.tm_mday = d;
-    t.tm_wday = wday;
+    t.tm_wday = cal_wday(cal_dayno(y, mo, d));
     t.tm_hour = h;
     t.tm_min = mi;
     return t;
@@ -84,7 +75,7 @@ static void test_routine(void)
     wb_routine_view_t v;
     wb_routine_init(&r);
 
-    struct tm tue = at(2026, 10, 27, 2, 7, 55);   /* 35 minutes before 8:30 */
+    struct tm tue = at(2026, 10, 27, 7, 55);   /* 35 minutes before 8:30 */
     wb_routine_view(&r, &tue, &v);
     CHECK(v.mode == WB_ROUTINE_MORNING && v.nsteps == 5 && v.next == 0, "morning list");
     CHECK(v.step[1] == WB_STEP_BREAKFAST && !strcmp(v.word[1], "Breakfast"), "steps and words");
@@ -111,11 +102,11 @@ static void test_routine(void)
     wb_routine_view(&r, &tue, &v);
     CHECK(!strcmp(v.left_text, "Have a great day!"), "long past: %s", v.left_text);
 
-    struct tm wed = at(2026, 10, 28, 3, 7, 0);
+    struct tm wed = at(2026, 10, 28, 7, 0);
     wb_routine_view(&r, &wed, &v);
     CHECK(v.next == 0 && !v.done[4] && v.bar_gone_min == 0, "a new day starts unchecked");
 
-    struct tm sat = at(2026, 10, 31, 6, 9, 0);
+    struct tm sat = at(2026, 10, 31, 9, 0);
     wb_routine_view(&r, &sat, &v);
     CHECK(!v.show_bar && !strcmp(v.left_text, "No school today!") && !v.when_text[0], "weekend morning");
     for (int i = 0; i < 5; i++) {
@@ -125,7 +116,7 @@ static void test_routine(void)
     CHECK(!strcmp(v.title, "All done!"), "weekend all done: %s", v.title);
 
     wb_routine_set_times(&r, 8 * 60, 19 * 60 + 30);
-    struct tm night = at(2026, 10, 31, 6, 19, 10);
+    struct tm night = at(2026, 10, 31, 19, 10);
     wb_routine_view(&r, &night, &v);
     CHECK(v.mode == WB_ROUTINE_BEDTIME && v.nsteps == 6 && v.step[5] == WB_STEP_SNUGGLE, "bedtime list");
     CHECK(v.show_bar && !strcmp(v.when_text, "Bed at 7:30 PM"), "bed time: %s", v.when_text);

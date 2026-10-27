@@ -91,8 +91,8 @@ Two designs implement the same `ui.h` (under the `wb_ui.h` contract); `component
 
 | Where | What |
 |---|---|
-| Today / Tomorrow | The page title (with the name from setup when it fits; a calm purple or blue alert strip in its place while a weather alert is out), the day chip and its **Dress up?** pill (or the "2 of 4 ready" chip once something is checked), the thermometer and weather, Pippa or the dog in the day's outfit, garment tiles and extras to check off, one sentence about the day |
-| My Day | Today's and tomorrow's calendar events as cards in a scrolling list (icons, NOW / NEXT / DONE, finished ones folded into "3 done today" in the evening), the date after the title, the countdown pill, a small pet top right, "Updated 7:02 AM" by the tabs |
+| Today / Tomorrow | The page title (with the name from setup when it fits; a calm purple or blue alert strip in its place while a weather alert is out), the day chip and its **Dress up?** pill (or the "2 of 4 ready" chip once something is checked), the weather, Pippa or the dog in the day's outfit with the thermometer to their left (the fill is the temperature now, or the high on Tomorrow; a band beside it is the day's low to high; a light-blue notch marks freezing), garment tiles and extras to check off, one sentence about the day |
+| My Day | Today's and tomorrow's calendar events as cards in a scrolling list (icons, NOW / NEXT / DONE, finished ones folded into "3 done today" in the evening), today's date after the Today heading (beside the title in the message states), the countdown pill beside the title, a small pet top right, "Updated 7:02 AM" by the tabs |
 | Next days (no tab in this fork) | Three day cards with the outfit and a mini pet; still built, swipes skip it |
 | Routine (this fork) | Tonight's moon and the sun times at the top right; morning checklist before noon, bedtime checklist after, as square picture buttons (three across), each with a bar that fills left to right over the last hour before leaving / bedtime (times from setup), the pet's head riding it toward a school bus / a bed; ticks reset daily |
 | Settings (hold an empty spot) | Pet picker, WiFi, town, version, Brightness slider (a dark see-through layer on LVGL's top layer; the backlight itself is on/off only), Refresh, Change WiFi or town, Update |
@@ -106,7 +106,7 @@ Everything tappable on 2.0 wears one raised look (`v2_raise`: a soft edge undern
 | Where | What |
 |---|---|
 | Top bar | "Good morning, Kid!" (the name from setup), the date and clock |
-| Today page, left | Weather picture, temperature, a thermometer (fixed 0-100 °F scale, color by temperature, a tick at freezing, `thermo.c`), conditions, high/low, feels like; under the picture, a small moon (tonight's phase, drawn as two circles, no artwork) with sunrise and sunset |
+| Today page, left | Weather picture, temperature, a thermometer (fixed 0-100 °F scale, color by temperature, a light-blue notch at freezing, `thermo.c`), conditions, high/low, feels like; under the picture, a small moon (tonight's phase, drawn as two circles, no artwork) with sunrise and sunset |
 | Today page, right | The speech bubble: an optional alert bar (calm purple or blue), headline, "than yesterday" line (or the alert's kid line), the tip with any event reminders, and up to 3 clothes |
 | Today page, bottom | The next four parts of the day |
 | Next-days page (swipe left) | Three day cards, each with a mini thermometer for the high (same scale), a short tip and the change from the day before |

@@ -93,29 +93,33 @@ static void alert_apply(int x_right)
 
 /* ------------------------------------------------------------------ thermometer */
 
-#define V2_THERMO_W 22
-#define V2_THERMO_H 70
-#define V2_THERMO_GAP 8   /* to the weather icon */
+/* Left of the character, as tall as she is (the stage's drawn figures span y 112-342 and
+ * start at x 75; the page margin is 28). */
+#define V2_THERMO_X 36
+#define V2_THERMO_Y 112
+#define V2_THERMO_W 28
+#define V2_THERMO_H 230
+#define V2_ALERT_GAP 8   /* the alert strip stops this short of the weather icon */
 
 static thermo_t s_v2_thermo;
 static bool s_v2_thermo_made;
 
 void v2_thermo_create(lv_obj_t *page)
 {
-    thermo_create(&s_v2_thermo, page, 0, 2, V2_THERMO_W, V2_THERMO_H);
+    thermo_create(&s_v2_thermo, page, V2_THERMO_X, V2_THERMO_Y, V2_THERMO_W, V2_THERMO_H);
     thermo_set_outline(&s_v2_thermo, lv_color_hex(0x2B3450));
     lv_obj_add_flag(s_v2_thermo.root, LV_OBJ_FLAG_HIDDEN);
     s_v2_thermo_made = true;
 }
 
-void v2_thermo_show(int icon_x, float temp_f)
+void v2_thermo_show(int icon_x, float temp_f, float lo_f, float hi_f)
 {
-    alert_apply(icon_x - V2_THERMO_GAP - V2_THERMO_W);   /* the weather block sets the alert strip's width */
+    alert_apply(icon_x - V2_ALERT_GAP);   /* the weather block sets the alert strip's width */
     if (!s_v2_thermo_made) {
         return;
     }
-    lv_obj_set_x(s_v2_thermo.root, icon_x - V2_THERMO_GAP - V2_THERMO_W);
     thermo_set(&s_v2_thermo, temp_f);
+    thermo_set_range(&s_v2_thermo, lo_f, hi_f);
     lv_obj_remove_flag(s_v2_thermo.root, LV_OBJ_FLAG_HIDDEN);
 }
 
@@ -362,28 +366,12 @@ static lv_obj_t *s_rt_runner, *s_rt_finish;   /* the pet's head riding the bar; 
 static const lv_image_dsc_t *s_rt_head_img;
 static lv_obj_t *s_rt_row[RT_ROWS], *s_rt_box[RT_ROWS], *s_rt_tick[RT_ROWS], *s_rt_lbl[RT_ROWS], *s_rt_pic[RT_ROWS];
 static wb_routine_t s_rt;                      /* times and today's ticks (routine.c) */
-static bool s_rt_ready;
 static struct tm s_rt_now;
 static const lv_image_dsc_t *s_rt_pet_img;
 
-static wb_routine_t *rt(void)
-{
-    if (!s_rt_ready) {
-        wb_routine_init(&s_rt);
-        s_rt_ready = true;
-    }
-    return &s_rt;
-}
-
 void ui_set_routine_times(int leave_min, int bed_min)
 {
-    wb_routine_set_times(rt(), leave_min, bed_min);
-}
-
-static void fmt_clock12(int min, char *buf, size_t n)
-{
-    int h = min / 60 % 12;
-    snprintf(buf, n, "%d:%02d %s", h ? h : 12, min % 60, min < 12 * 60 ? "AM" : "PM");
+    wb_routine_set_times(&s_rt, leave_min, bed_min);
 }
 
 static void rt_draw(void);
@@ -391,7 +379,7 @@ static void rt_draw(void);
 static void on_rt_row(lv_event_t *e)
 {
     int i = (int)(intptr_t)lv_event_get_user_data(e);
-    wb_routine_toggle(rt(), &s_rt_now, i);
+    wb_routine_toggle(&s_rt, &s_rt_now, i);
     rt_draw();
 }
 
@@ -410,6 +398,7 @@ static void rt_bounce(void *obj, int32_t v)
 
 lv_obj_t *v2_routine_create(lv_obj_t *scr)
 {
+    wb_routine_init(&s_rt);   /* 8:30 / 8 PM until the settings arrive */
     s_rt_page = rt_box(scr);
     lv_obj_set_size(s_rt_page, 800, 480);
     lv_obj_add_flag(s_rt_page, LV_OBJ_FLAG_CLICKABLE);   /* a long press here opens Settings too */
@@ -516,7 +505,7 @@ lv_obj_t *v2_routine_create(lv_obj_t *scr)
 static void rt_draw(void)
 {
     wb_routine_view_t v;
-    wb_routine_view(rt(), &s_rt_now, &v);
+    wb_routine_view(&s_rt, &s_rt_now, &v);
     int m = v.mode == WB_ROUTINE_MORNING ? 0 : 1;
 
     for (int i = 0; i < RT_ROWS; i++) {
@@ -581,8 +570,8 @@ static void rt_draw(void)
         lv_obj_set_x(s_rt_moon_shadow, sx);
         char rise[16], set[16], sb[48] = "";
         if (s_sunrise >= 0 && s_sunset >= 0) {
-            fmt_clock12(s_sunrise, rise, sizeof(rise));
-            fmt_clock12(s_sunset, set, sizeof(set));
+            wb_fmt_clock12(s_sunrise, rise, sizeof(rise));
+            wb_fmt_clock12(s_sunset, set, sizeof(set));
             snprintf(sb, sizeof(sb), "Sunrise %s  Sunset %s", rise, set);
         }
         lv_label_set_text(s_rt_sun, sb);
@@ -638,7 +627,11 @@ void v2_raise(lv_obj_t *o)
 
 static lv_obj_t *s_hint;
 static bool s_hint_on;
-static bool s_hint_force;   /* the renderer has no real idle time */
+#ifdef WB_SIM
+#ifdef WB_SIM
+static bool s_hint_force;   /* the renderer: show the hint only when a test asks */
+#endif
+#endif
 static lv_timer_t *s_hint_timer;
 
 static void hint_outline(void *obj, int32_t w)
@@ -658,7 +651,11 @@ static void hint_stop(void)
 static void hint_tick(lv_timer_t *t)
 {
     (void)t;
-    bool idle = s_hint_force || lv_display_get_inactive_time(NULL) > HINT_IDLE_MS;
+#ifdef WB_SIM
+    bool idle = s_hint_force;   /* the renderer's idle time depends on capture order */
+#else
+    bool idle = lv_display_get_inactive_time(NULL) > HINT_IDLE_MS;
+#endif
     bool shown = s_hint && lv_obj_is_visible(s_hint);
     if (!idle || !shown) {
         hint_stop();
@@ -671,6 +668,10 @@ static void hint_tick(lv_timer_t *t)
     lv_obj_set_style_outline_color(s_hint, lv_color_hex(HINT_COLOR), 0);
     lv_obj_set_style_outline_opa(s_hint, LV_OPA_COVER, 0);
     lv_obj_set_style_outline_pad(s_hint, 4, 0);
+#ifdef WB_SIM
+    lv_obj_set_style_outline_width(s_hint, 5, 0);   /* a still glow: captures repeat exactly */
+    return;
+#endif
     lv_anim_t a;
     lv_anim_init(&a);
     lv_anim_set_var(&a, s_hint);
@@ -696,7 +697,7 @@ void v2_hint_target(lv_obj_t *o)
 }
 
 #ifdef WB_SIM
-/* Shows the hint now, as if the screen had been left alone (the renderer has no idle). */
+/* Shows the hint now, as if the screen had been left alone (the renderer shows it only then). */
 void v2_hint_test_show(bool on)
 {
     s_hint_force = on;   /* as if the screen had been left alone for 20 s */

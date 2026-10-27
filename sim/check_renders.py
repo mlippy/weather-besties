@@ -55,8 +55,10 @@ def sha(name):
 # periwinkle, pink-#FFB3CF fur). Sprite coordinates are stage
 # coordinates: the pipeline crops each sprite to its alpha box and
 # the UI draws it back at that offset.
-STAGE = (24, 100, 284, 352)
-STAGE_TORSO = (24, 210, 284, 352)   # stage below the face: coats live here
+# This fork: the stage boxes start at x 68, right of the thermometer (x 36-64); the
+# sprites are drawn from x 75.
+STAGE = (68, 100, 284, 352)
+STAGE_TORSO = (68, 210, 284, 352)   # stage below the face: coats live here
 EYE_BAND = (64, 145, 244, 200)      # where the hot sprite's sunglasses sit
 EYE_BOX = (107, 142, 199, 188)      # just the eyes: stage-wide counts also
                                     # catch the pumpkin's yellow highlights
@@ -134,16 +136,8 @@ def main():
     # Scenarios that must differ, differ.
     # Iter-35: 32 does NOT differ from 20 any more (the alias
     # block below pins why); it left this list.
-    # This fork: the hint glow on the first tile pulses, so its phase can differ between
-    # the two captures; everything outside that tile must match.
-    def same_but_hint(a, b, hint=(270, 90, 536, 222)):
-        ia = Image.open(os.path.join(OUT, a)).convert("RGB")
-        ib = Image.open(os.path.join(OUT, b)).convert("RGB")
-        for im in (ia, ib):
-            im.paste((0, 0, 0), hint)
-        return ia.tobytes() == ib.tobytes()
-    check(same_but_hint("32_pink_cat.png", "20_morning.png"),
-          "32_pink_cat is pixel-identical to 20_morning outside the hint glow (the pink choice aliases the black sprite on a black-only look)")
+    check(sha("32_pink_cat.png") == sha("20_morning.png"),
+          "32_pink_cat is pixel-identical to 20_morning (the pink choice aliases the black sprite on a black-only look)")
     check(sha("23_evening_all_done.png") != sha("21_evening.png"),
           "23_evening_all_done differs from 21_evening (checks change the page)")
 
@@ -175,7 +169,7 @@ def main():
         # seasonal props). 35_hanukkah is exempt: its blue candles
         # match the denim predicate almost exactly, and the green
         # shirt + eyes already prove the family there.
-        denim = count_where(img, (24, 100, 190, 352), is_denim)
+        denim = count_where(img, (68, 100, 190, 352), is_denim)
         check(green > 120, f"{name}: snow sprite's green shirt in stage ({green} px, need > 120)")
         check(eyes > 150, f"{name}: Pippa golden eyes in stage ({eyes} px, need > 150)")
         if name != "35_hanukkah.png":
@@ -195,7 +189,7 @@ def main():
     red = count_where(img, STAGE, is_red_coat)
     green = count_where(img, STAGE, is_snow_green)
     eyes = count_where(img, EYE_BOX, is_eye_yellow)
-    denim = count_where(img, (24, 100, 190, 352), is_denim)
+    denim = count_where(img, (68, 100, 190, 352), is_denim)
     check(navy > 800, f"20_morning: navy solid shirt in stage ({navy} px, need > 800)")
     check(red > 1000, f"20_morning: red coat in stage ({red} px, need > 1000)")
     check(green < 120, f"20_morning: no green stripe shirt any more ({green} px, need < 120)")
@@ -506,22 +500,18 @@ def main():
         cream = sum(1 for p in px if is_page_cream(*p)) / len(px)
         check(cream < 0.50, f"{name}: the old dead quadrant is tile now ({cream:.1%} page cream, need < 50%)")
 
-    # Check badge (iter-09 fix 6): the disc straddles the tile's
-    # bottom-right CORNER (centred on the corner point, half in the
-    # tile's chrome, half outside), in every layout. It used to sit on
-    # the garment icon, where round 7's premium judge read it as a
-    # sticker on finished art. Two assertions per tile:
-    # (a) findable: the badge box (corner +- 22) holds >= 80 disc
-    #     pixels (ring colour unchecked, COL_OK green checked;
-    #     measured 196-822).
-    # (b) confinement: over the tile's whole neighbourhood (its rect
-    #     grown by 24, clipped above the chip strip), disc-coloured
-    #     pixels outside ALL badge boxes number < 90 (measured worst
-    #     ~60: garment art shares disc colours, e.g. the snow shirt's
-    #     green stripes, so art pixels are counted and allowed for;
-    #     a disc displaced onto the art or the label, the failure
-    #     this guards, would leave its whole ring or fill, 110-800
-    #     px, outside the boxes).
+    # Check badge (iter-09 fix 6): it used to sit on the garment icon,
+    # where round 7's premium judge read it as a sticker on finished
+    # art. This fork puts it inside the tile's bottom-right corner
+    # (Boris's straddled the corner point), centred BADGE_IN px in from
+    # both edges, in every layout. Two assertions per tile:
+    # (a) findable: the badge box (its centre +- 22) holds >= 80 disc
+    #     pixels (ring colour unchecked, COL_OK green checked).
+    # (b) confinement: inside the tile (its border, close to the ring
+    #     colour, left out), disc-coloured pixels outside the badge box
+    #     number < 90: garment art shares disc colours (e.g. the snow
+    #     shirt's green stripes), while a disc displaced onto the art or
+    #     the label would leave its whole ring or fill, 110-800 px.
     def is_ring(r, g, b):
         return abs(r - 207) <= 14 and abs(g - 199) <= 14 and abs(b - 184) <= 16
 
@@ -533,6 +523,12 @@ def main():
 
     GRID4 = [(284, 104, 238, 104), (534, 104, 238, 104),
              (284, 216, 238, 104), (534, 216, 238, 104)]
+    BADGE_IN = 21   # the disc's centre, in from the tile's right and bottom edges (ui.c: 32 px disc, 5 px inset)
+
+    def badge_box(cell, r=22):
+        tx, ty, tw, th = cell
+        cx, cy = tx + tw - BADGE_IN, ty + th - BADGE_IN
+        return (cx - r, cy - r, cx + r, cy + r)
     BADGED = {"20_morning.png": 4, "21_evening.png": 4, "22_evening_2_checked.png": 4,
               "23_evening_all_done.png": 4, "23b_morning_all_done_heart.png": 4,
               "25_stale.png": 4, "27_rollover.png": 4, "28_snow.png": 4,
@@ -542,20 +538,15 @@ def main():
     for name, ntiles in BADGED.items():
         img = Image.open(os.path.join(OUT, name))
         cells = ROW3 if ntiles == 3 else GRID4
-        badge_boxes = [(tx + tw - 22, ty + th - 22, tx + tw + 22, ty + th + 22)
-                         for (tx, ty, tw, th) in cells[:ntiles]]
+        badge_boxes = [badge_box(cell) for cell in cells[:ntiles]]
         for i in range(ntiles):
             tx, ty, tw, th = cells[i]
             inside = count_where(img, badge_boxes[i], is_disc)
             check(inside >= 80, f"{name} tile {i + 1}: corner badge findable "
                                 f"({inside} disc px in the badge box, need >= 80)")
-            rect = (tx - 24, ty - 24, tx + tw + 24, min(ty + th + 24, 322))
-            outside = count_where(img, rect, is_disc)
-            for bb in badge_boxes:
-                inter = (max(rect[0], bb[0]), max(rect[1], bb[1]),
-                         min(rect[2], bb[2]), min(rect[3], bb[3]))
-                if inter[2] > inter[0] and inter[3] > inter[1]:
-                    outside -= count_where(img, inter, is_disc)
+            rect = (tx + 4, ty + 4, tx + tw - 4, ty + th - 4)
+            bb = badge_boxes[i]   # inside rect: the tile's own corner
+            outside = count_where(img, rect, is_disc) - count_where(img, bb, is_disc)
             check(outside < 90, f"{name} tile {i + 1}: badge confined to the corner "
                                 f"({outside} disc px outside the badge boxes, need < 90)")
 
@@ -1267,8 +1258,8 @@ def main():
 
     img25 = Image.open(os.path.join(OUT, "25_stale.png")).convert("RGB")
     img20 = Image.open(os.path.join(OUT, "20_morning.png")).convert("RGB")
-    g_stale = count_where(img25, (514, 204, 530, 220), is_grey_disc)
-    g_fresh = count_where(img20, (514, 204, 530, 220), is_grey_disc)
+    g_stale = count_where(img25, badge_box(GRID4[0], 8), is_grey_disc)
+    g_fresh = count_where(img20, badge_box(GRID4[0], 8), is_grey_disc)
     check(g_stale > 150, f"25_stale: tile badge disc is grey-filled ({g_stale} px in its centre box, need > 150)")
     check(g_fresh < 10, f"20_morning: fresh tile badge disc stays white ({g_fresh} grey px, need < 10)")
     g_chip = count_where(img25, (392, 330, 412, 350), is_grey_disc)
@@ -1856,14 +1847,16 @@ def main():
     img = Image.open(os.path.join(OUT, "57_dog_next_days.png"))
     n = count_where(img, (0, 120, 800, 400), is_dog_orange)
     check(n > 600, f"57_dog_next_days: the dog minis are on the forecast cards ({n} orange px, need > 600)")
-    # This fork's thermometer (thermo.c via ui_v2_extras.c) left of the weather icon: red on the
+    # This fork's thermometer (thermo.c via ui_v2_extras.c) left of the character: red on the
     # hot day, not red on the cold morning.
+    THERMO_BOX = (30, 106, 70, 348)
+
     def is_thermo_red(r, g, b):
         return abs(r - 0xE5) <= 12 and abs(g - 0x48) <= 14 and abs(b - 0x3C) <= 14
 
-    n = count_where(Image.open(os.path.join(OUT, "29_hot.png")), (400, 0, 520, 80), is_thermo_red)
+    n = count_where(Image.open(os.path.join(OUT, "29_hot.png")), THERMO_BOX, is_thermo_red)
     check(n > 60, f"29_hot: the thermometer reads hot ({n} red px, need > 60)")
-    n = count_where(Image.open(os.path.join(OUT, "51_dog_morning.png")), (400, 0, 520, 80), is_thermo_red)
+    n = count_where(Image.open(os.path.join(OUT, "51_dog_morning.png")), THERMO_BOX, is_thermo_red)
     check(n < 20, f"51_dog_morning: the thermometer doesn't read hot on a cold morning ({n} red px, need < 20)")
     # The name from setup in the title on the family's board (Boris's own shots keep names off).
     for name, want in (("51_dog_morning", "Kid"), ("52_dog_rain_tomorrow", "Kid")):

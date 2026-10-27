@@ -6,6 +6,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <time.h>
 
@@ -47,6 +48,9 @@ typedef struct {
     char left_text[64];       /* "35 minutes until we leave", "Time to go!", "No school today!" */
     char when_text[32];       /* "Leave at 8:30 AM", "Bed at 8:00 PM", "" */
 } wb_routine_view_t;
+
+/* "8:30 AM" from minutes after midnight (the Routine times, sunrise, the status line) */
+void wb_fmt_clock12(int min, char *buf, size_t n);
 
 void wb_routine_init(wb_routine_t *r);   /* 8:30 AM and 8:00 PM */
 void wb_routine_set_times(wb_routine_t *r, int leave_min, int bed_min);

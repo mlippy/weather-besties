@@ -58,10 +58,10 @@ If it won't connect: hold **BOOT**, tap **RESET**, let go of BOOT, and try again
 
 ## 5. Check that it works
 
-- [ ] The weather shows (2.0: with the thermometer beside the weather icon; classic: the town at the bottom left is right)
+- [ ] The weather shows (2.0: with the thermometer left of the pet, its band showing the day's low to high; classic: the town at the bottom left is right)
 - [ ] The clock shows the right time (it may take a minute after the first weather update)
 - [ ] 2.0: the tabs at the bottom switch pages (Today, Tomorrow, My Day, Routine). Classic: swipe left for the next three days, right to come back. **Touch in the wrong place?** See the README, "On the real board".
-- [ ] Hold a finger still for 1.5 s on the greeting or page title: Settings opens and shows the WiFi, town and version **1.8.3**
+- [ ] Hold a finger still for about a second on the page title (classic: 1.5 s on the greeting): Settings opens and shows the WiFi, town and version **1.8.3**
 - [ ] In Settings, tap **Update**: it should say "Up to date! (version 1.8.3)", then go back to the weather
 - [ ] **Calendar:** put a test event in the family calendar for tomorrow, like "Kid test (outside)" (with your kid's name). On the board, open Settings and tap the refresh button. 2.0: it shows on the My Day tab. Classic: it shows in the bubble after 7 PM, or in the morning. To see what the board read, open Settings, tap **Setup**, and look under the calendar link: "Read at 7:15 PM: 240 events in the calendar, 3 coming up." Then tap Save (or just restart the board) to leave setup.
 - [ ] **Countdown:** add an all-day event a week or two out titled "Trip to Grandma's 🎉". 2.0: the My Day header shows "N more sleeps until Trip to Grandma's!"; classic: the bottom left does.
@@ -77,7 +77,7 @@ Google's iCal feed can take a little while to show changes, and the board reads 
 - **Dress-up days (2.0):** on a mild day, tap **Dress up?** next to the day to switch that day to the dress; tap again to switch back. Tag calendar events "(dress)" to plan ahead.
 - **Brightness (2.0):** it starts at 50 %. Settings has a slider; drag it and let go to keep it.
 - **The red lights on the side** are the board's power and battery-charger lights (PWR, CHG, DONE). They're wired to the hardware, so the firmware can't turn them off; a piece of electrical tape or a light-dimming sticker over them works.
-- **Changing things:** hold the greeting or page title for 1.5 s, then **Change WiFi or town** (2.0) or **Setup** (classic). The board makes its setup hotspot again; the calendar link stays saved unless you paste a new one or tick "Stop using the calendar".
+- **Changing things:** hold the page title for about a second (classic: the greeting, 1.5 s), then **Change WiFi or town** (2.0) or **Setup** (classic). The board makes its setup hotspot again; the calendar link stays saved unless you paste a new one or tick "Stop using the calendar".
 - **Weather alerts** show as a calm heads-up for your kid; the official alert name is in Settings. They come every 15 minutes, so they're a heads-up, not a safety alarm.
 
 ## 7. Updating the firmware later

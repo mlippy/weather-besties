@@ -6,6 +6,7 @@
  */
 #include "wb_ui.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -89,6 +90,22 @@ void wb_ui_start(wb_action_cb_t on_action, void *user, wb_clock_cb_t clock)
     lv_timer_create(on_minute, 30000, NULL);   /* the routine's minutes count down */
 }
 
+/* Appends one printf-style line to buf. */
+static void add_line(char *buf, size_t cap, const char *fmt, ...)
+{
+    size_t n = strlen(buf);
+    if (n + 1 >= cap) {
+        return;
+    }
+    va_list ap;
+    va_start(ap, fmt);
+    int w = vsnprintf(buf + n, cap - n - 1, fmt, ap);   /* room kept for the newline */
+    va_end(ap);
+    n = w < 0 ? n : n + (size_t)w < cap - 1 ? n + (size_t)w : cap - 2;
+    buf[n] = '\n';
+    buf[n + 1] = 0;
+}
+
 static void show_status(const char *text)
 {
     lv_label_set_text(s_status_lbl, text);
@@ -108,38 +125,37 @@ void wb_ui_update(const wb_state_t *st)
 
     struct tm now;
     bool have_now = s_clock && s_clock(&now);
-    char text[1024], line[256];
-    size_t n = 0;
-#define ADD(...) (snprintf(line, sizeof(line), __VA_ARGS__), \
-                  n += (size_t)snprintf(text + n, n < sizeof(text) ? sizeof(text) - n : 0, "%s\n", line))
+    static char text[1024];   /* static: off the LVGL task's stack */
+    text[0] = 0;
 
-    ADD("Good %s%s%s!", have_now && now.tm_hour >= 12 ? "afternoon" : "morning", st->names[0] ? ", " : "",
-        st->names);
+    add_line(text, sizeof(text), "Good %s%s%s!", have_now && now.tm_hour >= 12 ? "afternoon" : "morning",
+             st->names[0] ? ", " : "", st->names);
     if (st->have_wx && have_now) {
         outfit_opts_t o = {.bike_bus_wday = st->bike_bus_wday, .coat_f = st->coat_f, .jacket_f = st->jacket_f,
                            .hoodie_f = st->hoodie_f, .warm_pm_f = st->warm_pm_f};
         outfit_t out;
         if (outfit_make(&st->wx, &now, 0, &o, &out) && out.ok) {
-            ADD("Now %.0f°, high %.0f°, low %.0f°, %d%% chance of rain", out.t_now, out.hi, out.lo, out.pop_day);
-            ADD("%s", out.advice);
+            add_line(text, sizeof(text), "Now %.0f°, high %.0f°, low %.0f°, %d%% chance of rain", out.t_now,
+                     out.hi, out.lo, out.pop_day);
+            add_line(text, sizeof(text), "%s", out.advice);
         }
     } else {
-        ADD("Waiting for the weather...");
+        add_line(text, sizeof(text), "Waiting for the weather...");
     }
     if (st->alerts.n > 0) {
-        ADD("Heads up: %s. %s", st->alerts.a[0].title, st->alerts.a[0].kid);
+        add_line(text, sizeof(text), "Heads up: %s. %s", st->alerts.a[0].title, st->alerts.a[0].kid);
     }
     if (have_now) {
         char cd[96];
         int today = cal_dayno(now.tm_year + 1900, now.tm_mon + 1, now.tm_mday);
         if (wb_countdown_text(st->events, st->nevents, today, false, cd, sizeof(cd))) {
-            ADD("%s", cd);
+            add_line(text, sizeof(text), "%s", cd);
         }
         wb_routine_view_t v;
         wb_routine_view(&s_rt, &now, &v);
-        ADD("%s: %s%s%s", v.title, v.left_text, v.next >= 0 ? ". Next: " : "", v.next >= 0 ? v.word[v.next] : "");
+        add_line(text, sizeof(text), "%s: %s%s%s", v.title, v.left_text, v.next >= 0 ? ". Next: " : "",
+                 v.next >= 0 ? v.word[v.next] : "");
     }
-#undef ADD
     lv_label_set_text(s_lines, text);
     lv_label_set_text(s_footer, st->status[0] ? st->status : st->place);
 }

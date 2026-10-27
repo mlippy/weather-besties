@@ -4,6 +4,8 @@
 
 /* Upper edge (°F) and color of each zone. Same cut-offs as the clothing bands in advice.c,
  * so the color matches the advice: freezing, very cold, cold, chilly, cool, nice, warm, hot. */
+#define FREEZE_COLOR 0x6FB6E8   /* icy light blue */
+
 static const struct {
     float max_f;
     uint32_t color;
@@ -102,13 +104,28 @@ void thermo_create(thermo_t *t, lv_obj_t *parent, int x, int y, int w, int h)
     lv_obj_set_style_radius(t->glass, t->tube_w / 2, 0);
     lv_obj_set_style_border_width(t->glass, t->border, 0);
 
-    /* freezing tick: a short line through the tube at 32 F, poking out on both sides */
+    /* freezing: a light-blue notch on the tube's left at 32 F, its own colour so it never
+     * reads as part of the day's range on the right */
     t->freeze = plain(t->root);
     int fy = y_for(t, THERMO_FREEZE_F);
-    lv_obj_set_pos(t->freeze, tx - t->tube_w / 3, fy - t->border / 2);
-    lv_obj_set_size(t->freeze, t->tube_w + 2 * (t->tube_w / 3), t->border);
+    int notch = t->tube_w / 3 + 2;
+    lv_obj_set_pos(t->freeze, tx - notch, fy - t->border / 2 - 2);
+    lv_obj_set_size(t->freeze, notch + t->border, t->border + 4);
     lv_obj_set_style_radius(t->freeze, t->border, 0);
     lv_obj_set_style_bg_opa(t->freeze, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(t->freeze, lv_color_hex(FREEZE_COLOR), 0);
+    lv_obj_set_style_border_width(t->freeze, 1, 0);   /* outline colour: shows on any background */
+
+    /* the day's range: a rounded band just right of the tube; the box widens to hold it
+     * while it shows (children are clipped to their parent here) */
+    t->range = plain(t->root);
+    lv_obj_set_x(t->range, tx + t->tube_w + 3);
+    lv_obj_set_width(t->range, t->tube_w / 2 + 1);
+    lv_obj_set_style_radius(t->range, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_opa(t->range, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_grad_dir(t->range, LV_GRAD_DIR_VER, 0);   /* the high's colour down to the low's */
+    lv_obj_set_style_border_width(t->range, 1, 0);
+    lv_obj_add_flag(t->range, LV_OBJ_FLAG_HIDDEN);
 
     /* bulb, then a little neck that hides the bulb's outline where the tube joins it */
     t->bulb = plain(t->root);
@@ -141,5 +158,28 @@ void thermo_set_outline(thermo_t *t, lv_color_t c)
 {
     lv_obj_set_style_border_color(t->glass, c, 0);
     lv_obj_set_style_border_color(t->bulb, c, 0);
-    lv_obj_set_style_bg_color(t->freeze, c, 0);
+    lv_obj_set_style_border_color(t->range, c, 0);
+    lv_obj_set_style_border_color(t->freeze, c, 0);
+}
+
+void thermo_set_range(thermo_t *t, float lo_f, float hi_f)
+{
+    if (lo_f > hi_f) {
+        lv_obj_add_flag(t->range, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_width(t->root, t->w);
+        return;
+    }
+    int band_right = lv_obj_get_style_x(t->range, 0) + lv_obj_get_style_width(t->range, 0);
+    lv_obj_set_width(t->root, band_right > t->w ? band_right : t->w);
+    int top = y_for(t, hi_f), bottom = y_for(t, lo_f);
+    int min_h = lv_obj_get_style_width(t->range, 0);   /* a one-degree day is still a dot */
+    if (bottom - top < min_h) {
+        top = (top + bottom - min_h) / 2;
+        bottom = top + min_h;
+    }
+    lv_obj_set_style_bg_color(t->range, lv_color_hex(thermo_color(hi_f)), 0);
+    lv_obj_set_style_bg_grad_color(t->range, lv_color_hex(thermo_color(lo_f)), 0);
+    lv_obj_set_y(t->range, top);
+    lv_obj_set_height(t->range, bottom - top);
+    lv_obj_remove_flag(t->range, LV_OBJ_FLAG_HIDDEN);
 }

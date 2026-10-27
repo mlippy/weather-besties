@@ -4,16 +4,7 @@
 
 #include "cal.h"
 
-static int fails;
-#define CHECK(cond, ...)                         \
-    do {                                         \
-        if (!(cond)) {                           \
-            printf("FAIL %s:%d: ", __FILE__, __LINE__); \
-            printf(__VA_ARGS__);                 \
-            printf("\n");                        \
-            fails++;                             \
-        }                                        \
-    } while (0)
+#include "test_check.h"
 
 /* Today is Saturday 2026-10-24 in New Jersey (UTC-4). */
 static const char *ICS =

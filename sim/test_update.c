@@ -4,14 +4,7 @@
 
 #include "update.h"
 
-static int fails;
-#define CHECK(cond, msg)                                   \
-    do {                                                   \
-        if (!(cond)) {                                     \
-            printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, msg); \
-            fails++;                                       \
-        }                                                  \
-    } while (0)
+#include "test_check.h"
 
 #define SHA "0123456789abcdef0123456789ABCDEF0123456789abcdef0123456789abcdef"
 

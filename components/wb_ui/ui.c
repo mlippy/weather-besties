@@ -194,6 +194,8 @@ static bool s_tile_layer[4];   /* tile i is the extra layer (amber frame + "Extr
  * every scenario, chips or not, so tiles never change size). */
 #define TILE_W 238
 #define TILE_H 104
+#define TILE_CHECK_D 32      /* this fork: the check disc, inside the tile's bottom-right corner */
+#define TILE_CHECK_INSET 5
 /* Adaptive tile layouts (iter-09): 4 tiles keep the 2x2 grid above;
  * 3 tiles use one row of three tall tiles and 2 tiles one row of two
  * tall tiles, so no day leaves a dead quadrant or half the stage
@@ -560,7 +562,7 @@ static lv_obj_t *md_line1[MD_ROWS];   /* a card's line 1: time left, tag pills r
 static lv_obj_t *md_pills[MD_ROWS];   /* line 1's right-hand pill row (status, name) */
 static lv_obj_t *md_iconcol[MD_ROWS]; /* a card's fixed 64 px icon column */
 static lv_obj_t *md_sec[2];        /* section headers: Today, Tomorrow */
-static lv_obj_t *md_sec_date;      /* Tomorrow's date, muted, after its header (iter-17) */
+static lv_obj_t *md_sec_date[2];   /* each day's date, muted, after its header (iter-17; Today's: this fork) */
 static lv_obj_t *md_bar[2];        /* a header's pink accent bar */
 static lv_obj_t *md_none[2];       /* a section's "Nothing planned" line */
 static lv_obj_t *md_row[MD_ROWS], *md_time[MD_ROWS], *md_name[MD_ROWS];
@@ -658,6 +660,7 @@ static int s_fc_tiles[3][4];
 static char s_fc_labels[3][4][16];   /* iter-10: the stack words per card */
 
 static void render(void);
+static void on_md_scroll(lv_event_t *e);   /* this fork: My Day's pet steps out while scrolled */
 static lv_obj_t *pill_button(lv_obj_t *parent, const char *txt, bool primary, lv_event_cb_t cb, void *ud);
 
 static void on_long_press(lv_event_t *e);
@@ -981,11 +984,16 @@ static void style_cat_pills(void)
     }
 }
 
+/* this fork: the pet choice and what follows from it, in one place */
+static void pet_set(int choice)
+{
+    s_cat_choice = choice >= 0 && choice <= PET_DOG ? choice : 0;
+    s_opts.no_rotation = s_cat_choice == PET_DOG;   /* the dog has base looks only */
+}
+
 static void on_cat_pill(lv_event_t *e)
 {
-    intptr_t which = (intptr_t)lv_event_get_user_data(e);
-    s_cat_choice = (int)which;
-    s_opts.no_rotation = s_cat_choice == PET_DOG;
+    pet_set((int)(intptr_t)lv_event_get_user_data(e));
     style_cat_pills();
     badges_refresh();
     if (s_cat_cb) {
@@ -1240,8 +1248,7 @@ static void on_long_press(lv_event_t *e)
 
 void ui_set_cat_choice(int choice)
 {
-    s_cat_choice = choice >= 0 && choice <= PET_DOG ? choice : 0;
-    s_opts.no_rotation = s_cat_choice == PET_DOG;   /* this fork: the dog has base looks only */
+    pet_set(choice);
     style_cat_pills();
     badges_refresh();
     render();
@@ -1849,16 +1856,13 @@ static void build_tiles(lv_obj_t *page)
         lv_obj_set_pos(tile_label[i], 116, 0);
         lv_label_set_long_mode(tile_label[i], LV_LABEL_LONG_MODE_WRAP);
 
-        /* The badge straddles the tile's bottom-right corner, half
-         * outside the tile (iter-09). It is a child of the PAGE, not
-         * of the tile: this LVGL build clips a tile's children to
-         * the tile's box even with OVERFLOW_VISIBLE, which cut the
-         * disc down to its inside quarter. render() positions it on
-         * the corner and hides it with its tile. Not clickable
-         * (box()), so taps on its outer half fall to whatever is
-         * beneath, and the corner itself belongs to the tile. */
+        /* The check badge, inside the tile's bottom-right corner (this
+         * fork; Boris's straddled the corner). It is a child of the
+         * PAGE, not of the tile, as his was: render() positions it and
+         * hides it with its tile. Not clickable (box()), so a tap on it
+         * is a tap on the tile. */
         tile_check[i] = box(page);
-        lv_obj_set_size(tile_check[i], 36, 36);
+        lv_obj_set_size(tile_check[i], TILE_CHECK_D, TILE_CHECK_D);
         lv_obj_set_style_radius(tile_check[i], LV_RADIUS_CIRCLE, 0);
         lv_obj_set_style_border_width(tile_check[i], 3, 0);
         lv_obj_set_style_border_color(tile_check[i], C(COL_RING_OFF), 0);
@@ -1874,8 +1878,8 @@ static void build_tiles(lv_obj_t *page)
         lv_obj_set_style_text_color(tile_caption[i], C(COL_WARN_TX), 0);
         lv_obj_set_pos(tile_caption[i], 116, 0);
         hide(tile_caption[i]);
-        lv_obj_set_style_transform_pivot_x(tile_check[i], 18, 0);
-        lv_obj_set_style_transform_pivot_y(tile_check[i], 18, 0);
+        lv_obj_set_style_transform_pivot_x(tile_check[i], TILE_CHECK_D / 2, 0);
+        lv_obj_set_style_transform_pivot_y(tile_check[i], TILE_CHECK_D / 2, 0);
 
         tile_check_mark[i] = label(tile_check[i], &font_chip, LV_SYMBOL_OK);
         lv_obj_set_style_text_color(tile_check_mark[i], lv_color_white(), 0);
@@ -2288,10 +2292,8 @@ static void md_build_header(int s)
     lv_obj_set_style_bg_color(md_bar[s], C(COL_ACCENT), 0);
     md_sec[s] = label(md_hdr[s], &font_label, s ? "Tomorrow" : "Today");
     lv_obj_set_style_text_color(md_sec[s], C(COL_INK), 0);
-    if (s == 1) {
-        md_sec_date = label(md_hdr[s], &font_body, "");
-        lv_obj_set_style_text_color(md_sec_date, C(COL_INK2), 0);
-    }
+    md_sec_date[s] = label(md_hdr[s], &font_body, "");
+    lv_obj_set_style_text_color(md_sec_date[s], C(COL_INK2), 0);
     hide(md_hdr[s]);
 }
 
@@ -2490,6 +2492,7 @@ static void build_myday_page(lv_obj_t *scr)
     lv_obj_add_flag(md_list, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_scroll_dir(md_list, LV_DIR_VER);
     lv_obj_set_scrollbar_mode(md_list, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_add_event_cb(md_list, on_md_scroll, LV_EVENT_SCROLL, NULL);   /* this fork */
     hide(md_list);
 
     md_build_header(0);
@@ -3417,6 +3420,40 @@ static int md_fill_section(int sec, int slot0, int max_rows, const cal_event_t *
  * it. Her drawn size comes from the sprite and the image's
  * scale: the widget's own box stays the sprite's native
  * size, pivot pinned to its corner. */
+/* This fork: the header pet's left edge, or the page's right margin while she's hidden. */
+static int md_pet_x(void)
+{
+    const lv_image_dsc_t *cs = lv_image_get_src(md_cat);
+    if (lv_obj_has_flag(md_cat, LV_OBJ_FLAG_HIDDEN) || cs == NULL) {
+        return 772;
+    }
+    return 772 - (int)cs->header.w * lv_image_get_scale(md_cat) / 256;
+}
+
+/* This fork: cards scroll under the header pet and the "Weather from" chip, so both step
+ * out while the list is scrolled down and come back at the top (render scrolls it back on
+ * each redraw). USER_1 marks a chip this hid, so a chip render hid stays hidden. */
+static void on_md_scroll(lv_event_t *e)
+{
+    (void)e;
+    if (lv_obj_has_flag(md_list, LV_OBJ_FLAG_HIDDEN)) {
+        return;
+    }
+    if (lv_obj_get_scroll_y(md_list) > 2) {
+        hide(md_cat);
+        if (!lv_obj_has_flag(stale_chip, LV_OBJ_FLAG_HIDDEN)) {
+            hide(stale_chip);
+            lv_obj_add_flag(stale_chip, LV_OBJ_FLAG_USER_1);
+        }
+    } else {
+        show_obj(md_cat);
+        if (lv_obj_has_flag(stale_chip, LV_OBJ_FLAG_USER_1)) {
+            lv_obj_remove_flag(stale_chip, LV_OBJ_FLAG_USER_1);
+            show_obj(stale_chip);
+        }
+    }
+}
+
 static void md_notch_list(void)
 {
     lv_obj_scroll_to_y(md_list, 0, LV_ANIM_OFF);
@@ -3455,20 +3492,40 @@ static void md_notch_list(void)
     }
 }
 
+/* "Tue, Oct 27" (short) or "Tuesday, Oct 27": My Day's date format */
+static void md_fmt_date(const struct tm *t, bool short_day, char *buf, size_t n)
+{
+    snprintf(buf, n, "%s, %s %d", wx_wday_name(t->tm_wday, short_day), wx_month_name(t->tm_mon + 1, true),
+             t->tm_mday);
+}
+
+/* This fork, after render_myday: today's date rides in the Today header ("Today  Tue, Oct 27",
+ * like Tomorrow's), so the title line has room for the countdown pill between "My Day" and
+ * the header pet. Without a Today header (the message states, or nothing today) the date
+ * stays beside the title, short ("Tue") while a countdown needs the room. */
+static void md_date_and_countdown(const struct tm *now)
+{
+    char d[48], cd[96];
+    md_fmt_date(now, true, d, sizeof(d));
+    lv_label_set_text(md_sec_date[0], d);
+    int x_left = 28 + text_w("My Day", &font_h1) + 18;
+    if (!lv_obj_is_visible(md_sec_date[0])) {   /* no Today header: the date stays beside the title */
+        if (!v2_countdown_text(now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, cd, sizeof(cd), true)) {
+            md_fmt_date(now, false, d, sizeof(d));
+        }
+        lv_label_set_text(md_date, d);
+        int date_w = text_w(d, &font_label) + 2;   /* no wider than its text: the pill sits beside it */
+        lv_obj_set_width(md_date, date_w);
+        show_obj(md_date);
+        x_left = lv_obj_get_x(md_date) + date_w + 12;
+    } else {
+        hide(md_date);
+    }
+    v2_countdown_show(now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, x_left, 676, 12);
+}
+
 static void render_myday(const struct tm *now)
 {
-    char buf[64], cd[96];
-    /* this fork: "Tue" instead of "Tuesday" while a countdown pill needs the room */
-    bool short_day = v2_countdown_text(now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, cd, sizeof(cd), true);
-    snprintf(buf, sizeof(buf), "%s, %s %d", wx_wday_name(now->tm_wday, short_day),
-             wx_month_name(now->tm_mon + 1, true), now->tm_mday);
-    lv_label_set_text(md_date, buf);
-    /* this fork: the countdown pill, between the date (after the title) and the header pet;
-     * the date's box is only as wide as its text so the two don't overlap */
-    int date_w = text_w(buf, &font_label) + 2;
-    lv_obj_set_width(md_date, date_w);
-    v2_countdown_show(now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, 172 + date_w + 12, 676, 12);
-
 #ifdef WB_SIM
     s_md_n[0] = s_md_n[1] = 0;
     s_md_more[0] = s_md_more[1] = 0;
@@ -3498,8 +3555,7 @@ static void render_myday(const struct tm *now)
         tt.tm_mday += 1;
         tt.tm_isdst = -1;
         mktime(&tt);
-        snprintf(tom_date, sizeof(tom_date), "%s, %s %d", wx_wday_name(tt.tm_wday, true),
-                 wx_month_name(tt.tm_mon + 1, true), tt.tm_mday);
+        md_fmt_date(&tt, true, tom_date, sizeof(tom_date));
     }
 #ifdef WB_SIM
     snprintf(s_md_tom_date, sizeof(s_md_tom_date), "%s", tom_date);
@@ -3770,7 +3826,7 @@ static void render_myday(const struct tm *now)
      * rides in its header row (iter-17, kept). */
     lv_obj_set_width(md_list, UI_W - 56);
     show_obj(md_list);
-    lv_label_set_text(md_sec_date, tom_date);
+    lv_label_set_text(md_sec_date[1], tom_date);
 
     /* The evening collapse (iter-35): after about 5 PM, today's
      * finished timed events fold into the one done line so
@@ -3918,6 +3974,7 @@ static void render(void)
      * stage's bottom right, above the tab bar with clear air under
      * the advice line; on the forecast page it takes the header band
      * above the cards instead (the cards own the bottom there). */
+    lv_obj_remove_flag(stale_chip, LV_OBJ_FLAG_USER_1);   /* this fork: decided afresh here */
     if (bucket == 1) {
         char tbuf[24], buf[64];
         fmt_time12(s_wx.hour, s_wx.minute, tbuf, sizeof(tbuf));
@@ -3928,7 +3985,8 @@ static void render(void)
         }
         lv_label_set_text(lbl_stale, buf);
         lv_obj_set_size(stale_chip, text_w(buf, &font_tiny) + 28, 28);
-        lv_obj_align(stale_chip, LV_ALIGN_TOP_RIGHT, -28, page >= 2 ? 44 : 392);
+        lv_obj_align(stale_chip, LV_ALIGN_TOP_RIGHT, page == 2 ? -(UI_W - md_pet_x() + 8) : -28,   /* this fork: */
+                     page >= 2 ? 44 : 392);                                                        /* left of My Day's pet */
         lv_obj_set_width(lbl_stale, LV_SIZE_CONTENT);
         lv_obj_center(lbl_stale);
         show_obj(stale_chip);
@@ -3942,7 +4000,8 @@ static void render(void)
             lv_label_set_text(lbl_stale, "No weather yet");
         }
         lv_obj_set_size(stale_chip, text_w(lv_label_get_text(lbl_stale), &font_tiny) + 28, 28);
-        lv_obj_align(stale_chip, LV_ALIGN_TOP_RIGHT, -28, page >= 2 ? 44 : 392);
+        lv_obj_align(stale_chip, LV_ALIGN_TOP_RIGHT, page == 2 ? -(UI_W - md_pet_x() + 8) : -28,   /* this fork: */
+                     page >= 2 ? 44 : 392);                                                        /* left of My Day's pet */
         lv_obj_set_width(lbl_stale, LV_SIZE_CONTENT);
         lv_obj_center(lbl_stale);
         show_obj(stale_chip);
@@ -3963,6 +4022,7 @@ static void render(void)
     if (page == 2) {
         hide(prog_chip);   /* no check-off progress on the agenda page */
         render_myday(&now);
+        md_date_and_countdown(&now);   /* this fork */
         return;
     }
 
@@ -4157,7 +4217,8 @@ static void render(void)
         lv_obj_set_x(lbl_wx2, 772 - tw);
         lv_obj_set_width(lbl_wx2, tw);
         lv_obj_set_x(wx_icon, 772 - tw - 80);
-        v2_thermo_show(772 - tw - 80, wx_to_f(&s_wx, page == 0 ? o.t_now : o.hi));
+        v2_thermo_show(772 - tw - 80, wx_to_f(&s_wx, page == 0 ? o.t_now : o.hi), wx_to_f(&s_wx, o.lo),
+                       wx_to_f(&s_wx, o.hi));   /* this fork: now (Today) or the high, and the day's range */
         /* Relative temperature (iter-12): the shown day's daily HIGH
          * against the previous day's daily HIGH, compared in
          * Fahrenheit. The previous day is the day before the SHOWN
@@ -4289,12 +4350,20 @@ static void render(void)
             if (tall) {
                 /* Icon centred over the label, scaled about its centre
                  * pivot so the glyph grows in place. */
+                /* this fork: a two-line name ("Short sleeves") would run into the
+                 * check disc in the corner, so its icon stays at its own size and
+                 * the name starts higher. Measured with LVGL's own wrap. */
+                lv_point_t lsz;
+                lv_text_get_size(&lsz, garment_label(o.tile_kind[i]), &font_label,
+                                 lv_obj_get_style_text_letter_space(tile_label[i], 0), 0, twd - 16,
+                                 LV_TEXT_FLAG_NONE);
+                bool two_line = lsz.y > lv_font_get_line_height(&font_label);
                 lv_image_set_pivot(tile_icon[i], 48, 48);
-                lv_image_set_scale(tile_icon[i], n == 3 ? 293 : 320);
-                lv_obj_set_pos(tile_icon[i], (twd - 96) / 2, n == 3 ? 12 : 14);
+                lv_image_set_scale(tile_icon[i], two_line ? 256 : n == 3 ? 293 : 320);
+                lv_obj_set_pos(tile_icon[i], (twd - 96) / 2, two_line ? 2 : n == 3 ? 12 : 14);
                 lv_obj_set_width(tile_label[i], twd - 16);
                 lv_obj_set_style_text_align(tile_label[i], LV_TEXT_ALIGN_CENTER, 0);
-                label_y = n == 3 ? 124 : 128;
+                label_y = two_line ? 100 : n == 3 ? 124 : 128;
                 lv_obj_set_pos(tile_label[i], 8, label_y);
             } else {
                 lv_image_set_pivot(tile_icon[i], 0, 0);
@@ -4305,17 +4374,14 @@ static void render(void)
                 lv_obj_set_x(tile_label[i], 116);
                 label_y = 0;   /* set by the block layout below */
             }
-            /* The badge is centred on the tile's bottom-right corner
-             * point, half in the chrome, half outside the tile. The
-             * garment art lives in the tile's top area in every
-             * layout and the label never reaches the corner, so the
-             * disc touches neither. (Page-level object, positioned
-             * absolutely; see build_tiles.) */
-            lv_obj_set_pos(tile_check[i], tx + twd - 18, ty + thd - 18);
-            /* Above the chips too: a bottom tile's badge tip reaches
-             * into the strip's top edge, and the chip row (built
-             * after the tiles) would otherwise paint over it. */
-            lv_obj_move_foreground(tile_check[i]);
+            /* This fork: the badge sits inside the tile's bottom-right
+             * corner, TILE_CHECK_INSET in from both edges (Boris centred
+             * it on the corner point, half outside). The garment art
+             * lives in the tile's top area and the label stays above
+             * the corner. (Page-level object; see build_tiles.) */
+            lv_obj_set_pos(tile_check[i], tx + twd - TILE_CHECK_D - TILE_CHECK_INSET,
+                           ty + thd - TILE_CHECK_D - TILE_CHECK_INSET);
+            lv_obj_move_foreground(tile_check[i]);   /* above anything built after it */
             lv_obj_update_layout(tile[i]);
             int th = lv_obj_get_height(tile_label[i]);
             if (tall) {
@@ -4345,7 +4411,9 @@ static void render(void)
                 show_obj(tile_caption[i]);
                 lv_obj_set_y(tile_label[i], 6 + cap_h + 3);
             } else {
-                lv_obj_set_y(tile_label[i], (TILE_H - th) / 2);
+                /* this fork: at the top of the column (Boris centred it), so a
+                 * two-line name ends above the check disc in the corner */
+                lv_obj_set_y(tile_label[i], th > TILE_H / 2 ? 6 : (TILE_H - TILE_CHECK_D - th) / 2);
                 hide(tile_caption[i]);
             }
             set_tile_check_visual(i, (s_checks >> i) & 1);

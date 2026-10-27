@@ -1,7 +1,9 @@
 /*
  * Everything the screens show, in one struct. The controller (main/) fills it in and
  * hands it to the screens with wb_ui_update(); the screens read it and never change it.
- * A new screen design only needs this, wb_ui.h, and the logic in this component.
+ * A new screen design only needs this, wb_ui.h, and the logic in this component (My Day's
+ * calendar events are read from cal.c with cal_count() / cal_get(); cal_reads and cal_fails
+ * say when they changed).
  *
  * Plain C, no LVGL and no board: the PC renderer and tests build it as is.
  */
@@ -11,14 +13,13 @@
 #include <stdint.h>
 
 #include "alerts.h"
+#include "dress.h"
 #include "events.h"
 #include "wx.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#define WB_DRESS_DAYS_MAX 8
 
 typedef enum {
     WB_PET_BLACK_CAT = 0,
@@ -28,8 +29,6 @@ typedef enum {
 } wb_pet_t;
 
 typedef struct {
-    uint32_t seq;            /* goes up by one on every wb_ui_update(); screens can skip work when unchanged */
-
     /* ---- chosen on the setup page (or in Settings on the screen) ---- */
     char names[48];          /* the greeting's name(s); "" = none */
     char pet_name[24];       /* the dog's name; "" shows "Dog" */
@@ -39,7 +38,6 @@ typedef struct {
     int coat_f, jacket_f, hoodie_f;   /* outfit cut-offs, feels-like °F at departure; 0 = the engine's own */
     int warm_pm_f;           /* a warm afternoon makes a coat morning a light-jacket one; 0 = off */
     int bike_bus_wday;       /* 0 = Sunday ... 6 = Saturday, -1 = none */
-    bool celsius;
 
     /* ---- what the board knows ---- */
     bool have_wx;
@@ -48,7 +46,7 @@ typedef struct {
     int nevents;
     wb_event_t events[EVENT_LIST_MAX];   /* special events from setup + calendar items */
     int ndress;
-    int dress_days[WB_DRESS_DAYS_MAX];   /* dress-up days from the calendar (cal_dayno) */
+    int dress_days[WB_DRESS_MAX];   /* dress-up days from the calendar (cal_dayno) */
 
     /* the family calendar: its events for My Day are in cal.c (cal_count / cal_get) */
     bool cal_configured;

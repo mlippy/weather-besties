@@ -204,10 +204,6 @@ static bool cal_parse(const char *ics, size_t n)
     return true;
 }
 
-/* Boris's fixtures carry a VTIMEZONE block for his reader; this fork's reads TZID times as
- * the board's own wall clock, so it isn't needed. */
-#define VTZ_NY ""
-
 static void fixture_cal(bool with_events)
 {
     struct tm today = now_tm, tom = now_tm, later = now_tm;
@@ -306,7 +302,6 @@ static void fixture_cal_stress(void)
     int n = 0;
     n += snprintf(ics + n, sizeof(ics) - n,
                   "BEGIN:VCALENDAR\r\nPRODID:-//WeatherBesties Sim//EN\r\nVERSION:2.0\r\n");
-    n += snprintf(ics + n, sizeof(ics) - n, "%s", VTZ_NY);
     n += snprintf(ics + n, sizeof(ics) - n,
                   "BEGIN:VEVENT\r\nUID:sim-s1\r\nDTSTART;VALUE=DATE:%s\r\nDTEND;VALUE=DATE:%s\r\n"
                   "SUMMARY:Autumn classroom photo retake day\r\nEND:VEVENT\r\n",
@@ -363,7 +358,6 @@ static void fixture_cal_evening(void)
     int n = 0;
     n += snprintf(ics + n, sizeof(ics) - n,
                   "BEGIN:VCALENDAR\r\nPRODID:-//WeatherBesties Sim//EN\r\nVERSION:2.0\r\n");
-    n += snprintf(ics + n, sizeof(ics) - n, "%s", VTZ_NY);
     n += snprintf(ics + n, sizeof(ics) - n,
                   "BEGIN:VEVENT\r\nUID:sim-e1\r\nDTSTART;TZID=America/New_York:%sT080000\r\n"
                   "DTEND;TZID=America/New_York:%sT084500\r\nSUMMARY:Cleo's morning swim lesson\r\n"
@@ -1182,7 +1176,6 @@ int main(int argc, char **argv)
         alerts_add(&st.alerts, "Wind Advisory", "Moderate");
         snprintf(st.status, sizeof(st.status), "Updated 7:30 AM");
         snprintf(st.version, sizeof(st.version), "2.0.0");
-        st.seq = 1;
         v2_set_name_in_title(true);   /* the board's setting */
         wb_ui_update(&st);
         ui_refresh_clock();
@@ -1190,7 +1183,6 @@ int main(int argc, char **argv)
         save(out, "82_contract");
         dump(out, "82_contract");
         st.alerts.n = 0;   /* the next update clears the strip */
-        st.seq++;
         wb_ui_update(&st);
         v2_set_name_in_title(false);
         ui_set_names("Cleo & Lila");

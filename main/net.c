@@ -11,6 +11,7 @@
 #include "cJSON.h"
 #include "cal.h"
 #include "ota.h"
+#include "routine.h"
 #include "esp_crt_bundle.h"
 #include "esp_event.h"
 #include "esp_heap_caps.h"
@@ -72,12 +73,6 @@ bool net_local_time(struct tm *out)
     now += s_utc_offset;
     gmtime_r(&now, out);
     return true;
-}
-
-static void fmt_clock(char *buf, size_t n, int hour, int min)
-{
-    int h12 = hour % 12 ? hour % 12 : 12;
-    snprintf(buf, n, "%d:%02d %s", h12, min, hour < 12 ? "AM" : "PM");
 }
 
 /* Point the C library at the weather location's offset, so the
@@ -516,7 +511,7 @@ static void fetch_calendar(bool forced)
     bool ok = net_http_stream(S->ical_url, cal_chunk, &cal, &status, &total);
     bool seen = cal_end(&cal);
     char when[16];
-    fmt_clock(when, sizeof(when), s_wx.hour, s_wx.minute);
+    wb_fmt_clock12(s_wx.hour * 60 + s_wx.minute, when, sizeof(when));
     if (ok && seen) {
         s_ncal = cal_to_events(&cal, s_cal_events, 0, CAL_MAX);
         s_cal_at = now;
@@ -524,7 +519,7 @@ static void fetch_calendar(bool forced)
         wb_state_t *st = app_state();
         UI_LOCKED({
             cal_publish(&cal);   /* My Day's list (the screens read it while drawing) */
-            st->ndress = cal_dress_days(&cal, st->dress_days, WB_DRESS_DAYS_MAX);   /* "(dress)" events */
+            st->ndress = cal_dress_days(&cal, st->dress_days, WB_DRESS_MAX);   /* "(dress)" events */
             st->cal_reads++;
         });
         snprintf(s_cal_status, sizeof(s_cal_status), "Read at %s: %d events in the calendar, %d coming up.", when,
@@ -564,12 +559,7 @@ static void show_weather(bool fresh_ok, const char *last_update)
             snprintf(st->status, sizeof(st->status), "Offline. Last update %s", last_update);
         }
         st->status_warn = !fresh_ok;
-        int n = S->nevents < EVENT_MAX ? S->nevents : EVENT_MAX;
-        memcpy(st->events, S->events, (size_t)n * sizeof(st->events[0]));
-        for (int i = 0; i < s_ncal && n < EVENT_LIST_MAX; i++) {
-            st->events[n++] = s_cal_events[i];
-        }
-        st->nevents = n;
+        app_set_events(s_cal_events, s_ncal);
         st->alerts = s_alerts;
         st->wx = s_wx;
         st->have_wx = s_wx.valid;
@@ -672,9 +662,9 @@ static void net_task(void *arg)
             have = true;
             struct tm t;
             if (net_local_time(&t)) {
-                fmt_clock(last, sizeof(last), t.tm_hour, t.tm_min);
+                wb_fmt_clock12(t.tm_hour * 60 + t.tm_min, last, sizeof(last));
             } else {
-                fmt_clock(last, sizeof(last), s_wx.hour, s_wx.minute);
+                wb_fmt_clock12(s_wx.hour * 60 + s_wx.minute, last, sizeof(last));
             }
             show_weather(true, last);
 

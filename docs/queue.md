@@ -4,23 +4,25 @@ Things we'd like to add later, roughly in order. Each has a sketch of how it wou
 
 ## This fork's features on the 2.0 screens
 
-The history is now Boris's commits with this fork's on top, and both designs build (`components/wb_ui/ui_select.h`); the family's board runs 2.0. It already has the WPA2 setup, OTA updates with an **Update** pill in Settings, the real-clock fix, this fork's settings, the thermometer next to his "33° now", his My Day page fed by this fork's calendar reader (`cal_publish` in `cal.c`) with countdowns in its header, dress-up days, the Routine tab with tonight's moon and the sun times, weather alerts in the title's place, and no Next days tab. Still classic-only:
+Both designs build (`components/wb_ui/ui_select.h`); the family's board runs 2.0. It already has the WPA2 setup, OTA updates with an **Update** pill in Settings, the real-clock fix, this fork's settings, the thermometer left of the pet (now, plus the day's range), his My Day page fed by this fork's calendar reader (`cal_publish` in `cal.c`) with countdowns in its header, dress-up days, the Routine tab with tonight's moon and the sun times, weather alerts in the title's place, no Next days tab, and Boris's work up to his 2.0.3. Still classic-only:
 
-- **Special events and calendar reminders:** feed `ui_set_events()` (today a no-op in `ui_v2_extras.c`) into his `outfit.c` sentence and chips ("Soccer today: bring rain gear!"); his bike-bus rule is the same idea for one event.
+- **Special events and calendar reminders in the advice:** `ui_set_events()` only feeds the countdown pill on 2.0; feed it into his `outfit.c` sentence and chips ("Soccer today: bring rain gear!"); his bike-bus rule is the same idea for one event.
 - **The official alert name** for grown-ups in his Settings page (the classic Settings shows it).
-- **Size:** 2.0 is about 4.6 MB; offer Boris the numbers (his plan estimated 2.6 MB before the Pippa art).
+- **Size:** 2.0 is 4.7 MB (LZ4 images, `tools/check_size_budget.py` guards the 6 MB slots and the PSRAM budget).
 
-Keep the changes to his `ui.c` as small hooks, so rebases stay easy. The generic pieces (calendar reader, calm alerts, thermometer, WPA2 hotspot, OTA, GT911 build fix, the LVGL format-warning fix) are worth offering him as pull requests.
+Keep the changes to his `ui.c` as small hooks. The generic pieces (calendar reader, calm alerts, thermometer, WPA2 hotspot, the `wb_core` / `wb_ui.h` split) are worth offering him as pull requests.
 
 ### Pulling in Boris's updates
 
+His history and this fork's have parted (his 2.0 took this fork's OTA with a different flash layout), so his commits come over one at a time, path-mapped onto `wb_core` where his files moved:
+
 ```
-git fetch upstream            # git remote add upstream https://github.com/boriskozak/weather-besties.git, once
-git rebase upstream/main      # this fork's commits replay on his latest
-git push --force-with-lease origin main
+git fetch upstream                         # git remote add upstream https://github.com/boriskozak/weather-besties.git, once
+git log --oneline HEAD..upstream/main      # what's new; last synced with his 2.0.3 (iter-37)
+git diff <commit>^ <commit> -- . ':!sim/out' ':!firmware' | git apply -3   # one at a time
 ```
 
-Then build both designs (`ui_select.h`), run `make UI=classic shots`, `make UI=v2 shots` and `make test` in `sim/`, and check the conflicts were only in the shared files listed in the README.
+Leave out his partition table, update manifest and `firmware/`. Then build both designs (`ui_select.h`), run `make UI=classic shots`, `make UI=v2 shots` and `make test` in `sim/`, and regenerate the screenshots here rather than taking his.
 
 ## Next: more from the classic screens
 
@@ -88,7 +90,7 @@ A small sensor on the board's unused sensor header shows the temperature in the 
 
 ## Known gaps
 
-- **On the real board:** the family's board ran the classic screens (1.6.2) and has run 2.0 since 1.7.3. The 2.0 additions since then (dress-up days, the countdown pill) were checked in the PC renderer first. See "On the real board" in the README and the checklist in [deploy.md](deploy.md).
+- **On the real board:** the family's board ran the classic screens (1.6.2) and has run 2.0 since 1.7.3. 1.8.4's changes were checked in the PC renderer first: the controller / screens split, Boris's work up to his 2.0.3 (LZ4 images, the 16 KB drawing stack, the touch-hold fix, the new My Day) and the new thermometer. Watch the boot log's `mem[...]` and `stack[...]` lines on its first runs. See "On the real board" in the README and the checklist in [deploy.md](deploy.md).
 - **Old weather while offline:** the advice follows the clock, but the big temperature and the four parts of the day still show the last download, with only the red "Offline" footer to say so. Boris's 2.0 handles this properly (a "Weather from" chip, and no outfit after 12 hours); on 2.0 Boris's chip does this already (this gap is the classic screens').
 - **Browser emulator** (`sim/web/`) is Boris's, for the 2.0 screens only (rebuilding needs wasi-sdk, `make web`). The classic screens have the PC renderer.
 - **Calendar:** repeating events with BYSETPOS, BYWEEKNO, BYYEARDAY or hourly repeats aren't understood (Google rarely makes them). Times with a time zone are taken as local to the weather location; UTC times use today's UTC offset, so on the two daylight-saving switch days an event can be an hour off.

@@ -119,7 +119,6 @@ int main(int argc, char **argv)
         st.events[0].countdown = true;
     }
     now_tm.tm_hour = 7, now_tm.tm_min = 45;
-    st.seq++;
     wb_ui_update(&st);
     save(out, "03_weather");
 
