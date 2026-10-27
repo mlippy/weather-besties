@@ -808,7 +808,7 @@ void v2_hint_test_show(bool on)
 static lv_obj_t *s_dim;                        /* the see-through dark layer, on the top layer */
 static lv_obj_t *s_br_row, *s_br_slider, *s_br_speed_pill;
 static ui_brightness_cb_t s_br_cb;
-static int s_bright = 100;
+static int s_bright = 50;   /* until the board says (settings default) */
 
 static void dim_apply(void)
 {

@@ -41,7 +41,7 @@ void settings_defaults(wb_settings_t *s)
     s->alerts = true;
     s->auto_update = true;
     s->cat = 3;      /* the family's Brittany */
-    s->brightness = 100;
+    s->brightness = 50;   /* the room-friendly default; the Settings slider changes it */
     s->leave_min = 8 * 60 + 30;
     s->bed_min = 20 * 60;
     s->coat_f = 45;   /* Boris's cut-offs: winter kit, light jacket, hoodie */
