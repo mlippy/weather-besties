@@ -91,7 +91,7 @@ Weather data comes from [Open-Meteo](https://open-meteo.com): free for non-comme
 
 Setting it up for the first time? [docs/deploy.md](docs/deploy.md) is the step-by-step checklist.
 
-For a first install you only need `firmware/weather-besties-v1.8.3.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`, and it erases any saved settings. **After that, updates arrive over WiFi** ([below](#over-the-air-updates)); USB is only needed again to start fresh or rescue a board.
+For a first install you only need `firmware/weather-besties-v1.8.4.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`, and it erases any saved settings. **After that, updates arrive over WiFi** ([below](#over-the-air-updates)); USB is only needed again to start fresh or rescue a board.
 
 **Chrome or Edge, no installs:** open the [esptool-js web flasher](https://espressif.github.io/esptool-js/), plug the board in (4.3: the **UART** port; 4.3B: its only USB-C port), click Connect, pick the port, set Flash Address to `0x0`, choose the .bin, click Program. Takes about a minute.
 
@@ -99,10 +99,10 @@ For a first install you only need `firmware/weather-besties-v1.8.3.bin`. It is a
 
 ```
 pip install esptool
-python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.8.3.bin
+python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.8.4.bin
 ```
 
-**USB install that keeps settings** (e.g. moving a board that ran 1.4.x, which had a single app slot, to 1.8.3): flash the four files listed in `firmware/usb/README.txt` at their addresses instead of the full image.
+**USB install that keeps settings** (e.g. moving a board that ran 1.4.x, which had a single app slot, to 1.8.4): flash the four files listed in `firmware/usb/README.txt` at their addresses instead of the full image.
 
 **If it won't connect:** hold **BOOT**, tap **RESET**, let go of BOOT, then try again. On the 4.3, if your computer doesn't see a serial port on the UART connector, try the other USB-C port.
 

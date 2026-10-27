@@ -7,7 +7,7 @@
 #include "settings.h"
 #include "wb_ui.h"
 
-#define WB_VERSION "1.8.3"
+#define WB_VERSION "1.8.4"
 
 void net_start(wb_settings_t *s);
 void net_ui_action(wb_action_t a);              /* Setup, Refresh, Update from the screens */
