@@ -1132,6 +1132,7 @@ static void build_settings(void)
     lv_obj_add_event_cb(set_speed_pill, on_speed_pill, LV_EVENT_CLICKED, NULL);
     v2_raise(set_speed_pill);   /* this fork: the one button look */
     v2_update_pill_create(settings, 744, 364, fire);   /* this fork: update now (ui_v2_extras.c) */
+    v2_brightness_attach(settings, set_speed_pill, 56, 364, 520);   /* this fork: Brightness, in Speed test's place */
 
     /* The tools row (iter-11): one deliberate geometry for the three
      * actions. Equal widths are impossible honestly: "Change WiFi or

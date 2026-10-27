@@ -29,6 +29,10 @@ Done in 1.8.0: the Next days tab is gone, weather alerts show on Today and Tomor
 - **Special events in the advice:** "Soccer tomorrow: bring rain gear!", gloves for a cold outdoor event at its start time (`advice.c`'s event rules; 2.0 only lists them on My Day). Next up.
 - **Maybe:** the day in four parts (morning / afternoon / evening / tonight); a bigger current temperature with "Feels like"; weather-tinted backgrounds.
 
+## Real backlight dimming (hardware)
+
+The 4.3 / 4.3B backlight is switched by the CH422G expander's EXIO2 (on/off only), so 1.8.2 dims the picture in software. Real dimming (and lower power) needs PWM on the backlight boost chip's enable line: cut or lift EXIO2's link to it and wire a spare ESP32-S3 GPIO there, then drive it with LEDC. Only worth it if the dimmed picture looks washed out at night; check Waveshare's schematic for the boost chip's EN pin first.
+
 ## Make it obvious what a kid can tap
 
 Done in 1.7.8: one raised look for everything tappable (soft edge, sinks when pressed, bigger tap area), flat status pills, and a pink glow on the next unchecked tile or Routine step after 20 idle seconds (`v2_raise`, `v2_hint_target` in `ui_v2_extras.c`). Still to try if it's not enough:

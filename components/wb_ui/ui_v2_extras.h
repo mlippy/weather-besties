@@ -69,6 +69,10 @@ void v2_alert_attach(lv_obj_t *page, lv_obj_t *title);
 /* Tonight's moon and today's sunrise and sunset, for the Routine page. */
 void v2_sun_moon_set(const wx_t *wx);
 
+/* The Brightness slider row in Settings, in the Speed test pill's place once the board
+ * sets ui_set_brightness_cb (Boris's render checks keep his pill). */
+void v2_brightness_attach(lv_obj_t *settings, lv_obj_t *speed_pill, int x, int y, int w);
+
 /* An "Update" pill in Settings, right-aligned to x_right at y: closes Settings and asks
  * for a firmware check now (fire is ui.c's action sender). */
 void v2_update_pill_create(lv_obj_t *settings, int x_right, int y, void (*fire)(ui_action_t));

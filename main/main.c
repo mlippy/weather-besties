@@ -54,6 +54,13 @@ static void cat_cb(int choice)
     board_lvgl_unlock();
 }
 
+/* The Settings slider let go: keep the new brightness (the UI already shows it). */
+static void brightness_cb(int pct)
+{
+    S.brightness = (uint8_t)pct;
+    settings_save(&S);
+}
+
 /* Speed test readout and old/new switch (the UI calls this; see ui_set_speed_cb). */
 static void speed_cb(bool old_mode, char *info, size_t n)
 {
@@ -79,6 +86,8 @@ void app_main(void)
     ui_set_pet_name(S.pet_name);
     ui_set_dress_days(NULL, 0);   /* the dress only on dress-up days (calendar or the Dress up pill) */
     ui_set_routine_times(S.leave_min, S.bed_min);
+    ui_set_brightness(S.brightness);
+    ui_set_brightness_cb(brightness_cb);
     ui_set_outfit_temps(S.coat_f, S.jacket_f, S.hoodie_f, S.warm_pm_f);
     ui_set_cat_cb(cat_cb);
     ui_set_cat_choice(S.cat);

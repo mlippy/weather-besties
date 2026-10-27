@@ -256,6 +256,11 @@ static void fixture_fetched(void)
     fixture_fetched_at(7, 2);
 }
 
+static void sim_brightness_cb(int pct)
+{
+    printf("brightness saved: %d%%\n", pct);
+}
+
 /* A pretend finger, so the tests can hold the screen like a kid does (the board's
  * long-press time is 1.5 s, main/board.c). */
 static bool s_touch;
@@ -603,9 +608,16 @@ int main(int argc, char **argv)
         save(out, dog_seasons[i][1]);
     }
     ui_test_set_page(0);
+    ui_set_brightness_cb(sim_brightness_cb);   /* the board's Settings: a Brightness slider */
+    ui_set_brightness(100);
     ui_open_settings();
     save(out, "58_dog_settings");
     ui_close_settings();
+    ui_set_brightness(40);   /* dimmed to 40 %: the dark layer over everything */
+    load(sc, "brief_morning");
+    show();
+    save(out, "81_dimmed");
+    ui_set_brightness(100);
     ui_show_setup("WeatherBesties-3F2A", "kite7mango", "192.168.4.1");
     save(out, "59_dog_setup");
     ui_set_names("Cleo & Lila");

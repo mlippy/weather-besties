@@ -44,6 +44,14 @@ typedef struct {
 typedef void (*ui_speed_cb_t)(bool old_mode, char *info, size_t n);
 void ui_set_speed_cb(ui_speed_cb_t cb);
 
+/* Screen brightness, 30..100 %. The board's backlight can only switch on and off (it's
+ * behind the IO expander), so the screens dim the picture itself: a dark see-through layer
+ * over everything. On 2.0, setting the callback swaps Settings' Speed test pill for a
+ * Brightness slider; the callback gets the new value when the slider is let go (to save). */
+typedef void (*ui_brightness_cb_t)(int pct);
+void ui_set_brightness(int pct);
+void ui_set_brightness_cb(ui_brightness_cb_t cb);
+
 void ui_init(const char *names);
 void ui_set_names(const char *names);
 void ui_set_pet_name(const char *name);   /* the dog's name from setup; "" shows "Dog" */

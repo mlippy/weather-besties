@@ -50,3 +50,13 @@ void ui_set_outfit_temps(int coat_f, int jacket_f, int hoodie_f, int warm_pm_f)
     (void)jacket_f;
     (void)hoodie_f;
 }
+
+void ui_set_brightness(int pct)
+{
+    (void)pct;   /* the classic screens keep full brightness */
+}
+
+void ui_set_brightness_cb(ui_brightness_cb_t cb)
+{
+    (void)cb;
+}

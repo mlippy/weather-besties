@@ -22,6 +22,7 @@ typedef struct {
     bool auto_update;      /* install new firmware on its own, around 3 AM */
     uint8_t cat;           /* the pet: 0 = black cat, 1 = pink cat, 2 = take turns, 3 = the dog */
     char pet_name[24];     /* the dog's name, typed in setup; "" shows "Dog" */
+    uint8_t brightness;    /* screen brightness, 30..100 % (the picture is dimmed; the backlight is on/off) */
     uint16_t leave_min, bed_min;  /* Routine page: leave for school, bedtime (minutes after midnight) */
     uint8_t coat_f, jacket_f, hoodie_f;  /* 2.0 jacket cut-offs, feels-like °F at departure */
     uint8_t warm_pm_f;     /* a warm afternoon (°F) turns a coat morning into a light-jacket one; 0 = off */

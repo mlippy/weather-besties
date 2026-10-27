@@ -2041,6 +2041,17 @@ def main():
     n = count_where(Image.open(os.path.join(OUT, "74_routine_morning.png")), (600, 50, 790, 90), near_c(0xFFF1B8, 6))
     check(n > 20, f"74_routine_morning: tonight's moon by the sun times ({n} px, need > 20)")
 
+    # Brightness: the board's Settings show the slider in the Speed test pill's place,
+    # and 40 % darkens the whole picture.
+    n = count_where(Image.open(os.path.join(OUT, "58_dog_settings.png")), (200, 364, 576, 412),
+                    lambda r, g, b: abs(r - 0xF2) <= 8 and abs(g - 0xC2) <= 8 and abs(b - 0x30) <= 8)
+    check(n > 300, f"58_dog_settings: the Brightness slider's yellow track ({n} px, need > 300)")
+    def mean_lum(name):
+        im = Image.open(os.path.join(OUT, name + ".png")).convert("L").crop((0, 0, 800, 420))
+        return sum(im.getdata()) / (800 * 420)
+    lb, ld = mean_lum("51_dog_morning"), mean_lum("81_dimmed")
+    check(ld < lb * 0.6, f"81_dimmed: 40 % brightness darkens the screen (mean {ld:.0f} vs {lb:.0f})")
+
     # A held finger opens Settings on every page (Settings' Update pill, its pale grey).
     def is_pill_grey(r, g, b):
         return abs(r - 0xED) <= 3 and abs(g - 0xF1) <= 3 and abs(b - 0xF5) <= 3

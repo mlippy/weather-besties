@@ -41,6 +41,7 @@ void settings_defaults(wb_settings_t *s)
     s->alerts = true;
     s->auto_update = true;
     s->cat = 3;      /* the family's Brittany */
+    s->brightness = 100;
     s->leave_min = 8 * 60 + 30;
     s->bed_min = 20 * 60;
     s->coat_f = 45;   /* Boris's cut-offs: winter kit, light jacket, hoodie */
@@ -116,6 +117,7 @@ void settings_load(wb_settings_t *s)
     get_u8(h, "nfrom", &s->off_from);
     get_u8(h, "cat", &s->cat);
     get_str(h, "petn", s->pet_name, sizeof(s->pet_name));
+    get_u8(h, "bright", &s->brightness);
     nvs_get_u16(h, "leave", &s->leave_min);
     nvs_get_u16(h, "bed", &s->bed_min);
     get_u8(h, "tcoat", &s->coat_f);
@@ -161,6 +163,7 @@ void settings_save(const wb_settings_t *s)
     nvs_set_u8(h, "nfrom", s->off_from);
     nvs_set_u8(h, "cat", s->cat);
     nvs_set_str(h, "petn", s->pet_name);
+    nvs_set_u8(h, "bright", s->brightness);
     nvs_set_u16(h, "leave", s->leave_min);
     nvs_set_u16(h, "bed", s->bed_min);
     nvs_set_u8(h, "tcoat", s->coat_f);

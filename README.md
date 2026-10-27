@@ -64,6 +64,7 @@ This fork's additions to 2.0 live in `ui_v2_extras.c`, with one-line hooks in hi
 - **Dress-up days.** Boris's outfit engine puts her in the dress on every light-jacket day (cool but mild). Here the dress is for dress-up days: other light-jacket days get long sleeves, jeans, sneakers and the same light jacket. When the weather fits the dress, a **Dress up?** pill next to "Today · Tuesday" turns that day into a dress-up day with a tap (tap again to undo; once something is checked off, the "2 of 4 ready" chip takes its place until everything is unchecked). A calendar event tagged **(dress)** or 👗 ("Picture day (dress)") starts the day dressed up. Cold, rain and heat still win. (`ui_set_dress_days()` switches this on; without it, as in Boris's render checks, his every-mild-day rule applies.)
 - **Countdowns** in the My Day header, between the title and the date: "11 more sleeps until Trip to Grandma's!" (or "11 sleeps until ...!" when space is short). They come from calendar titles tagged (countdown), 🎂 or 🎉 and special events with Countdown ticked, up to 60 days out; the nearest one wins.
 - **The name from setup in the page title** when it fits beside the weather ("Good morning, Kid!", "Ready for tomorrow, Kid?"). Boris's design keeps names off the screen, so it's one switch, `v2_set_name_in_title()`.
+- **A Brightness slider in Settings** (in place of Boris's speed test), 30 to 100 %, saved on the board. The backlight on this board can only switch on and off (it's wired through the IO expander), so the picture itself is dimmed: a see-through dark layer over everything. It doesn't save power, and blacks look a little grey when it's low; the night-off setting still turns the screen fully off.
 - **An Update pill in Settings**, and fixes found on the board: a long press now opens Settings (his pages ignored touches), and LVGL allocates from PSRAM so the screens leave WiFi its internal RAM.
 - Plus the WPA2 setup hotspot, over-the-air updates, the real-clock fix and this fork's settings (no bike bus).
 
@@ -90,7 +91,7 @@ Weather data comes from [Open-Meteo](https://open-meteo.com): free for non-comme
 
 Setting it up for the first time? [docs/deploy.md](docs/deploy.md) is the step-by-step checklist.
 
-For a first install you only need `firmware/weather-besties-v1.8.1.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`, and it erases any saved settings. **After that, updates arrive over WiFi** ([below](#over-the-air-updates)); USB is only needed again to start fresh or rescue a board.
+For a first install you only need `firmware/weather-besties-v1.8.2.bin`. It is a single merged image (bootloader, partition table, and app) that goes at address `0x0`, and it erases any saved settings. **After that, updates arrive over WiFi** ([below](#over-the-air-updates)); USB is only needed again to start fresh or rescue a board.
 
 **Chrome or Edge, no installs:** open the [esptool-js web flasher](https://espressif.github.io/esptool-js/), plug the board in (4.3: the **UART** port; 4.3B: its only USB-C port), click Connect, pick the port, set Flash Address to `0x0`, choose the .bin, click Program. Takes about a minute.
 
@@ -98,10 +99,10 @@ For a first install you only need `firmware/weather-besties-v1.8.1.bin`. It is a
 
 ```
 pip install esptool
-python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.8.1.bin
+python -m esptool --chip esp32s3 write_flash 0x0 weather-besties-v1.8.2.bin
 ```
 
-**USB install that keeps settings** (e.g. moving a board that ran 1.4.x, which had a single app slot, to 1.8.1): flash the four files listed in `firmware/usb/README.txt` at their addresses instead of the full image.
+**USB install that keeps settings** (e.g. moving a board that ran 1.4.x, which had a single app slot, to 1.8.2): flash the four files listed in `firmware/usb/README.txt` at their addresses instead of the full image.
 
 **If it won't connect:** hold **BOOT**, tap **RESET**, let go of BOOT, then try again. On the 4.3, if your computer doesn't see a serial port on the UART connector, try the other USB-C port.
 
@@ -119,7 +120,7 @@ Defaults if you skip things: Upper Montclair, NJ, no name, Fahrenheit, no specia
 ## Using it
 
 - Classic: swipe left for the next three days, right to come back. 2.0: tap the tabs at the bottom (Today, Tomorrow, My Day, Routine), or swipe.
-- Hold a finger still for 1.5 seconds on an empty spot (the greeting or page title is easiest, not a tile or button) to open Settings. On the classic screens it shows the WiFi, town, last update, version, and the official name of any weather alert. **Refresh** fetches the weather, alerts and calendar now; **Setup** reopens the setup hotspot (WiFi, town, events, calendar, alerts, automatic updates); **Update** checks for new firmware now. (On the 2.0 screens, Settings has the pet picker, the WiFi, town and version, Boris's speed test, **Refresh**, **Change WiFi or town** (the setup hotspot), and this fork's **Update** pill.)
+- Hold a finger still for 1.5 seconds on an empty spot (the greeting or page title is easiest, not a tile or button) to open Settings. On the classic screens it shows the WiFi, town, last update, version, and the official name of any weather alert. **Refresh** fetches the weather, alerts and calendar now; **Setup** reopens the setup hotspot (WiFi, town, events, calendar, alerts, automatic updates); **Update** checks for new firmware now. (On the 2.0 screens, Settings has the pet picker, the WiFi, town and version, a **Brightness** slider, **Refresh**, **Change WiFi or town** (the setup hotspot), and this fork's **Update** pill.)
 - Settings are stored on the board and survive reboots and over-the-air updates. Flashing the full image at `0x0` erases them; see [docs/deploy.md](docs/deploy.md#7-updating-the-firmware-later).
 
 ## The pets

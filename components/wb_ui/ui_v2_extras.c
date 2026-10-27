@@ -800,3 +800,97 @@ void v2_hint_test_show(bool on)
     hint_tick(NULL);
 }
 #endif
+
+/* ------------------------------------------------------------------ brightness */
+
+#define BRIGHT_MIN 30
+
+static lv_obj_t *s_dim;                        /* the see-through dark layer, on the top layer */
+static lv_obj_t *s_br_row, *s_br_slider, *s_br_speed_pill;
+static ui_brightness_cb_t s_br_cb;
+static int s_bright = 100;
+
+static void dim_apply(void)
+{
+    if (!s_dim) {
+        s_dim = lv_obj_create(lv_layer_top());
+        lv_obj_remove_style_all(s_dim);
+        lv_obj_remove_flag(s_dim, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_size(s_dim, LV_PCT(100), LV_PCT(100));
+        lv_obj_set_style_bg_color(s_dim, lv_color_black(), 0);
+    }
+    /* 100 % -> clear; 30 % -> about 70 % black over the picture */
+    lv_obj_set_style_bg_opa(s_dim, (lv_opa_t)((100 - s_bright) * 255 / 100), 0);
+    if (s_bright >= 100) {
+        lv_obj_add_flag(s_dim, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_remove_flag(s_dim, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+void ui_set_brightness(int pct)
+{
+    s_bright = pct < BRIGHT_MIN ? BRIGHT_MIN : pct > 100 ? 100 : pct;
+    dim_apply();
+    if (s_br_slider) {
+        lv_slider_set_value(s_br_slider, s_bright, LV_ANIM_OFF);
+    }
+}
+
+static void on_br_slider(lv_event_t *e)
+{
+    s_bright = lv_slider_get_value(s_br_slider);
+    dim_apply();   /* live while dragging */
+    if (lv_event_get_code(e) == LV_EVENT_RELEASED && s_br_cb) {
+        s_br_cb(s_bright);   /* saved when let go */
+    }
+}
+
+void v2_brightness_attach(lv_obj_t *settings, lv_obj_t *speed_pill, int x, int y, int w)
+{
+    s_br_speed_pill = speed_pill;
+    s_br_row = lv_obj_create(settings);
+    lv_obj_remove_style_all(s_br_row);
+    lv_obj_remove_flag(s_br_row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_pos(s_br_row, x, y);
+    lv_obj_set_size(s_br_row, w, 48);
+    lv_obj_t *l = lv_label_create(s_br_row);
+    lv_obj_set_style_text_font(l, &font_body, 0);
+    lv_obj_set_style_text_color(l, lv_color_hex(0x1E2340), 0);
+    lv_label_set_text(l, "Brightness");
+    lv_obj_align(l, LV_ALIGN_LEFT_MID, 0, 0);
+    s_br_slider = lv_slider_create(s_br_row);
+    lv_obj_remove_style_all(s_br_slider);
+    lv_slider_set_range(s_br_slider, BRIGHT_MIN, 100);
+    lv_slider_set_value(s_br_slider, s_bright, LV_ANIM_OFF);
+    lv_obj_set_size(s_br_slider, w - 170, 14);
+    lv_obj_align(s_br_slider, LV_ALIGN_LEFT_MID, 150, 0);
+    lv_obj_set_style_radius(s_br_slider, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(s_br_slider, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(s_br_slider, lv_color_hex(0xDDE3EC), LV_PART_MAIN);
+    lv_obj_set_style_radius(s_br_slider, LV_RADIUS_CIRCLE, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(s_br_slider, LV_OPA_COVER, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(s_br_slider, lv_color_hex(0xF2C230), LV_PART_INDICATOR);   /* sunny */
+    lv_obj_set_style_radius(s_br_slider, LV_RADIUS_CIRCLE, LV_PART_KNOB);
+    lv_obj_set_style_bg_opa(s_br_slider, LV_OPA_COVER, LV_PART_KNOB);
+    lv_obj_set_style_bg_color(s_br_slider, lv_color_white(), LV_PART_KNOB);
+    lv_obj_set_style_border_width(s_br_slider, 3, LV_PART_KNOB);
+    lv_obj_set_style_border_color(s_br_slider, lv_color_hex(0x1E2340), LV_PART_KNOB);
+    lv_obj_set_style_pad_all(s_br_slider, 12, LV_PART_KNOB);   /* a 38 px knob: easy to grab */
+    lv_obj_set_style_shadow_width(s_br_slider, 2, LV_PART_KNOB);
+    lv_obj_set_style_shadow_offset_y(s_br_slider, 3, LV_PART_KNOB);
+    lv_obj_set_style_shadow_opa(s_br_slider, 70, LV_PART_KNOB);
+    lv_obj_set_ext_click_area(s_br_slider, 16);
+    lv_obj_add_event_cb(s_br_slider, on_br_slider, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_add_event_cb(s_br_slider, on_br_slider, LV_EVENT_RELEASED, NULL);
+    lv_obj_add_flag(s_br_row, LV_OBJ_FLAG_HIDDEN);   /* until the board asks for it */
+}
+
+void ui_set_brightness_cb(ui_brightness_cb_t cb)
+{
+    s_br_cb = cb;
+    if (s_br_row) {   /* the slider takes the Speed test pill's place */
+        lv_obj_remove_flag(s_br_row, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(s_br_speed_pill, LV_OBJ_FLAG_HIDDEN);
+    }
+}

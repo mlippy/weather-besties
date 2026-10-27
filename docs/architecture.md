@@ -94,7 +94,7 @@ Two designs implement the same `ui.h`; `components/wb_ui/ui_select.h` picks one 
 | My Day | Today's and tomorrow's calendar events as cards (icons, NOW / NEXT / DONE), the countdown pill in the header, "Updated 7:02 AM" under the date |
 | Next days (no tab in this fork) | Three day cards with the outfit and a mini pet; still built, swipes skip it |
 | Routine (this fork) | Tonight's moon and the sun times at the top right; morning checklist before noon, bedtime checklist after, as square picture buttons (three across), each with a bar that fills left to right over the last hour before leaving / bedtime (times from setup), the pet's head riding it toward a school bus / a bed; ticks reset daily |
-| Settings (hold an empty spot) | Pet picker, WiFi, town, version, speed test, Refresh, Change WiFi or town, Update |
+| Settings (hold an empty spot) | Pet picker, WiFi, town, version, Brightness slider (a dark see-through layer on LVGL's top layer; the backlight itself is on/off only), Refresh, Change WiFi or town, Update |
 
 How the 2.0 outfit is picked (Boris's `outfit.c`, with this fork's settings): by the **feels-like temperature when it's time to go** (8 AM for Tomorrow, the current hour on Today), not the high or low. Winter kit at or below 45°F, light jacket to 57, hoodie to 64, no layer above (the cut-offs are on the setup page). A coat-cold morning above freezing that warms to 60°F or more (also on the setup page) gets the light jacket instead, and the afternoon high adds "take it off later". Rain, snow and storms override the layer. On light-jacket days the dress is for dress-up days only.
 
