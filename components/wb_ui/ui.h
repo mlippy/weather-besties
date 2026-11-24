@@ -53,10 +53,11 @@ typedef void (*ui_brightness_cb_t)(int pct);
 void ui_set_brightness(int pct);
 void ui_set_brightness_cb(ui_brightness_cb_t cb);
 
-/* Screen off at night: on/off and the hours (local, 0..23), shown and changed in Settings
- * (2.0). The callback fires when someone changes them there; the board saves them. */
-typedef void (*ui_night_cb_t)(bool on, int from_hour, int to_hour);
-void ui_set_night(bool on, int from_hour, int to_hour);
+/* Screen off at night: on/off and the times (minutes after midnight, half hours; the ranges
+ * are WB_NIGHT_* in wb_ui.h), shown and changed in Settings (2.0). The callback fires when
+ * someone changes them there; the board saves them. */
+typedef void (*ui_night_cb_t)(bool on, int from_min, int to_min);
+void ui_set_night(bool on, int from_min, int to_min);
 void ui_set_night_cb(ui_night_cb_t cb);
 
 void ui_init(const char *names);

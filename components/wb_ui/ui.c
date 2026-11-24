@@ -1235,6 +1235,7 @@ void ui_open_settings(void)
 void ui_close_settings(void)
 {
     hide(settings);
+    v2_night_close();   /* this fork: an open hours list would outlive Settings */
 }
 
 static void on_long_press(lv_event_t *e)

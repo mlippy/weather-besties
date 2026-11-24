@@ -42,7 +42,7 @@ main/  (the controller)           components/wb_core/  (the logic)        compon
 | `WB_ACT_SETUP` | | Starts the setup hotspot (WiFi, town, names...) |
 | `WB_ACT_SET_PET` | a `wb_pet_t` | Saves the pet choice, then sends a new state |
 | `WB_ACT_SET_BRIGHTNESS` | 30..100 | Saves it (dimming is the screens' job; the backlight is on/off only) |
-| `WB_ACT_SET_NIGHT` | `wb_night_pack(on, from, to)` | Saves screen-off-at-night and its hours (`night_off`, `off_from`, `off_to` in the state); the controller turns the screen off and on |
+| `WB_ACT_SET_NIGHT` | `wb_night_pack(on, from, to)` | Saves screen-off-at-night and its times (`night_off`, `off_from`, `off_to` in the state: minutes after midnight, half hours, within `WB_NIGHT_*`); the controller turns the screen off and on |
 
 - **`components/wb_core/`**: plain C (no LVGL, no ESP-IDF) that answers the questions a screen asks. Use it rather than re-deriving the rules, so every design agrees:
 

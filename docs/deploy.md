@@ -48,7 +48,7 @@ If it won't connect: hold **BOOT**, tap **RESET**, let go of BOOT, and try again
    - [ ] Town or ZIP
    - [ ] Name on the screen: your kid's first name (optional; it's stored only on the board)
    - [ ] The dog's name, if you picked the dog (optional)
-   - [ ] °F or °C, and night hours if you want the screen off at night
+   - [ ] °F or °C, and the night times if you want the screen off at night (half hours; off at 8:30 PM and on at 7:30 AM to start)
    - [ ] **Show weather alerts** (on by default)
    - [ ] **Routines:** the time to leave for school (8:30 AM to start) and bedtime (8:00 PM)
    - [ ] **Jackets and coats** (2.0): the feels-like cut-offs (45 / 57 / 64 °F to start) and "just a light jacket if the afternoon warms up to" (60 °F)
@@ -73,7 +73,7 @@ Google's iCal feed can take a little while to show changes, and the board reads 
 
 ## 6. Day to day
 
-- **Screen off at night:** turn it on in Settings (2.0: the **Night** row, with the hours) or set night hours in setup. Out of the box it's off; the hours start at 9 PM to 6 AM. A tap wakes it for a minute.
+- **Screen off at night:** turn it on in Settings (2.0: the **Night** row, with the times) or on the setup page. Out of the box it's off; the times start at 8:30 PM to 7:30 AM, in half hours (off from 6:00 to 11:30 PM, on from 5:00 to 9:30 AM). A tap wakes it for a minute.
 - **Dress-up days (2.0):** on a mild day, tap **Dress up?** next to the day to switch that day to the dress; tap again to switch back. Tag calendar events "(dress)" to plan ahead.
 - **Brightness (2.0):** it starts at 50 %. Settings has a slider; drag it and let go to keep it.
 - **The red lights on the side** are the board's power and battery-charger lights (PWR, CHG, DONE). They're wired to the hardware, so the firmware can't turn them off; a piece of electrical tape or a light-dimming sticker over them works.

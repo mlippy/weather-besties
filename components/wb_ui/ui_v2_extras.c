@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "ui.h"
+#include "wb_ui.h"   /* the night times (WB_NIGHT_*) */
 #include "ui_v2_extras.h"
 #include "thermo.h"
 #include "cal.h"
@@ -801,7 +802,7 @@ void ui_set_brightness_cb(ui_brightness_cb_t cb)
 
 /* ------------------------------------------------------------------ screen off at night */
 
-/* Settings: "Night  [on/off]  off from [9 PM] to [6 AM]", the setup page's night hours,
+/* Settings: "Night  [on/off]  Off at [8:30 PM] on at [7:30 AM]", the setup page's night times,
  * here so a grown-up can change them without the setup hotspot. */
 
 static lv_obj_t *s_nt_row, *s_nt_sw, *s_nt_from, *s_nt_to, *s_nt_credit, *s_nt_version;
@@ -814,31 +815,46 @@ static void night_style(void)
     lv_obj_set_style_opa(s_nt_to, on ? LV_OPA_COVER : LV_OPA_50, 0);
 }
 
+/* A list's choice <-> minutes after midnight: half hours from its first time (wb_ui.h). */
+static int night_min(lv_obj_t *d, int first)
+{
+    return first + 30 * (int)lv_dropdown_get_selected(d);
+}
+
+static void night_pick(lv_obj_t *d, int first, int last, int min)
+{
+    int m = min < first ? first : min > last ? last : min;   /* a time outside the list: the nearest */
+    lv_dropdown_set_selected(d, (uint32_t)((m - first) / 30));
+}
+
 static void on_night(lv_event_t *e)
 {
     (void)e;
     night_style();
     if (s_nt_cb) {
-        s_nt_cb(lv_obj_has_state(s_nt_sw, LV_STATE_CHECKED), (int)lv_dropdown_get_selected(s_nt_from),
-                (int)lv_dropdown_get_selected(s_nt_to));
+        s_nt_cb(lv_obj_has_state(s_nt_sw, LV_STATE_CHECKED), night_min(s_nt_from, WB_NIGHT_OFF_FIRST),
+                night_min(s_nt_to, WB_NIGHT_ON_FIRST));
     }
 }
 
-static lv_obj_t *night_hours(lv_obj_t *parent, int x)
+/* "6:00 PM\n6:30 PM\n..." from first to last (minutes after midnight) into buf. */
+static void night_options(char *buf, size_t cap, int first, int last)
 {
-    static char opts[24 * 6];
-    if (!opts[0]) {
-        size_t n = 0;
-        for (int h = 0; h < 24; h++) {
-            n += (size_t)snprintf(opts + n, sizeof(opts) - n, "%s%d %s", h ? "\n" : "", h % 12 ? h % 12 : 12,
-                                  h < 12 ? "AM" : "PM");
-        }
+    size_t n = 0;
+    for (int m = first; m <= last && n < cap; m += 30) {
+        int h = m / 60;
+        n += (size_t)snprintf(buf + n, cap - n, "%s%d:%02d %s", m > first ? "\n" : "", h % 12 ? h % 12 : 12,
+                              m % 60, h < 12 ? "AM" : "PM");
     }
+}
+
+static lv_obj_t *night_hours(lv_obj_t *parent, int x, const char *opts)
+{
     lv_obj_t *d = lv_dropdown_create(parent);
     lv_dropdown_set_options_static(d, opts);
     lv_dropdown_set_dir(d, LV_DIR_TOP);   /* the row sits near the bottom: the list opens upward */
     lv_dropdown_set_symbol(d, NULL);
-    lv_obj_set_size(d, 104, 34);
+    lv_obj_set_size(d, 116, 34);
     lv_obj_set_pos(d, x, 0);
     lv_obj_set_style_text_font(d, &font_small, 0);
     lv_obj_set_style_text_color(d, lv_color_hex(0x1E2340), 0);
@@ -893,16 +909,27 @@ void v2_night_attach(lv_obj_t *settings, lv_obj_t *credit, lv_obj_t *version_val
     lv_obj_add_event_cb(s_nt_sw, on_night, LV_EVENT_VALUE_CHANGED, NULL);
     lv_obj_set_ext_click_area(s_nt_sw, 8);
     int x = 256;
-    x += night_word(s_nt_row, "Screen off from", x) + 10;
-    s_nt_from = night_hours(s_nt_row, x);
-    x += 104 + 10;
-    x += night_word(s_nt_row, "to", x) + 10;
-    s_nt_to = night_hours(s_nt_row, x);
-    ui_set_night(false, 21, 6);
+    x += night_word(s_nt_row, "Off at", x) + 10;
+    static char off_opts[16 * 9], on_opts[16 * 9];
+    night_options(off_opts, sizeof(off_opts), WB_NIGHT_OFF_FIRST, WB_NIGHT_OFF_LAST);
+    night_options(on_opts, sizeof(on_opts), WB_NIGHT_ON_FIRST, WB_NIGHT_ON_LAST);
+    s_nt_from = night_hours(s_nt_row, x, off_opts);
+    x += 116 + 10;
+    x += night_word(s_nt_row, "on at", x) + 10;
+    s_nt_to = night_hours(s_nt_row, x, on_opts);
+    ui_set_night(false, WB_NIGHT_OFF_DEFAULT, WB_NIGHT_ON_DEFAULT);
     lv_obj_add_flag(s_nt_row, LV_OBJ_FLAG_HIDDEN);   /* until the board asks for it */
 }
 
-void ui_set_night(bool on, int from_hour, int to_hour)
+void v2_night_close(void)
+{
+    if (s_nt_row) {
+        lv_dropdown_close(s_nt_from);
+        lv_dropdown_close(s_nt_to);
+    }
+}
+
+void ui_set_night(bool on, int from_min, int to_min)
 {
     if (!s_nt_row) {
         return;
@@ -912,17 +939,17 @@ void ui_set_night(bool on, int from_hour, int to_hour)
     } else {
         lv_obj_remove_state(s_nt_sw, LV_STATE_CHECKED);
     }
-    lv_dropdown_set_selected(s_nt_from, (uint32_t)(from_hour % 24));
-    lv_dropdown_set_selected(s_nt_to, (uint32_t)(to_hour % 24));
+    night_pick(s_nt_from, WB_NIGHT_OFF_FIRST, WB_NIGHT_OFF_LAST, from_min);
+    night_pick(s_nt_to, WB_NIGHT_ON_FIRST, WB_NIGHT_ON_LAST, to_min);
     night_style();
 }
 
 #ifdef WB_SIM
-/* Opens the "from" hours list and picks hour h in it, as a finger would. */
-void v2_night_test_pick(int h)
+/* Opens the "off from" list and picks the time min in it, as a finger would. */
+void v2_night_test_pick(int min)
 {
     lv_dropdown_open(s_nt_from);
-    lv_dropdown_set_selected(s_nt_from, (uint32_t)h);
+    night_pick(s_nt_from, WB_NIGHT_OFF_FIRST, WB_NIGHT_OFF_LAST, min);
     lv_obj_send_event(s_nt_from, LV_EVENT_VALUE_CHANGED, NULL);
 }
 #endif

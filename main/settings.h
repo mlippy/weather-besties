@@ -26,7 +26,7 @@ typedef struct {
     uint16_t leave_min, bed_min;  /* Routine page: leave for school, bedtime (minutes after midnight) */
     uint8_t coat_f, jacket_f, hoodie_f;  /* 2.0 jacket cut-offs, feels-like °F at departure */
     uint8_t warm_pm_f;     /* a warm afternoon (°F) turns a coat morning into a light-jacket one; 0 = off */
-    uint8_t off_from, off_to;  /* hours, local time */
+    uint16_t off_from, off_to; /* screen off / back on, minutes after midnight, local */
     uint8_t nevents;
     wb_event_t events[EVENT_MAX];  /* special events: soccer, field trips... */
 } wb_settings_t;

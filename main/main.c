@@ -40,8 +40,8 @@ static void power_timer(lv_timer_t *t)
     if (!net_local_time(&now)) {
         return;
     }
-    int h = now.tm_hour;
-    bool night = S.off_from < S.off_to ? (h >= S.off_from && h < S.off_to) : (h >= S.off_from || h < S.off_to);
+    int m = now.tm_hour * 60 + now.tm_min;   /* the times are in minutes (half hours) */
+    bool night = S.off_from < S.off_to ? (m >= S.off_from && m < S.off_to) : (m >= S.off_from || m < S.off_to);
     if (S.off_from == S.off_to) {
         night = false;
     }
@@ -116,8 +116,8 @@ static void on_action(wb_action_t act, int value, void *user)
         break;
     case WB_ACT_SET_NIGHT:   /* the Night row in Settings; power_timer reads S, so it applies now */
         S.night_off = wb_night_on(value);
-        S.off_from = (uint8_t)wb_night_from(value);
-        S.off_to = (uint8_t)wb_night_to(value);
+        S.off_from = (uint16_t)wb_night_from(value);
+        S.off_to = (uint16_t)wb_night_to(value);
         settings_save(&S);
         s_state->night_off = S.night_off;   /* the screen already shows it */
         s_state->off_from = S.off_from;

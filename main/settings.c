@@ -5,6 +5,7 @@
 
 #include "esp_log.h"
 #include "nvs.h"
+#include "wb_ui.h"   /* the night times' defaults */
 
 static const char *TAG = "settings";
 #define NS "wb"
@@ -48,8 +49,8 @@ void settings_defaults(wb_settings_t *s)
     s->jacket_f = 57;
     s->hoodie_f = 64;
     s->warm_pm_f = 60;   /* 40 in the morning, 68 by afternoon: a light jacket */
-    s->off_from = 21;
-    s->off_to = 6;
+    s->off_from = WB_NIGHT_OFF_DEFAULT;
+    s->off_to = WB_NIGHT_ON_DEFAULT;
     for (size_t i = 0; i < sizeof(DEFAULT_EVENTS) / sizeof(DEFAULT_EVENTS[0]) && s->nevents < EVENT_MAX; i++) {
         if (DEFAULT_EVENTS[i].name[0]) {
             s->events[s->nevents++] = DEFAULT_EVENTS[i];
@@ -114,7 +115,12 @@ void settings_load(wb_settings_t *s)
     b = s->auto_update;
     get_u8(h, "autoup", &b);
     s->auto_update = b;
-    get_u8(h, "nfrom", &s->off_from);
+    if (nvs_get_u16(h, "noffm", &s->off_from) != ESP_OK) {   /* minutes since 1.8.5 */
+        uint8_t hr;
+        if (nvs_get_u8(h, "nfrom", &hr) == ESP_OK && hr < 24) {   /* before: whole hours */
+            s->off_from = hr * 60;
+        }
+    }
     get_u8(h, "cat", &s->cat);
     get_str(h, "petn", s->pet_name, sizeof(s->pet_name));
     get_u8(h, "bright", &s->brightness);
@@ -124,7 +130,12 @@ void settings_load(wb_settings_t *s)
     get_u8(h, "tjack", &s->jacket_f);
     get_u8(h, "thood", &s->hoodie_f);
     get_u8(h, "twarm", &s->warm_pm_f);
-    get_u8(h, "nto", &s->off_to);
+    if (nvs_get_u16(h, "nonm", &s->off_to) != ESP_OK) {
+        uint8_t hr;
+        if (nvs_get_u8(h, "nto", &hr) == ESP_OK && hr < 24) {
+            s->off_to = hr * 60;
+        }
+    }
     events_blob_t eb;
     size_t len = sizeof(eb);
     if (nvs_get_blob(h, "events", &eb, &len) == ESP_OK && len == sizeof(eb) && eb.ver == EVENTS_VER &&
@@ -160,7 +171,7 @@ void settings_save(const wb_settings_t *s)
     nvs_set_u8(h, "noff", s->night_off);
     nvs_set_u8(h, "alrt", s->alerts);
     nvs_set_u8(h, "autoup", s->auto_update);
-    nvs_set_u8(h, "nfrom", s->off_from);
+    nvs_set_u16(h, "noffm", s->off_from);
     nvs_set_u8(h, "cat", s->cat);
     nvs_set_str(h, "petn", s->pet_name);
     nvs_set_u8(h, "bright", s->brightness);
@@ -170,7 +181,7 @@ void settings_save(const wb_settings_t *s)
     nvs_set_u8(h, "tjack", s->jacket_f);
     nvs_set_u8(h, "thood", s->hoodie_f);
     nvs_set_u8(h, "twarm", s->warm_pm_f);
-    nvs_set_u8(h, "nto", s->off_to);
+    nvs_set_u16(h, "nonm", s->off_to);
     events_blob_t eb = {.ver = EVENTS_VER, .n = s->nevents};
     memcpy(eb.ev, s->events, sizeof(eb.ev));
     nvs_set_blob(h, "events", &eb, sizeof(eb));

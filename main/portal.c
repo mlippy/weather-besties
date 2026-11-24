@@ -190,6 +190,18 @@ static void hour_options(sbuf_t *b, int sel)
     }
 }
 
+/* The night times, every half hour from first to last (minutes after midnight); a saved
+ * time outside them selects the nearest. */
+static void half_hour_options(sbuf_t *b, int sel, int first, int last)
+{
+    int pick = sel < first ? first : sel > last ? last : sel / 30 * 30;
+    for (int m = first; m <= last; m += 30) {
+        int h = m / 60, h12 = h % 12 ? h % 12 : 12;
+        sb_add(b, "<option value=\"%d\"%s>%d:%02d %s</option>", m, m == pick ? " selected" : "", h12, m % 60,
+               h < 12 ? "AM" : "PM");
+    }
+}
+
 /* One row of the special-events list. Field names: en<i> name, eh<i> hour, e<i>d<0-6> weekdays,
  * et<i> date, e<i>o outside. */
 static void event_row(sbuf_t *b, int i, const wb_event_t *e, bool shown)
@@ -279,10 +291,10 @@ static esp_err_t page_root(httpd_req_t *req)
                "<label class=\"check\" style=\"margin-top:16px\"><input type=\"checkbox\" name=\"noff\" value=\"1\"%s>"
                "Turn the screen off at night</label><div class=\"row\" style=\"margin-top:8px\"><select name=\"from\">",
            S->celsius ? "" : " checked", S->celsius ? " checked" : "", S->night_off ? " checked" : "");
-    hour_options(&b, S->off_from);
+    half_hour_options(&b, S->off_from, WB_NIGHT_OFF_FIRST, WB_NIGHT_OFF_LAST);
     sb_add(&b, "</select><select name=\"to\">");
-    hour_options(&b, S->off_to);
-    sb_add(&b, "</select></div><p class=\"hint\">Off at, back on at. A tap wakes it for a minute.</p>"
+    half_hour_options(&b, S->off_to, WB_NIGHT_ON_FIRST, WB_NIGHT_ON_LAST);
+    sb_add(&b, "</select></div><p class=\"hint\">Off at, back on at (half hours). A tap wakes it for a minute.</p>"
                "<label class=\"check\" style=\"margin-top:16px\"><input type=\"checkbox\" name=\"alrt\" value=\"1\"%s>"
                "Show weather alerts</label><p class=\"hint\">From weather.gov (US only), in calm kid words. "
                "The official alert name is under Settings on the screen.</p>"
@@ -442,11 +454,11 @@ static esp_err_t page_save(httpd_req_t *req)
         n.cat = (uint8_t)(v[0] - '0');
     }
     n.auto_update = form_get(body, "autoup", v, sizeof(v)) && v[0] == '1';
-    if (form_get(body, "from", v, sizeof(v))) {
-        n.off_from = (uint8_t)(atoi(v) % 24);
+    if (form_get(body, "from", v, sizeof(v))) {   /* minutes after midnight */
+        n.off_from = (uint16_t)(atoi(v) % (24 * 60));
     }
     if (form_get(body, "to", v, sizeof(v))) {
-        n.off_to = (uint8_t)(atoi(v) % 24);
+        n.off_to = (uint16_t)(atoi(v) % (24 * 60));
     }
     n.nevents = 0;
     memset(n.events, 0, sizeof(n.events));

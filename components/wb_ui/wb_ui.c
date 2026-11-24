@@ -44,10 +44,10 @@ static void on_pet(int choice)
     }
 }
 
-static void on_night(bool on, int from_hour, int to_hour)
+static void on_night(bool on, int from_min, int to_min)
 {
     if (s_cb) {
-        s_cb(WB_ACT_SET_NIGHT, wb_night_pack(on, from_hour, to_hour), s_user);
+        s_cb(WB_ACT_SET_NIGHT, wb_night_pack(on, from_min, to_min), s_user);
     }
 }
 

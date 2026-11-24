@@ -33,14 +33,24 @@ typedef enum {
 
 typedef void (*wb_action_cb_t)(wb_action_t act, int value, void *user);
 
-/* WB_ACT_SET_NIGHT's value: screen off at night on/off and its hours, in one int. */
-static inline int wb_night_pack(bool on, int from_hour, int to_hour)
+/* Screen off at night: the times offered (minutes after midnight, half-hour steps), the
+ * same on the screen and the setup page. Off from 6:00 PM to 11:30 PM, on at 5:00 AM to
+ * 9:30 AM; to start, off at 8:30 PM and on at 7:30 AM. */
+#define WB_NIGHT_OFF_FIRST (18 * 60)
+#define WB_NIGHT_OFF_LAST (23 * 60 + 30)
+#define WB_NIGHT_ON_FIRST (5 * 60)
+#define WB_NIGHT_ON_LAST (9 * 60 + 30)
+#define WB_NIGHT_OFF_DEFAULT (20 * 60 + 30)
+#define WB_NIGHT_ON_DEFAULT (7 * 60 + 30)
+
+/* WB_ACT_SET_NIGHT's value: on/off and the two times (minutes, in half hours) in one int. */
+static inline int wb_night_pack(bool on, int from_min, int to_min)
 {
-    return (on ? 1 << 16 : 0) | (from_hour % 24) << 8 | (to_hour % 24);
+    return (on ? 1 << 16 : 0) | (from_min / 30 % 48) << 8 | (to_min / 30 % 48);
 }
 static inline bool wb_night_on(int v) { return (v >> 16) & 1; }
-static inline int wb_night_from(int v) { return (v >> 8) & 0xFF; }
-static inline int wb_night_to(int v) { return v & 0xFF; }
+static inline int wb_night_from(int v) { return ((v >> 8) & 0xFF) * 30; }
+static inline int wb_night_to(int v) { return (v & 0xFF) * 30; }
 
 /* Fills local time; returns false while the clock isn't set yet. */
 typedef bool (*wb_clock_cb_t)(struct tm *local_out);

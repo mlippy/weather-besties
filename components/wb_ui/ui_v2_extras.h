@@ -51,7 +51,7 @@ lv_obj_t *v2_routine_create(lv_obj_t *scr);
 void v2_routine_render(const struct tm *now, const lv_image_dsc_t *pet, const lv_image_dsc_t *head);
 #ifdef WB_SIM
 void v2_routine_test_tap(int row);
-void v2_night_test_pick(int h);   /* the Night row's "from" list: open it, pick hour h */
+void v2_night_test_pick(int min);   /* the Night row's "off from" list: open it, pick that time */
 #endif
 
 /* Making it obvious what a kid can tap. v2_raise gives a tappable thing the one
@@ -77,6 +77,7 @@ void v2_brightness_attach(lv_obj_t *settings, lv_obj_t *speed_pill, int x, int y
  * place of the weather credit, which moves to the right end of the Version row. Hidden
  * until the board sets ui_set_night_cb (Boris's render checks keep his layout). */
 void v2_night_attach(lv_obj_t *settings, lv_obj_t *credit, lv_obj_t *version_val, int y);
+void v2_night_close(void);   /* closes an open hours list (it floats on LVGL's top layer) */
 
 /* An "Update" pill in Settings, right-aligned to x_right at y: closes Settings and asks
  * for a firmware check now (fire is ui.c's action sender). */
