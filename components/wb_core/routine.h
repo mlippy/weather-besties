@@ -22,7 +22,7 @@ typedef enum { WB_ROUTINE_MORNING, WB_ROUTINE_BEDTIME } wb_routine_mode_t;
 /* What a step is; screens map it to a picture. */
 typedef enum {
     WB_STEP_POTTY, WB_STEP_BREAKFAST, WB_STEP_TEETH, WB_STEP_HAIR, WB_STEP_DRESS,
-    WB_STEP_PAJAMAS, WB_STEP_SNACK, WB_STEP_BOOKS, WB_STEP_SNUGGLE,
+    WB_STEP_PAJAMAS, WB_STEP_SNACK, WB_STEP_BOOKS, WB_STEP_SNUGGLE, WB_STEP_MEDICINE,
 } wb_step_t;
 
 typedef struct {

@@ -348,6 +348,7 @@ static const lv_image_dsc_t *rt_pic(wb_step_t step)
     case WB_STEP_SNACK: return &img_rt_snack;
     case WB_STEP_BOOKS: return &img_rt_books;
     case WB_STEP_SNUGGLE: return &img_rt_snuggle;
+    case WB_STEP_MEDICINE: return &img_rt_medicine;
     }
     return NULL;
 }

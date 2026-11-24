@@ -77,14 +77,15 @@ static void test_routine(void)
 
     struct tm tue = at(2026, 10, 27, 7, 55);   /* 35 minutes before 8:30 */
     wb_routine_view(&r, &tue, &v);
-    CHECK(v.mode == WB_ROUTINE_MORNING && v.nsteps == 5 && v.next == 0, "morning list");
+    CHECK(v.mode == WB_ROUTINE_MORNING && v.nsteps == 6 && v.next == 0, "morning list");
     CHECK(v.step[1] == WB_STEP_BREAKFAST && !strcmp(v.word[1], "Breakfast"), "steps and words");
+    CHECK(v.step[2] == WB_STEP_MEDICINE && !strcmp(v.word[2], "Medicine"), "medicine after breakfast");
     CHECK(!strcmp(v.title, "Morning routine") && v.show_bar, "title: %s", v.title);
     CHECK(!strcmp(v.left_text, "35 minutes until we leave"), "left: %s", v.left_text);
     CHECK(!strcmp(v.when_text, "Leave at 8:30 AM"), "when: %s", v.when_text);
     CHECK(v.bar_gone_min == 25 && v.bar_color == 0x4CB860, "bar: %d %06X", v.bar_gone_min, (unsigned)v.bar_color);
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 6; i++) {
         wb_routine_toggle(&r, &tue, i);
     }
     wb_routine_toggle(&r, &tue, 2);
@@ -109,7 +110,7 @@ static void test_routine(void)
     struct tm sat = at(2026, 10, 31, 9, 0);
     wb_routine_view(&r, &sat, &v);
     CHECK(!v.show_bar && !strcmp(v.left_text, "No school today!") && !v.when_text[0], "weekend morning");
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 6; i++) {
         wb_routine_toggle(&r, &sat, i);
     }
     wb_routine_view(&r, &sat, &v);

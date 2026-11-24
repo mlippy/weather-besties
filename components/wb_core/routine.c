@@ -8,7 +8,8 @@
 static const struct {
     wb_step_t step;
     const char *word;
-} MORNING[] = {{WB_STEP_POTTY, "Potty"}, {WB_STEP_BREAKFAST, "Breakfast"}, {WB_STEP_TEETH, "Brush teeth"},
+} MORNING[] = {{WB_STEP_POTTY, "Potty"}, {WB_STEP_BREAKFAST, "Breakfast"}, {WB_STEP_MEDICINE, "Medicine"},
+               {WB_STEP_TEETH, "Brush teeth"},
                {WB_STEP_HAIR, "Brush hair"}, {WB_STEP_DRESS, "Get dressed"}},
   BEDTIME[] = {{WB_STEP_POTTY, "Potty"}, {WB_STEP_PAJAMAS, "Pajamas"}, {WB_STEP_SNACK, "Snack"},
                {WB_STEP_TEETH, "Brush teeth"}, {WB_STEP_BOOKS, "Books"}, {WB_STEP_SNUGGLE, "Snuggle"}};

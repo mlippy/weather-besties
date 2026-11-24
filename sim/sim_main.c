@@ -1120,7 +1120,7 @@ int main(int argc, char **argv)
     v2_hint_test_show(true);   /* the next step glows after 20 idle seconds */
     save(out, "74b_routine_hint");
     v2_hint_test_show(false);
-    for (int i = 2; i < 5; i++) {
+    for (int i = 2; i < 6; i++) {   /* the morning's six steps */
         v2_routine_test_tap(i);
     }
     save(out, "75_routine_done");

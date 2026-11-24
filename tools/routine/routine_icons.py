@@ -22,7 +22,7 @@ def bed():
     return svg(out)
 
 
-ICONS = {name: svg}   names: potty, breakfast, teeth, hair, dress, pajamas, snack, books, snuggle
+ICONS = {name: svg}   names: potty, breakfast, medicine, teeth, hair, dress, pajamas, snack, books, snuggle
 """
 
 INK = "#2B3450"
@@ -130,6 +130,18 @@ def snuggle():
     return svg(out)
 
 
+def medicine():
+    out = s("M30,36 L66,36 L66,88 C66,91 64,92 61,92 L35,92 C32,92 30,91 30,88 Z", "#F5A54A")         # bottle
+    out += s("M26,16 L70,16 L70,36 L26,36 Z", WHITE)                                                 # cap
+    out += line("M34,16 L34,36 M42,16 L42,36 M50,16 L50,36 M58,16 L58,36", 2.5)                      # cap ridges
+    out += s("M34,50 L62,50 L62,78 L34,78 Z", WHITE, 3)                                              # label
+    out += s("M44,56 L52,56 L52,60 L56,60 L56,68 L52,68 L52,72 L44,72 L44,68 L40,68 L40,60 L44,60 Z",
+             "#F7A8C6", 2.5)                                                                         # plus
+    out += s("M70,72 C70,64 88,64 88,72 L88,84 C88,92 70,92 70,84 Z", "#9DB4F0", 4)                  # capsule
+    out += s("M70,78 L88,78 L88,84 C88,92 70,92 70,84 Z", WHITE, 4)
+    return svg(out)
+
+
 def bus():
     out = s("M8,30 C8,24 12,22 18,22 L78,22 C86,22 92,30 92,42 L92,70 L8,70 Z", "#F8D33C")          # body
     out += s("M14,30 L34,30 L34,46 L14,46 Z", "#CFE3F7", 3) + s("M40,30 L58,30 L58,46 L40,46 Z", "#CFE3F7", 3)
@@ -151,7 +163,7 @@ def bed():
     return svg(out)
 
 
-ICONS = {"potty": potty(), "breakfast": breakfast(), "teeth": teeth(), "hair": hair(), "dress": dress(),
+ICONS = {"potty": potty(), "breakfast": breakfast(), "medicine": medicine(), "teeth": teeth(), "hair": hair(), "dress": dress(),
          "pajamas": pajamas(), "snack": snack(), "books": books(), "snuggle": snuggle(),
          "bus": bus(), "bed": bed()}
 

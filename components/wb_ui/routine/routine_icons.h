@@ -4,6 +4,7 @@
 
 LV_IMAGE_DECLARE(img_rt_potty);
 LV_IMAGE_DECLARE(img_rt_breakfast);
+LV_IMAGE_DECLARE(img_rt_medicine);
 LV_IMAGE_DECLARE(img_rt_teeth);
 LV_IMAGE_DECLARE(img_rt_hair);
 LV_IMAGE_DECLARE(img_rt_dress);

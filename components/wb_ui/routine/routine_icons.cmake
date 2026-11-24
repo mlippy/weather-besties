@@ -2,6 +2,7 @@
 set(WB_ROUTINE_SRCS
     routine/img_rt_potty.c
     routine/img_rt_breakfast.c
+    routine/img_rt_medicine.c
     routine/img_rt_teeth.c
     routine/img_rt_hair.c
     routine/img_rt_dress.c
