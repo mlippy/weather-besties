@@ -38,7 +38,7 @@ void settings_defaults(wb_settings_t *s)
     s->has_coords = true;
     /* Names stay blank until someone types them on the setup page: none are built in. */
     s->celsius = false;
-    s->night_off = false;
+    s->night_off = true;   /* screen off 8:30 PM to 7:30 AM out of the box (1.8.5) */
     s->alerts = true;
     s->auto_update = true;
     s->cat = 3;      /* the family's Brittany */
@@ -115,7 +115,8 @@ void settings_load(wb_settings_t *s)
     b = s->auto_update;
     get_u8(h, "autoup", &b);
     s->auto_update = b;
-    if (nvs_get_u16(h, "noffm", &s->off_from) != ESP_OK) {   /* minutes since 1.8.5 */
+    bool night_in_minutes = nvs_get_u16(h, "noffm", &s->off_from) == ESP_OK;   /* since 1.8.5 */
+    if (!night_in_minutes) {
         uint8_t hr;
         if (nvs_get_u8(h, "nfrom", &hr) == ESP_OK && hr < 24) {   /* before: whole hours */
             s->off_from = hr * 60;
@@ -135,6 +136,14 @@ void settings_load(wb_settings_t *s)
         if (nvs_get_u8(h, "nto", &hr) == ESP_OK && hr < 24) {
             s->off_to = hr * 60;
         }
+    }
+    if (!night_in_minutes && !s->night_off) {
+        /* A board from before 1.8.5 that never turned screen-off on gets the new default (on,
+         * 8:30 PM to 7:30 AM); one that turned it on keeps its hours. Saved in minutes from
+         * the next save on, so this runs once. */
+        s->night_off = true;
+        s->off_from = WB_NIGHT_OFF_DEFAULT;
+        s->off_to = WB_NIGHT_ON_DEFAULT;
     }
     events_blob_t eb;
     size_t len = sizeof(eb);

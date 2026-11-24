@@ -35,7 +35,7 @@ The secret address is a password for that calendar: anyone with it can read the 
 
 1. Plug the board into the computer: on the 4.3, the USB-C port labeled **UART**; on the 4.3B, its only USB-C port.
 2. Open the [esptool-js web flasher](https://espressif.github.io/esptool-js/), click **Connect**, pick the port.
-3. Set **Flash Address** to `0x0`, choose `firmware/weather-besties-v1.8.4.bin`, click **Program**. About a minute.
+3. Set **Flash Address** to `0x0`, choose `firmware/weather-besties-v1.8.5.bin`, click **Program**. About a minute.
 4. Press **RESET** on the board (or unplug and plug it back in).
 
 If it won't connect: hold **BOOT**, tap **RESET**, let go of BOOT, and try again. If no serial port shows up, try the other USB-C port.
@@ -48,7 +48,7 @@ If it won't connect: hold **BOOT**, tap **RESET**, let go of BOOT, and try again
    - [ ] Town or ZIP
    - [ ] Name on the screen: your kid's first name (optional; it's stored only on the board)
    - [ ] The dog's name, if you picked the dog (optional)
-   - [ ] °F or °C, and the night times if you want the screen off at night (half hours; off at 8:30 PM and on at 7:30 AM to start)
+   - [ ] °F or °C, and the night times: the screen is off from 8:30 PM to 7:30 AM to start (half hours; untick it to keep the screen on)
    - [ ] **Show weather alerts** (on by default)
    - [ ] **Routines:** the time to leave for school (8:30 AM to start) and bedtime (8:00 PM)
    - [ ] **Jackets and coats** (2.0): the feels-like cut-offs (45 / 57 / 64 °F to start) and "just a light jacket if the afternoon warms up to" (60 °F)
@@ -61,8 +61,8 @@ If it won't connect: hold **BOOT**, tap **RESET**, let go of BOOT, and try again
 - [ ] The weather shows (2.0: with the thermometer left of the pet, its band showing the day's low to high; classic: the town at the bottom left is right)
 - [ ] The clock shows the right time (it may take a minute after the first weather update)
 - [ ] 2.0: the tabs at the bottom switch pages (Today, Tomorrow, My Day, Routine). Classic: swipe left for the next three days, right to come back. **Touch in the wrong place?** See the README, "On the real board".
-- [ ] Hold a finger still for about a second on the page title (classic: 1.5 s on the greeting): Settings opens and shows the WiFi, town and version **1.8.4**
-- [ ] In Settings, tap **Update**: it should say "Up to date! (version 1.8.4)", then go back to the weather
+- [ ] Hold a finger still for about a second on the page title (classic: 1.5 s on the greeting): Settings opens and shows the WiFi, town and version **1.8.5**
+- [ ] In Settings, tap **Update**: it should say "Up to date! (version 1.8.5)", then go back to the weather
 - [ ] **Calendar:** put a test event in the family calendar for tomorrow, like "Kid test (outside)" (with your kid's name). On the board, open Settings and tap the refresh button. 2.0: it shows on the My Day tab. Classic: it shows in the bubble after 7 PM, or in the morning. To see what the board read, open Settings, tap **Setup**, and look under the calendar link: "Read at 7:15 PM: 240 events in the calendar, 3 coming up." Then tap Save (or just restart the board) to leave setup.
 - [ ] **Countdown:** add an all-day event a week or two out titled "Trip to Grandma's 🎉". 2.0: the My Day header shows "N more sleeps until Trip to Grandma's!"; classic: the bottom left does.
 - [ ] **Routine (2.0):** the Routine tab shows the morning list before noon and the bedtime list after, with a bar counting down to the times from setup. Tap a step: it ticks green.
@@ -73,7 +73,7 @@ Google's iCal feed can take a little while to show changes, and the board reads 
 
 ## 6. Day to day
 
-- **Screen off at night:** turn it on in Settings (2.0: the **Night** row, with the times) or on the setup page. Out of the box it's off; the times start at 8:30 PM to 7:30 AM, in half hours (off from 6:00 to 11:30 PM, on from 5:00 to 9:30 AM). A tap wakes it for a minute.
+- **Screen off at night:** on out of the box, 8:30 PM to 7:30 AM. Change it or turn it off in Settings (2.0: the **Night** row) or on the setup page. The times go in half hours (off from 6:00 to 11:30 PM, on from 5:00 to 9:30 AM). A tap wakes it for a minute.
 - **Dress-up days (2.0):** on a mild day, tap **Dress up?** next to the day to switch that day to the dress; tap again to switch back. Tag calendar events "(dress)" to plan ahead.
 - **Brightness (2.0):** it starts at 50 %. Settings has a slider; drag it and let go to keep it.
 - **The red lights on the side** are the board's power and battery-charger lights (PWR, CHG, DONE). They're wired to the hardware, so the firmware can't turn them off; a piece of electrical tape or a light-dimming sticker over them works.
@@ -89,7 +89,7 @@ USB is only for a fresh start or a rescue:
 | Files | Flash at | Settings |
 |---|---|---|
 | `weather-besties-vX.Y.Z.bin` | `0x0` | **Erased** (WiFi, town, events, calendar link). First install or a fresh start. |
-| The four files in `firmware/usb/README.txt` | their addresses | **Kept.** Also the way to move a board from 1.4.x (one app slot) to 1.8.4 without setting it up again. |
+| The four files in `firmware/usb/README.txt` | their addresses | **Kept.** Also the way to move a board from 1.4.x (one app slot) to 1.8.5 without setting it up again. |
 
 ## If something's wrong
 
