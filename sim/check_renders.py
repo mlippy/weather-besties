@@ -1948,6 +1948,18 @@ def main():
     for name in ("61_hold_today", "62_hold_myday", "63_hold_next_days"):
         n = count_where(Image.open(os.path.join(OUT, name + ".png")), (600, 364, 744, 412), is_pill_grey)
         check(n > 2000, f"{name}: a 1.5 s hold opened Settings ({n} pill px, need > 2000)")
+    # This fork's Night row in Settings (screen off at night): the switch is on (ink fill
+    # in the value column), and in 58b the hours list stands open above the "from" box,
+    # its picked hour in ink.
+    def is_ink(r, g, b):
+        return r < 50 and g < 55 and b < 90
+
+    img = Image.open(os.path.join(OUT, "58_dog_settings.png"))
+    n = count_where(img, (236, 324, 300, 358), is_ink)
+    check(n > 300, f"58_dog_settings: the Night switch is on ({n} ink px, need > 300)")
+    img = Image.open(os.path.join(OUT, "58b_dog_settings_night.png"))
+    n = count_where(img, (470, 60, 600, 320), is_ink)
+    check(n > 2000, f"58b_dog_settings_night: the hours list is open above the box ({n} ink px, need > 2000)")
     img = Image.open(os.path.join(OUT, "60_dog_myday.png"))
     n = count_where(img, (660, 0, 800, 150), is_dog_orange)   # the small header pet (Boris's iter-36)
     check(n > 250, f"60_dog_myday: the dog is in My Day's header ({n} orange px, need > 250)")

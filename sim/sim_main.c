@@ -403,6 +403,11 @@ static void sim_brightness_cb(int pct)
     printf("brightness saved: %d%%\n", pct);
 }
 
+static void sim_night_cb(bool on, int from_hour, int to_hour)
+{
+    printf("night saved: %s %d-%d\n", on ? "on" : "off", from_hour, to_hour);
+}
+
 /* A pretend finger, so the tests can hold the screen like a kid does (the board's
  * long-press time is 1.5 s, main/board.c). */
 static bool s_touch;
@@ -1041,9 +1046,13 @@ int main(int argc, char **argv)
     }
     ui_test_set_page(0);
     ui_set_brightness_cb(sim_brightness_cb);   /* the board's Settings: a Brightness slider */
+    ui_set_night_cb(sim_night_cb);             /* ... and the Night row */
+    ui_set_night(true, 21, 6);
     ui_set_brightness(100);
     ui_open_settings();
     save(out, "58_dog_settings");
+    v2_night_test_pick(20);   /* the hours list opens upward; 8 PM is picked and saved */
+    save(out, "58b_dog_settings_night");
     ui_close_settings();
     ui_set_brightness(40);   /* dimmed to 40 %: the dark layer over everything */
     load(sc, "brief_morning");

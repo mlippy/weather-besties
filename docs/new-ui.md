@@ -19,7 +19,7 @@ main/  (the controller)           components/wb_core/  (the logic)        compon
                 wb_action_t         countdown.c, dress.c, events.c ...
 ```
 
-- **`components/wb_core/wb_state.h`**: everything the screens can show, in one struct (`wb_state_t`): the names, the pet, brightness, routine times, outfit cut-offs, the forecast, alerts, special events, dress-up days, calendar status, and the grown-up info (WiFi, town, version, status line).
+- **`components/wb_core/wb_state.h`**: everything the screens can show, in one struct (`wb_state_t`): the names, the pet, brightness, screen off at night, routine times, outfit cut-offs, the forecast, alerts, special events, dress-up days, calendar status, and the grown-up info (WiFi, town, version, status line).
 - **`components/wb_ui/wb_ui.h`**: the contract. Seven functions and one callback:
 
 | Function | When the controller calls it |
@@ -42,6 +42,7 @@ main/  (the controller)           components/wb_core/  (the logic)        compon
 | `WB_ACT_SETUP` | | Starts the setup hotspot (WiFi, town, names...) |
 | `WB_ACT_SET_PET` | a `wb_pet_t` | Saves the pet choice, then sends a new state |
 | `WB_ACT_SET_BRIGHTNESS` | 30..100 | Saves it (dimming is the screens' job; the backlight is on/off only) |
+| `WB_ACT_SET_NIGHT` | `wb_night_pack(on, from, to)` | Saves screen-off-at-night and its hours (`night_off`, `off_from`, `off_to` in the state); the controller turns the screen off and on |
 
 - **`components/wb_core/`**: plain C (no LVGL, no ESP-IDF) that answers the questions a screen asks. Use it rather than re-deriving the rules, so every design agrees:
 

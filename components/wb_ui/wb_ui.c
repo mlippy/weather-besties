@@ -19,7 +19,7 @@ static void *s_user;
 /* The parts of the state the setters below compare: what the screens were last given.
  * Only these, not the whole ~4 KB state. */
 #define SEEN_FIELDS(X)                                                                             \
-    X(names) X(pet_name) X(pet) X(brightness) X(leave_min) X(bed_min) X(coat_f) X(jacket_f)      \
+    X(names) X(pet_name) X(pet) X(brightness) X(night_off) X(off_from) X(off_to) X(leave_min) X(bed_min) X(coat_f) X(jacket_f)      \
     X(hoodie_f) X(warm_pm_f) X(bike_bus_wday) X(ndress) X(dress_days) X(cal_configured)            \
     X(cal_reads) X(cal_fails)
 #define SEEN_DECL(f) __typeof__(((wb_state_t *)0)->f) f;
@@ -44,6 +44,13 @@ static void on_pet(int choice)
     }
 }
 
+static void on_night(bool on, int from_hour, int to_hour)
+{
+    if (s_cb) {
+        s_cb(WB_ACT_SET_NIGHT, wb_night_pack(on, from_hour, to_hour), s_user);
+    }
+}
+
 static void on_brightness(int pct)
 {
     if (s_cb) {
@@ -60,6 +67,7 @@ void wb_ui_start(wb_action_cb_t on_act, void *user, wb_clock_cb_t clock)
     ui_set_action_cb(on_action, NULL);
     ui_set_cat_cb(on_pet);
     ui_set_brightness_cb(on_brightness);   /* 2.0: the Brightness slider in Settings */
+    ui_set_night_cb(on_night);             /* 2.0: the Night row in Settings */
     ui_set_time_cb(clock);
     ui_set_dress_days(NULL, 0);            /* 2.0: the dress on dress-up days only */
 }
@@ -80,6 +88,9 @@ void wb_ui_update(const wb_state_t *st)
     }
     if (CHANGED(brightness)) {
         ui_set_brightness(st->brightness);
+    }
+    if (CHANGED(night_off) || CHANGED(off_from) || CHANGED(off_to)) {
+        ui_set_night(st->night_off, st->off_from, st->off_to);
     }
     if (CHANGED(leave_min) || CHANGED(bed_min)) {
         ui_set_routine_times(st->leave_min, st->bed_min);

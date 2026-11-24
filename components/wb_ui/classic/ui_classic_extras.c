@@ -56,6 +56,18 @@ void ui_set_brightness(int pct)
     (void)pct;   /* the classic screens keep full brightness */
 }
 
+void ui_set_night(bool on, int from_hour, int to_hour)
+{
+    (void)on;   /* the classic Settings doesn't show it; the setup page sets it */
+    (void)from_hour;
+    (void)to_hour;
+}
+
+void ui_set_night_cb(ui_night_cb_t cb)
+{
+    (void)cb;
+}
+
 void ui_set_brightness_cb(ui_brightness_cb_t cb)
 {
     (void)cb;

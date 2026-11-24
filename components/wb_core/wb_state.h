@@ -34,6 +34,8 @@ typedef struct {
     char pet_name[24];       /* the dog's name; "" shows "Dog" */
     wb_pet_t pet;
     int brightness;          /* 30..100 % */
+    bool night_off;          /* screen off at night (a tap wakes it) */
+    int off_from, off_to;    /* ... between these hours, local 0..23 */
     int leave_min, bed_min;  /* Routine page: leaving for school, bedtime (minutes after midnight) */
     int coat_f, jacket_f, hoodie_f;   /* outfit cut-offs, feels-like °F at departure; 0 = the engine's own */
     int warm_pm_f;           /* a warm afternoon makes a coat morning a light-jacket one; 0 = off */

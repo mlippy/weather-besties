@@ -1178,6 +1178,7 @@ static void build_settings(void)
     v2_raise(set_speed_pill);   /* this fork: the one button look */
     v2_update_pill_create(settings, 744, 364, fire);   /* this fork: update now (ui_v2_extras.c) */
     v2_brightness_attach(settings, set_speed_pill, 56, 364, 520);   /* this fork: Brightness, in Speed test's place */
+    v2_night_attach(settings, credit, set_val[4], 324);   /* this fork: screen off at night */
 
     /* The tools row (iter-11): one deliberate geometry for the three
      * actions. Equal widths are impossible honestly: "Change WiFi or

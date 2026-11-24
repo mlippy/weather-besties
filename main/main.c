@@ -84,6 +84,9 @@ static void state_from_settings(void)
     snprintf(s_state->pet_name, sizeof(s_state->pet_name), "%s", S.pet_name);
     s_state->pet = (wb_pet_t)S.cat;
     s_state->brightness = S.brightness;
+    s_state->night_off = S.night_off;
+    s_state->off_from = S.off_from;
+    s_state->off_to = S.off_to;
     s_state->leave_min = S.leave_min;
     s_state->bed_min = S.bed_min;
     s_state->coat_f = S.coat_f;
@@ -110,6 +113,15 @@ static void on_action(wb_action_t act, int value, void *user)
         S.brightness = (uint8_t)value;
         settings_save(&S);
         s_state->brightness = value;   /* the screen already shows it */
+        break;
+    case WB_ACT_SET_NIGHT:   /* the Night row in Settings; power_timer reads S, so it applies now */
+        S.night_off = wb_night_on(value);
+        S.off_from = (uint8_t)wb_night_from(value);
+        S.off_to = (uint8_t)wb_night_to(value);
+        settings_save(&S);
+        s_state->night_off = S.night_off;   /* the screen already shows it */
+        s_state->off_from = S.off_from;
+        s_state->off_to = S.off_to;
         break;
     default:
         net_ui_action(act);   /* Setup, Refresh, Update */

@@ -798,3 +798,144 @@ void ui_set_brightness_cb(ui_brightness_cb_t cb)
         lv_obj_add_flag(s_br_speed_pill, LV_OBJ_FLAG_HIDDEN);
     }
 }
+
+/* ------------------------------------------------------------------ screen off at night */
+
+/* Settings: "Night  [on/off]  off from [9 PM] to [6 AM]", the setup page's night hours,
+ * here so a grown-up can change them without the setup hotspot. */
+
+static lv_obj_t *s_nt_row, *s_nt_sw, *s_nt_from, *s_nt_to, *s_nt_credit, *s_nt_version;
+static ui_night_cb_t s_nt_cb;
+
+static void night_style(void)
+{
+    bool on = lv_obj_has_state(s_nt_sw, LV_STATE_CHECKED);
+    lv_obj_set_style_opa(s_nt_from, on ? LV_OPA_COVER : LV_OPA_50, 0);   /* the hours only count when on */
+    lv_obj_set_style_opa(s_nt_to, on ? LV_OPA_COVER : LV_OPA_50, 0);
+}
+
+static void on_night(lv_event_t *e)
+{
+    (void)e;
+    night_style();
+    if (s_nt_cb) {
+        s_nt_cb(lv_obj_has_state(s_nt_sw, LV_STATE_CHECKED), (int)lv_dropdown_get_selected(s_nt_from),
+                (int)lv_dropdown_get_selected(s_nt_to));
+    }
+}
+
+static lv_obj_t *night_hours(lv_obj_t *parent, int x)
+{
+    static char opts[24 * 6];
+    if (!opts[0]) {
+        size_t n = 0;
+        for (int h = 0; h < 24; h++) {
+            n += (size_t)snprintf(opts + n, sizeof(opts) - n, "%s%d %s", h ? "\n" : "", h % 12 ? h % 12 : 12,
+                                  h < 12 ? "AM" : "PM");
+        }
+    }
+    lv_obj_t *d = lv_dropdown_create(parent);
+    lv_dropdown_set_options_static(d, opts);
+    lv_dropdown_set_dir(d, LV_DIR_TOP);   /* the row sits near the bottom: the list opens upward */
+    lv_dropdown_set_symbol(d, NULL);
+    lv_obj_set_size(d, 104, 34);
+    lv_obj_set_pos(d, x, 0);
+    lv_obj_set_style_text_font(d, &font_small, 0);
+    lv_obj_set_style_text_color(d, lv_color_hex(0x1E2340), 0);
+    lv_obj_set_style_text_align(d, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_radius(d, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(d, lv_color_hex(0xEDF1F5), 0);
+    lv_obj_set_style_border_width(d, 0, 0);
+    lv_obj_set_style_pad_ver(d, 4, 0);
+    lv_obj_t *list = lv_dropdown_get_list(d);
+    lv_obj_set_style_text_font(list, &font_small, 0);
+    lv_obj_set_style_max_height(list, 260, 0);
+    lv_obj_set_style_radius(list, 14, 0);
+    lv_obj_set_style_border_color(list, lv_color_hex(0xC9C3D6), 0);
+    lv_obj_set_style_bg_color(list, lv_color_hex(0x1E2340), LV_PART_SELECTED | LV_STATE_CHECKED);   /* the ink */
+    lv_obj_set_style_bg_color(list, lv_color_hex(0x545A72), LV_PART_SELECTED | LV_STATE_PRESSED);
+    lv_obj_add_event_cb(d, on_night, LV_EVENT_VALUE_CHANGED, NULL);
+    v2_raise(d);
+    return d;
+}
+
+/* A grey word in the row at x; returns its width. */
+static int night_word(lv_obj_t *parent, const char *txt, int x)
+{
+    lv_obj_t *l = lv_label_create(parent);
+    lv_obj_set_style_text_font(l, &font_small, 0);
+    lv_obj_set_style_text_color(l, lv_color_hex(0x545A72), 0);
+    lv_label_set_text(l, txt);
+    lv_obj_align(l, LV_ALIGN_LEFT_MID, x, 0);
+    lv_point_t sz;
+    lv_text_get_size(&sz, txt, &font_small, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+    return sz.x;
+}
+
+void v2_night_attach(lv_obj_t *settings, lv_obj_t *credit, lv_obj_t *version_val, int y)
+{
+    s_nt_credit = credit;
+    s_nt_version = version_val;
+    s_nt_row = lv_obj_create(settings);
+    lv_obj_remove_style_all(s_nt_row);
+    lv_obj_remove_flag(s_nt_row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_pos(s_nt_row, 56, y);
+    lv_obj_set_size(s_nt_row, 688, 34);
+    lv_obj_t *k = lv_label_create(s_nt_row);   /* in the info table's label column */
+    lv_obj_set_style_text_font(k, &font_body, 0);
+    lv_obj_set_style_text_color(k, lv_color_hex(0x1E2340), 0);
+    lv_label_set_text(k, "Night");
+    lv_obj_align(k, LV_ALIGN_LEFT_MID, 0, 0);
+    s_nt_sw = lv_switch_create(s_nt_row);   /* in the value column (x 240 on the page) */
+    lv_obj_set_size(s_nt_sw, 58, 30);
+    lv_obj_align(s_nt_sw, LV_ALIGN_LEFT_MID, 184, 0);
+    lv_obj_set_style_bg_color(s_nt_sw, lv_color_hex(0x1E2340), LV_PART_INDICATOR | LV_STATE_CHECKED);
+    lv_obj_add_event_cb(s_nt_sw, on_night, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_set_ext_click_area(s_nt_sw, 8);
+    int x = 256;
+    x += night_word(s_nt_row, "Screen off from", x) + 10;
+    s_nt_from = night_hours(s_nt_row, x);
+    x += 104 + 10;
+    x += night_word(s_nt_row, "to", x) + 10;
+    s_nt_to = night_hours(s_nt_row, x);
+    ui_set_night(false, 21, 6);
+    lv_obj_add_flag(s_nt_row, LV_OBJ_FLAG_HIDDEN);   /* until the board asks for it */
+}
+
+void ui_set_night(bool on, int from_hour, int to_hour)
+{
+    if (!s_nt_row) {
+        return;
+    }
+    if (on) {   /* set quietly: LVGL sends no VALUE_CHANGED for these */
+        lv_obj_add_state(s_nt_sw, LV_STATE_CHECKED);
+    } else {
+        lv_obj_remove_state(s_nt_sw, LV_STATE_CHECKED);
+    }
+    lv_dropdown_set_selected(s_nt_from, (uint32_t)(from_hour % 24));
+    lv_dropdown_set_selected(s_nt_to, (uint32_t)(to_hour % 24));
+    night_style();
+}
+
+#ifdef WB_SIM
+/* Opens the "from" hours list and picks hour h in it, as a finger would. */
+void v2_night_test_pick(int h)
+{
+    lv_dropdown_open(s_nt_from);
+    lv_dropdown_set_selected(s_nt_from, (uint32_t)h);
+    lv_obj_send_event(s_nt_from, LV_EVENT_VALUE_CHANGED, NULL);
+}
+#endif
+
+void ui_set_night_cb(ui_night_cb_t cb)
+{
+    s_nt_cb = cb;
+    if (s_nt_row) {   /* the row takes the weather credit's line; the credit joins Version's */
+        lv_obj_remove_flag(s_nt_row, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_width(s_nt_version, 200);
+        lv_label_set_text(s_nt_credit, "Weather by Open-Meteo.com");
+        lv_obj_set_style_text_align(s_nt_credit, LV_TEXT_ALIGN_RIGHT, 0);
+        lv_obj_set_width(s_nt_credit, 300);
+        lv_obj_set_pos(s_nt_credit, 744 - 300, lv_obj_get_style_y(s_nt_version, 0) + 4);
+    }
+}

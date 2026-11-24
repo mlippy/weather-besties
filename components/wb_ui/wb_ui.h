@@ -28,9 +28,19 @@ typedef enum {
     WB_ACT_UPDATE,           /* check for a firmware update now */
     WB_ACT_SET_PET,          /* value: a wb_pet_t; save it */
     WB_ACT_SET_BRIGHTNESS,   /* value: 30..100; save it (the screen already shows it) */
+    WB_ACT_SET_NIGHT,        /* value: wb_night_pack(); save it (the screen already shows it) */
 } wb_action_t;
 
 typedef void (*wb_action_cb_t)(wb_action_t act, int value, void *user);
+
+/* WB_ACT_SET_NIGHT's value: screen off at night on/off and its hours, in one int. */
+static inline int wb_night_pack(bool on, int from_hour, int to_hour)
+{
+    return (on ? 1 << 16 : 0) | (from_hour % 24) << 8 | (to_hour % 24);
+}
+static inline bool wb_night_on(int v) { return (v >> 16) & 1; }
+static inline int wb_night_from(int v) { return (v >> 8) & 0xFF; }
+static inline int wb_night_to(int v) { return v & 0xFF; }
 
 /* Fills local time; returns false while the clock isn't set yet. */
 typedef bool (*wb_clock_cb_t)(struct tm *local_out);
